@@ -1,0 +1,31 @@
+{
+  "name": "lemonsqueezer-backend",
+  "version": "1.0.0",
+  "description": "Backend Lambda per LemonSqueezer - TL;DR extension",
+  "type": "module",
+  "main": "lambda/handler.mjs",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "build": "npm install --production",
+    "deploy": "sam deploy --guided",
+    "local": "sam local start-api",
+    "dev": "nodemon lambda/handler.mjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.450.0",
+    "@aws-sdk/lib-dynamodb": "^3.450.0",
+    "openai": "^4.20.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  },
+  "keywords": [
+    "aws",
+    "lambda",
+    "openai",
+    "summarization",
+    "extension"
+  ],
+  "author": "Davide Patrucco",
+  "license": "MIT"
+}
