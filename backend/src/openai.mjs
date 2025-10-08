@@ -1,30 +1,57 @@
 // openai.mjs - Modulo per l'integrazione con OpenAI
 import OpenAI from 'openai';
+import { getSecretsManager } from './secrets.mjs';
 
-// Inizializza client OpenAI
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-});
+// Client OpenAI lazy: non crearlo all'import per permettere i test che rimuovono la variabile
+let openai = null;
+let isInitialized = false;
+
+async function getOpenAIClient() {
+    if (openai && isInitialized) return openai;
+    
+    // Se è ambiente di test/locale, usa variabile d'ambiente
+    if (process.env.NODE_ENV === 'test' || process.env.IS_LOCAL) {
+        const apiKey = process.env.OPENAI_API_KEY;
+        if (!apiKey) {
+            throw new Error('OPENAI_API_KEY non configurato');
+        }
+        openai = new OpenAI({ apiKey });
+        return openai;
+    }
+    
+    // Altrimenti usa secrets manager
+    const secretsManager = getSecretsManager();
+    await secretsManager.initialize();
+    
+    const apiKey = secretsManager.openaiApiKey;
+    if (!apiKey) {
+        throw new Error('OPENAI_API_KEY non configurato');
+    }
+    
+    openai = new OpenAI({ apiKey });
+    isInitialized = true;
+    return openai;
+}
 
 // Prompt template per le diverse lingue
 const PROMPTS = {
     it: `Sei un esperto riassuntore. Il tuo compito è creare un riassunto molto conciso di qualsiasi contenuto web.
 
 REGOLE FONDAMENTALI:
-- Crea ESATTAMENTE 3-4 bullet points
-- Ogni bullet deve essere massimo 25-30 parole
+- Crea un summary (200 parole) + 3-4 bullet points
+- Ogni bullet deve essere massimo 50-100 parole
 - Usa un linguaggio chiaro e diretto
-- Concentrati sui punti più importanti e informativi
+- Concentrati sui punti più importanti e informativi, evita contenuti marginali e bait
 - Evita ripetizioni
-- Non includere dettagli marginali o promozionali
+- Non includere dettagli marginali o promozionali, pubblicitari
 
 Restituisci SOLO i bullet points, uno per riga, preceduti da "• ".`,
 
     en: `You are an expert summarizer. Your task is to create a very concise summary of any web content.
 
-FUNDAMENTAL RULES:
-- Create EXACTLY 3-4 bullet points
-- Each bullet must be maximum 25-30 words
+REGOLE FONDAMENTALI:
+- Summarize (200 word) + 3-4 bullet points
+- Every bullet must be maximum 50-100 words
 - Use clear and direct language
 - Focus on the most important and informative points
 - Avoid repetitions
@@ -84,59 +111,80 @@ Riassumi questo contenuto seguendo le regole specificate.`;
     return { systemPrompt, userPrompt };
 }
 
-// Funzione per parsare la risposta e estrarre i bullet points
-function parseBulletPoints(response) {
-    const text = response.trim();
+// Funzione per calcolare statistiche di lettura
+function calculateReadingStats(originalText, summaryText) {
+    // Velocità di lettura media: 200-250 parole al minuto (useremo 220)
+    const wordsPerMinute = 220;
+    const wordsPerSecond = wordsPerMinute / 60;
     
-    // Estrai i bullet points
-    const bullets = text
-        .split('\n')
-        .map(line => line.trim())
-        .filter(line => line.length > 0)
-        .map(line => {
-            // Rimuovi i marker dei bullet points se presenti
-            return line.replace(/^[•\-\*\+]\s*/, '').trim();
-        })
-        .filter(line => line.length > 10); // Filtra righe troppo corte
+    // Conta le parole (approssimativo ma efficace)
+    const countWords = (text) => {
+        return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+    };
     
-    // Assicurati di avere 3-4 bullet points
-    if (bullets.length < 3) {
-        throw new Error('La risposta dell\'AI non contiene abbastanza punti validi');
-    }
+    const originalWords = countWords(originalText);
+    const summaryWords = countWords(summaryText);
     
-    // Prendi solo i primi 4 se ce ne sono di più
-    const finalBullets = bullets.slice(0, 4);
+    const originalReadingTime = Math.round(originalWords / wordsPerSecond);
+    const summaryReadingTime = Math.round(summaryWords / wordsPerSecond);
+    const timeSaved = originalReadingTime - summaryReadingTime;
     
     return {
-        summary: finalBullets.join('\n'),
-        bullets: finalBullets
+        originalWords,
+        summaryWords,
+        originalReadingTime, // in secondi
+        summaryReadingTime, // in secondi
+        timeSaved, // in secondi
+        compressionRatio: Math.round((1 - summaryWords / originalWords) * 100) // percentuale
     };
+}
+
+// Funzione per formattare il tempo in modo leggibile
+function formatTime(seconds) {
+    if (seconds < 60) {
+        return `${seconds} secondi`;
+    } else if (seconds < 3600) {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        if (remainingSeconds === 0) {
+            return `${minutes} ${minutes === 1 ? 'minuto' : 'minuti'}`;
+        } else {
+            return `${minutes}m ${remainingSeconds}s`;
+        }
+    } else {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        return `${hours}h ${minutes}m`;
+    }
 }
 
 // Funzione principale per il riassunto con OpenAI
 export async function summarizeWithOpenAI(content) {
+    const startTime = Date.now();
+    console.log('🤖 [TIMING] OpenAI function started');
+    
     try {
         // Valida input
         if (!content.text || content.text.length < 50) {
             throw new Error('Contenuto troppo breve per essere riassunto');
         }
         
-        if (!process.env.OPENAI_API_KEY) {
-            throw new Error('OPENAI_API_KEY non configurato');
-        }
-        
+        const promptStartTime = Date.now();
         const { systemPrompt, userPrompt } = createPrompt(content, content.language);
+        console.log('⚡ [TIMING] Prompt creation took:', Date.now() - promptStartTime, 'ms');
         
-        console.log('Calling OpenAI with:', {
-            model: 'gpt-4o-mini',
+        console.log('🚀 [TIMING] Calling OpenAI with:', {
+            model: 'gpt-5-nano',
             language: content.language,
             contentLength: content.text.length,
             url: content.url
         });
         
+        const apiCallStartTime = Date.now();
         // Chiamata a OpenAI
-        const completion = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
+        const client = await getOpenAIClient();
+        const completion = await client.chat.completions.create({
+            model: 'gpt-5-nano',
             messages: [
                 {
                     role: 'system',
@@ -147,12 +195,19 @@ export async function summarizeWithOpenAI(content) {
                     content: userPrompt
                 }
             ],
-            max_tokens: 300,
-            temperature: 0.3,
-            timeout: 15000 // 15 secondi timeout
+            max_completion_tokens: 3000,
+            reasoning_effort: "low"
         });
+        const apiCallTime = Date.now() - apiCallStartTime;
+        console.log('⚡ [TIMING] OpenAI API call took:', apiCallTime, 'ms');
+        
+        console.log('Full OpenAI completion:', JSON.stringify(completion, null, 2));
         
         const response = completion.choices[0]?.message?.content;
+        
+        console.log('Extracted response:', response);
+        console.log('Choices length:', completion.choices?.length);
+        console.log('First choice:', completion.choices?.[0]);
         
         if (!response) {
             throw new Error('Risposta vuota da OpenAI');
@@ -160,13 +215,40 @@ export async function summarizeWithOpenAI(content) {
         
         console.log('OpenAI response:', response);
         
-        // Parsa la risposta
-        const result = parseBulletPoints(response);
+        if (!response) {
+            throw new Error('Risposta vuota da OpenAI');
+        }
+        
+        // Calcola statistiche di lettura
+        const statsStartTime = Date.now();
+        const stats = calculateReadingStats(content.text, response);
+        console.log('⚡ [TIMING] Stats calculation took:', Date.now() - statsStartTime, 'ms');
+        
+        // Restituisce direttamente il testo di OpenAI con le statistiche
+        const result = {
+            text: response,
+            readingTimeMinutes: Math.ceil(stats.summaryReadingTime / 60),
+            wordsCount: stats.summaryWords,
+            stats: {
+                originalWords: stats.originalWords,
+                summaryWords: stats.summaryWords,
+                timeSaved: stats.timeSaved,
+                compressionRatio: stats.compressionRatio,
+                originalReadingTime: formatTime(stats.originalReadingTime),
+                summaryReadingTime: formatTime(stats.summaryReadingTime)
+            }
+        };
+        
+        const totalOpenAITime = Date.now() - startTime;
+        console.log('🏁 [TIMING] Total OpenAI function time:', totalOpenAITime, 'ms');
         
         // Log del risultato (senza contenuto per privacy)
-        console.log('Parsed result:', {
-            bulletsCount: result.bullets.length,
-            avgBulletLength: result.bullets.reduce((sum, b) => sum + b.length, 0) / result.bullets.length
+        console.log('✅ [TIMING] Summary generated:', {
+            url: content.url,
+            title: content.title,
+            language: content.language,
+            textLength: content.text.length,
+            summaryBullets: result.text.split('•').length - 1
         });
         
         return result;
@@ -198,7 +280,8 @@ export async function summarizeWithOpenAI(content) {
 // Funzione per testare la connessione a OpenAI
 export async function testOpenAIConnection() {
     try {
-        const response = await openai.models.list();
+        const client = await getOpenAIClient();
+        const response = await client.models.list();
         return {
             success: true,
             models: response.data.length,

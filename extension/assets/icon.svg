@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="lemonGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFE135"/>
+      <stop offset="100%" stop-color="#FFA500"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Corpo del limone -->
+  <ellipse cx="64" cy="70" rx="35" ry="45" fill="url(#lemonGradient)" stroke="#E6A500" stroke-width="2"/>
+  
+  <!-- Foglietta -->
+  <ellipse cx="64" cy="25" rx="8" ry="15" fill="#4CAF50" stroke="#2E7D32" stroke-width="1"/>
+  
+  <!-- Riflesso -->
+  <ellipse cx="55" cy="55" rx="8" ry="12" fill="#FFFF80" opacity="0.7"/>
+  
+  <!-- Testo TL;DR -->
+  <text x="64" y="105" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#333">TL;DR</text>
+</svg>

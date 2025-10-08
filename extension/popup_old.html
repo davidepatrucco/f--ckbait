@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LemonSqueezer - TL;DR</title>
+    <style>
+        body {
+            width: 350px;
+            padding: 20px;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        
+        .header p {
+            margin: 5px 0 0 0;
+            opacity: 0.8;
+            font-size: 14px;
+        }
+        
+        .config-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .config-section h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+        }
+        
+        .input-group {
+            margin-bottom: 10px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+            opacity: 0.9;
+        }
+        
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 8px;
+            border: none;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        
+        .button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            background: #4CAF50;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .button:hover:not(:disabled) {
+            background: #45a049;
+        }
+        
+        .button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        
+        .button.secondary {
+            background: rgba(255, 255, 255, 0.2);
+            margin-top: 10px;
+        }
+        
+        .button.secondary:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .result {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .result h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+        }
+        
+        .result ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        
+        .result li {
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+        
+        .stats-section {
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            font-size: 12px;
+            opacity: 0.9;
+            text-align: center;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+        
+        .loading .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            background: rgba(244, 67, 54, 0.2);
+            border: 1px solid rgba(244, 67, 54, 0.5);
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 14px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🍋 LemonSqueezer</h1>
+        <p>TL;DR di qualsiasi pagina</p>
+    </div>
+    
+    <div class="config-section">
+        <h3>🌍 Lingua riassunto</h3>
+        <div class="input-group">
+            <label for="language">Lingua output:</label>
+            <select id="language">
+                <option value="it">Italiano</option>
+                <option value="en">English</option>
+                <option value="es">Español</option>
+                <option value="fr">Français</option>
+                <option value="de">Deutsch</option>
+            </select>
+        </div>
+    </div>
+    
+    <button id="summarizeBtn" class="button">
+        🎯 Riassumi questa pagina
+    </button>
+    
+    <button id="copyBtn" class="button secondary" style="display: none;">
+        📋 Copia negli appunti
+    </button>
+    
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <p>Sto analizzando la pagina...</p>
+    </div>
+    
+    <div id="result" class="result">
+        <h3>📝 Riassunto:</h3>
+        <ul id="bulletList"></ul>
+        <div id="statsSection" class="stats-section">
+            <p id="statsText"></p>
+        </div>
+    </div>
+    
+    <div id="error" class="error"></div>
+    
+    <script src="popup.js"></script>
+</body>
+</html>

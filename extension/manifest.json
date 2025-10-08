@@ -5,7 +5,11 @@
   "description": "Riassumi qualsiasi pagina web in 3-4 bullet points secchi",
   "permissions": [
     "activeTab",
-    "storage"
+    "storage",
+    "scripting",
+    "contextMenus",
+    "notifications",
+    "identity"
   ],
   "host_permissions": [
     "http://*/*",
@@ -34,5 +38,12 @@
       "js": ["content.js"],
       "run_at": "document_idle"
     }
-  ]
+  ],
+  "oauth2": {
+    "client_id": "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/userinfo.email",
+      "https://www.googleapis.com/auth/userinfo.profile"
+    ]
+  }
 }

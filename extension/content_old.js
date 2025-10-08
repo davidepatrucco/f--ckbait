@@ -11,8 +11,7 @@
         
         if (html.length === 0) return 0;
         
-        const links = element.querySelectorAll('a');
-        const linkLength = Array.from(links)
+        const linkLength = (element.querySelectorAll('a') || [])
             .reduce((sum, link) => sum + (link.textContent || '').length, 0);
         
         const textLength = text.length;
@@ -173,16 +172,6 @@
             return;
         }
         
-        if (request.action === 'showLoginModal') {
-            try {
-                showLoginModal(request.data);
-                sendResponse({ success: true });
-            } catch (error) {
-                sendResponse({ success: false, error: error.message });
-            }
-            return;
-        }
-        
         if (request.action === 'updateModalWithResult') {
             try {
                 updateModalWithResult(request.data);
@@ -251,103 +240,16 @@
         setupModalEventListeners(modal);
     }
     
-    // Funzione per mostrare la modale di login
-    function showLoginModal(data) {
-        // Rimuovi modal esistenti
-        const existingModal = document.getElementById('lemonsqueezer-modal');
-        if (existingModal) {
-            existingModal.remove();
-        }
-        
-        // Crea il modal di login
-        const modal = document.createElement('div');
-        modal.id = 'lemonsqueezer-modal';
-        modal.innerHTML = getModalStyles() + `
-            <div class="lemonsqueezer-modal-overlay">
-                <div class="lemonsqueezer-modal-content">
-                    <div class="lemonsqueezer-modal-header">
-                        <h3>🍋 LemonSqueezer - TL;DR</h3>
-                        <button class="lemonsqueezer-modal-close">&times;</button>
-                    </div>
-                    <div class="lemonsqueezer-modal-body" id="lemonsqueezer-modal-body">
-                        <div class="lemonsqueezer-login">
-                            <div class="lemonsqueezer-login-icon">🔐</div>
-                            <div class="lemonsqueezer-login-title">Accesso richiesto</div>
-                            <div class="lemonsqueezer-login-message">
-                                Per riassumere questo link devi effettuare l'accesso.<br>
-                                Apri l'estensione per effettuare il login.
-                            </div>
-                            <div class="lemonsqueezer-url-preview">${data.url}</div>
-                            <button class="lemonsqueezer-btn-primary" onclick="chrome.runtime.openOptionsPage ? chrome.runtime.openOptionsPage() : window.open(chrome.runtime.getURL('popup.html'))">
-                                🚀 Apri Estensione
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-        
-        // Event listeners
-        setupModalEventListeners(modal);
-    }
-    
     // Funzione per aggiornare la modale con il risultato
     function updateModalWithResult(data) {
         const modalBody = document.getElementById('lemonsqueezer-modal-body');
         if (!modalBody) return;
         
-        // Calcola tempo risparmiato: (parole originali - parole squeezate) / 220 parole/minuto
-        const originalWordsCount = data.stats?.originalWords || 0;
-        const summaryWordsCount = data.stats?.summaryWords || data.wordsCount || 0;
-        
-        console.log('DEBUG tempo risparmiato:', { 
-            originalWordsCount, 
-            summaryWordsCount,
-            stats: data.stats 
-        });
-        
-        // Parole risparmiate
-        const wordsSaved = Math.max(0, originalWordsCount - summaryWordsCount);
-        // Tempo risparmiato in minuti (220 parole/minuto)
-        const timeSavedMinutes = wordsSaved / 220;
-        
-        console.log('DEBUG calcolo:', { wordsSaved, timeSavedMinutes });
-        
-        // Formatta il tempo risparmiato in minuti e secondi
-        let timeSavedText = '';
-        if (timeSavedMinutes >= 1) {
-            const minutes = Math.floor(timeSavedMinutes);
-            const seconds = Math.round((timeSavedMinutes - minutes) * 60);
-            if (seconds > 0) {
-                timeSavedText = `Hai risparmiato ${minutes}m ${seconds}s!`;
-            } else {
-                timeSavedText = `Hai risparmiato ${minutes} min!`;
-            }
-        } else {
-            const totalSeconds = Math.max(1, Math.round(timeSavedMinutes * 60));
-            timeSavedText = `Hai risparmiato ${totalSeconds} sec!`;
-        }
-        
-        console.log('DEBUG risultato:', timeSavedText);
-        
         modalBody.innerHTML = `
             <div class="lemonsqueezer-summary-meta">
                 <strong>${data.title || 'Riassunto'}</strong>
                 <div class="lemonsqueezer-stats">
-                    <div class="lemonsqueezer-stat-item">
-                        <span class="lemonsqueezer-stat-icon">📖</span>
-                        <span class="lemonsqueezer-stat-text">${data.stats?.readingTime || 'N/A'} min di lettura</span>
-                    </div>
-                    <div class="lemonsqueezer-stat-item">
-                        <span class="lemonsqueezer-stat-icon">✏️</span>
-                        <span class="lemonsqueezer-stat-text">${data.stats?.summaryWords || data.wordsCount || 'N/A'} parole</span>
-                    </div>
-                    <div class="lemonsqueezer-stat-item lemonsqueezer-stat-highlight">
-                        <span class="lemonsqueezer-stat-icon">⚡</span>
-                        <span class="lemonsqueezer-stat-text">${timeSavedText}</span>
-                    </div>
+                    📖 ${data.readingTime || 'N/A'} min • ${data.wordsCount || 'N/A'} parole
                 </div>
                 <div class="lemonsqueezer-url">
                     <a href="${data.originalUrl}" target="_blank">${data.originalUrl}</a>
@@ -535,50 +437,13 @@
                 font-size: 16px;
                 color: #333;
                 display: block;
-                margin-bottom: 12px;
-                line-height: 1.3;
+                margin-bottom: 8px;
             }
             
             .lemonsqueezer-stats {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 12px;
-                margin-bottom: 10px;
-            }
-            
-            .lemonsqueezer-stat-item {
-                display: flex;
-                align-items: center;
-                gap: 6px;
-                background: #f8f9fa;
-                border: 1px solid #e9ecef;
-                border-radius: 6px;
-                padding: 6px 10px;
-                font-size: 13px;
-                color: #495057;
-            }
-            
-            .lemonsqueezer-stat-highlight {
-                background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-                border-color: #28a745;
-                color: white;
-                font-weight: 600;
-                animation: pulse 2s infinite;
-            }
-            
-            @keyframes pulse {
-                0% { transform: scale(1); }
-                50% { transform: scale(1.02); }
-                100% { transform: scale(1); }
-            }
-            
-            .lemonsqueezer-stat-icon {
+                color: #666;
                 font-size: 14px;
-            }
-            
-            .lemonsqueezer-stat-text {
-                font-size: 13px;
-                line-height: 1;
+                margin-bottom: 8px;
             }
             
             .lemonsqueezer-url {
@@ -589,7 +454,6 @@
                 color: #0066cc;
                 text-decoration: none;
                 word-break: break-all;
-                line-height: 1.3;
             }
             
             .lemonsqueezer-summary-content {
@@ -631,31 +495,6 @@
             
             .lemonsqueezer-btn-secondary:hover {
                 background: #e5e5e5;
-            }
-            
-            /* Login modal styles */
-            .lemonsqueezer-login {
-                text-align: center;
-                padding: 40px 20px;
-            }
-            
-            .lemonsqueezer-login-icon {
-                font-size: 48px;
-                margin-bottom: 16px;
-            }
-            
-            .lemonsqueezer-login-title {
-                font-size: 18px;
-                font-weight: 600;
-                color: #333;
-                margin-bottom: 12px;
-            }
-            
-            .lemonsqueezer-login-message {
-                font-size: 14px;
-                color: #666;
-                margin-bottom: 20px;
-                line-height: 1.4;
             }
             </style>
         `;
@@ -708,21 +547,229 @@
         }
     }
     
-    // Funzione per mostrare il modal con il riassunto (backward compatibility)
+    // Funzione per mostrare il modal con il riassunto
     function showSummaryModal(data) {
+    }
         // Rimuovi modal esistenti
         const existingModal = document.getElementById('lemonsqueezer-modal');
         if (existingModal) {
             existingModal.remove();
         }
         
-        // Prima mostra il loading
-        showLoadingModal({ url: data.originalUrl });
+        // Crea il modal
+        const modal = document.createElement('div');
+        modal.id = 'lemonsqueezer-modal';
+        modal.innerHTML = `
+            <div class="lemonsqueezer-modal-overlay">
+                <div class="lemonsqueezer-modal-content">
+                    <div class="lemonsqueezer-modal-header">
+                        <h3>🍋 LemonSqueezer - TL;DR</h3>
+                        <button class="lemonsqueezer-modal-close">&times;</button>
+                    </div>
+                    <div class="lemonsqueezer-modal-body">
+                        <div class="lemonsqueezer-summary-meta">
+                            <strong>${data.title}</strong>
+                            <div class="lemonsqueezer-stats">
+                                📖 ${data.readingTime} min • ${data.wordsCount} parole
+                            </div>
+                            <div class="lemonsqueezer-url">
+                                <a href="${data.originalUrl}" target="_blank">${data.originalUrl}</a>
+                            </div>
+                        </div>
+                        <div class="lemonsqueezer-summary-content">
+                            ${data.summary.replace(/\n/g, '<br>')}
+                        </div>
+                    </div>
+                    <div class="lemonsqueezer-modal-footer">
+                        <button class="lemonsqueezer-btn-secondary" id="lemonsqueezer-copy-summary">📋 Copia</button>
+                        <button class="lemonsqueezer-btn-primary" id="lemonsqueezer-open-link">🔗 Apri Link</button>
+                    </div>
+                </div>
+            </div>
+        `;
         
-        // Poi aggiorna con i dati
-        setTimeout(() => {
-            updateModalWithResult(data);
-        }, 100);
+        // Aggiungi gli stili
+        const styles = `
+            <style>
+            #lemonsqueezer-modal {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                z-index: 999999;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            }
+            
+            .lemonsqueezer-modal-overlay {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.7);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                padding: 20px;
+            }
+            
+            .lemonsqueezer-modal-content {
+                background: white;
+                border-radius: 12px;
+                max-width: 600px;
+                width: 100%;
+                max-height: 80vh;
+                overflow-y: auto;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            }
+            
+            .lemonsqueezer-modal-header {
+                padding: 20px 20px 15px;
+                border-bottom: 1px solid #e5e5e5;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            
+            .lemonsqueezer-modal-header h3 {
+                margin: 0;
+                font-size: 18px;
+                color: #333;
+            }
+            
+            .lemonsqueezer-modal-close {
+                background: none;
+                border: none;
+                font-size: 24px;
+                cursor: pointer;
+                color: #666;
+                padding: 0;
+                width: 30px;
+                height: 30px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            .lemonsqueezer-modal-close:hover {
+                background: #f5f5f5;
+                color: #333;
+            }
+            
+            .lemonsqueezer-modal-body {
+                padding: 20px;
+            }
+            
+            .lemonsqueezer-summary-meta {
+                margin-bottom: 20px;
+                padding-bottom: 15px;
+                border-bottom: 1px solid #e5e5e5;
+            }
+            
+            .lemonsqueezer-summary-meta strong {
+                font-size: 16px;
+                color: #333;
+                display: block;
+                margin-bottom: 8px;
+            }
+            
+            .lemonsqueezer-stats {
+                color: #666;
+                font-size: 14px;
+                margin-bottom: 8px;
+            }
+            
+            .lemonsqueezer-url {
+                font-size: 12px;
+            }
+            
+            .lemonsqueezer-url a {
+                color: #0066cc;
+                text-decoration: none;
+                word-break: break-all;
+            }
+            
+            .lemonsqueezer-summary-content {
+                line-height: 1.6;
+                color: #333;
+                font-size: 15px;
+            }
+            
+            .lemonsqueezer-modal-footer {
+                padding: 15px 20px 20px;
+                display: flex;
+                gap: 10px;
+                justify-content: flex-end;
+            }
+            
+            .lemonsqueezer-btn-primary,
+            .lemonsqueezer-btn-secondary {
+                padding: 10px 16px;
+                border-radius: 6px;
+                border: none;
+                cursor: pointer;
+                font-size: 14px;
+                font-weight: 500;
+            }
+            
+            .lemonsqueezer-btn-primary {
+                background: #007AFF;
+                color: white;
+            }
+            
+            .lemonsqueezer-btn-primary:hover {
+                background: #005ce6;
+            }
+            
+            .lemonsqueezer-btn-secondary {
+                background: #f5f5f5;
+                color: #333;
+            }
+            
+            .lemonsqueezer-btn-secondary:hover {
+                background: #e5e5e5;
+            }
+            </style>
+        `;
+        
+        modal.innerHTML = styles + modal.innerHTML;
+        document.body.appendChild(modal);
+        
+        // Event listeners
+        modal.querySelector('.lemonsqueezer-modal-close').addEventListener('click', () => {
+            modal.remove();
+        });
+        
+        modal.querySelector('.lemonsqueezer-modal-overlay').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) {
+                modal.remove();
+            }
+        });
+        
+        modal.querySelector('#lemonsqueezer-copy-summary').addEventListener('click', () => {
+            navigator.clipboard.writeText(data.summary).then(() => {
+                const btn = modal.querySelector('#lemonsqueezer-copy-summary');
+                const originalText = btn.textContent;
+                btn.textContent = '✅ Copiato!';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 2000);
+            });
+        });
+        
+        modal.querySelector('#lemonsqueezer-open-link').addEventListener('click', () => {
+            window.open(data.originalUrl, '_blank');
+            modal.remove();
+        });
+        
+        // Chiudi con ESC
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && document.getElementById('lemonsqueezer-modal')) {
+                modal.remove();
+            }
+        }, { once: true });
     }
     
 })();

@@ -1,0 +1,233 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'LemonSqueezer - Infrastructure semplificata (senza DynamoDB per test)'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: 'dev'
+    AllowedValues: ['dev', 'staging', 'prod']
+    Description: Environment name
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+    Runtime: nodejs20.x
+    Architectures:
+      - x86_64
+    Environment:
+      Variables:
+        ENVIRONMENT: !Ref Environment
+        PARAMETER_STORE_PREFIX: !Sub '/lemonsqueezer/${Environment}'
+        USERS_TABLE_NAME: !Ref UsersTable
+        SUBSCRIPTIONS_TABLE_NAME: !Ref SubscriptionsTable
+        PAYMENTS_TABLE_NAME: !Ref PaymentsTable
+        CACHE_TABLE_NAME: !Ref CacheTable
+        RATE_LIMIT_TABLE_NAME: !Ref RateLimitTable
+        ANALYTICS_TABLE_NAME: !Ref AnalyticsTable
+
+Resources:
+  # API Gateway
+  LemonSqueezerAPI:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref Environment
+      Cors:
+        AllowMethods: "'GET,POST,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-api-key'"
+        AllowOrigin: "'*'"
+
+  # Lambda Function
+  SummarizeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'lemonsqueezer-summarize-${Environment}'
+      CodeUri: ../backend/
+      Handler: lambda/handler.handler
+      Description: 'Main Lambda function for page summarization'
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SubscriptionsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PaymentsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref CacheTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RateLimitTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AnalyticsTable
+        - SSMParameterReadPolicy:
+            ParameterName: !Sub 'lemonsqueezer/${Environment}/*'
+      Events:
+        SummarizeAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LemonSqueezerAPI
+            Path: /summarize
+            Method: POST
+        SummarizeUrlAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LemonSqueezerAPI
+            Path: /summarize-url
+            Method: POST
+        HealthAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LemonSqueezerAPI
+            Path: /health
+            Method: GET
+        OptionsAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LemonSqueezerAPI
+            Path: /{proxy+}
+            Method: OPTIONS
+
+  # CloudWatch Log Group for Lambda
+  SummarizeFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/lemonsqueezer-summarize-${Environment}'
+      RetentionInDays: 14
+
+  # DynamoDB Tables
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'lemonsqueezer-users-${Environment}'
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+
+  SubscriptionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'lemonsqueezer-subscriptions-${Environment}'
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: subscriptionId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: subscriptionId
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+
+  PaymentsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'lemonsqueezer-payments-${Environment}'
+      AttributeDefinitions:
+        - AttributeName: paymentId
+          AttributeType: S
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: paymentId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: UserPaymentsIndex
+          KeySchema:
+            - AttributeName: userId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+
+  CacheTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'lemonsqueezer-cache-${Environment}'
+      AttributeDefinitions:
+        - AttributeName: url
+          AttributeType: S
+      KeySchema:
+        - AttributeName: url
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+
+  RateLimitTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'lemonsqueezer-rate-limit-${Environment}'
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: resetTime
+        Enabled: true
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+
+  AnalyticsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'lemonsqueezer-analytics-${Environment}'
+      AttributeDefinitions:
+        - AttributeName: eventId
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: N
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: eventId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: TimestampIndex
+          KeySchema:
+            - AttributeName: timestamp
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: UserEventsIndex
+          KeySchema:
+            - AttributeName: userId
+              KeyType: HASH
+            - AttributeName: timestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+
+Outputs:
+  ApiUrl:
+    Description: 'API Gateway endpoint URL'
+    Value: !Sub 'https://${LemonSqueezerAPI}.execute-api.${AWS::Region}.amazonaws.com/${Environment}'
+    Export:
+      Name: !Sub '${AWS::StackName}-ApiUrl'
+
+  FunctionName:
+    Description: 'Lambda Function Name'
+    Value: !Ref SummarizeFunction
+    Export:
+      Name: !Sub '${AWS::StackName}-FunctionName'
