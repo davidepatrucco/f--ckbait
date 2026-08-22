@@ -951,7 +951,7 @@
             if (isYouTubeVideoUrl(request.url)) {
                 const transcript = await getYouTubeTranscript();
                 if (!transcript) {
-                    throw new Error('Questo video non ha una trascrizione accessibile. Apri un video con sottotitoli disponibili.');
+                    throw new Error('YouTube: estrazione terminata senza risultato diagnostico');
                 }
                 requestBody.transcript = transcript.text;
                 requestBody.title = transcript.title;
