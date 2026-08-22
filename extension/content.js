@@ -161,7 +161,13 @@
         // Use the player's structured caption tracks, not the rendered page
         // or its controls. This is independent of whether the transcript UI is
         // open and never allows a YouTube HTML/footer summary.
-        const { success, tracks, durationSeconds } = await chrome.runtime.sendMessage({ action: 'getYouTubeCaptionTracks' });
+        const response = await chrome.runtime.sendMessage({ action: 'getYouTubeCaptionTracks' });
+        const { success, tracks, durationSeconds } = response;
+        console.log('[YT TRANSCRIPT] Risposta service worker:', {
+            success,
+            trackCount: Array.isArray(tracks) ? tracks.length : 0,
+            error: response.error
+        });
         if (!success || !Array.isArray(tracks) || tracks.length === 0) return null;
 
         const preferredLanguages = [navigator.language?.slice(0, 2), 'it', 'en'].filter(Boolean);
@@ -169,15 +175,27 @@
             item.languageCode === language || item.languageCode?.startsWith(`${language}-`)
         )) || tracks[0];
         const captionUrl = new URL(track.baseUrl);
-        if (!captionUrl.hostname.endsWith('youtube.com')) return null;
+        if (!captionUrl.hostname.endsWith('youtube.com')) {
+            console.error('[YT TRANSCRIPT] Host caption non valido:', captionUrl.hostname);
+            return null;
+        }
         captionUrl.searchParams.set('fmt', 'json3');
 
-        const captionResponse = await fetch(captionUrl, { credentials: 'include' });
-        if (!captionResponse.ok) return null;
-        const rawTranscript = await captionResponse.text();
+        const captionResponse = await chrome.runtime.sendMessage({
+            action: 'getYouTubeCaptionText',
+            baseUrl: captionUrl.toString()
+        });
+        console.log('[YT TRANSCRIPT] Download caption:', {
+            status: captionResponse.status,
+            language: track.languageCode,
+            contentType: captionResponse.contentType,
+            characters: captionResponse.text?.length || 0
+        });
+        if (!captionResponse.success || !captionResponse.text) return null;
+        const rawTranscript = captionResponse.text;
         let text = '';
         try {
-            const payload = JSON.parse(rawTranscript);
+            const payload = JSON.parse(rawTranscript.replace(/^\)\]\}'\s*/, ''));
             text = (payload.events || [])
                 .flatMap((event) => event.segs || [])
                 .map((segment) => segment.utf8 || '')
@@ -192,6 +210,7 @@
         }
         text = text.replace(/\s+/g, ' ').trim();
 
+        console.log('[YT TRANSCRIPT] Testo estratto:', { characters: text.length, language: track.languageCode });
         return text && text.length >= 50 ? {
             text: text.slice(0, 120000),
             title: document.title.replace(/\s*-\s*YouTube\s*$/i, '').trim() || 'Video YouTube',

@@ -54,6 +54,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         getYouTubeCaptionTracks(sender, sendResponse);
         return true;
     }
+
+    if (request.action === 'getYouTubeCaptionText') {
+        getYouTubeCaptionText(request, sender, sendResponse);
+        return true;
+    }
 });
 
 async function getYouTubeCaptionTracks(sender, sendResponse) {
@@ -144,10 +149,51 @@ async function getYouTubeCaptionTracks(sender, sendResponse) {
                 };
             }
         });
-        sendResponse({ success: true, tracks: tracks.tracks || [], durationSeconds: tracks.durationSeconds || 0 });
+        const extractedTracks = tracks.tracks || [];
+        console.log('[YT CAPTIONS] Risultato estrazione player:', {
+            tabId: sender.tab.id,
+            trackCount: extractedTracks.length,
+            languages: extractedTracks.map((track) => track.languageCode),
+            durationSeconds: tracks.durationSeconds || 0
+        });
+        sendResponse({ success: true, tracks: extractedTracks, durationSeconds: tracks.durationSeconds || 0 });
     } catch (error) {
-        console.error('Impossibile leggere le caption track YouTube:', error);
-        sendResponse({ success: false, tracks: [] });
+        console.error('[YT CAPTIONS] Errore lettura tracce:', error);
+        sendResponse({ success: false, tracks: [], error: error.message });
+    }
+}
+
+async function getYouTubeCaptionText(request, sender, sendResponse) {
+    try {
+        if (!sender.tab?.id) throw new Error('Richiesta trascrizione senza tab');
+        const captionUrl = new URL(request.baseUrl);
+        if (!captionUrl.hostname.endsWith('youtube.com')) throw new Error('Host caption non valido');
+        captionUrl.searchParams.set('fmt', 'json3');
+
+        const [{ result = {} } = {}] = await chrome.scripting.executeScript({
+            target: { tabId: sender.tab.id },
+            world: 'MAIN',
+            args: [captionUrl.toString()],
+            func: async (url) => {
+                const response = await fetch(url, { credentials: 'include' });
+                return {
+                    ok: response.ok,
+                    status: response.status,
+                    contentType: response.headers.get('content-type') || '',
+                    text: await response.text()
+                };
+            }
+        });
+
+        console.log('[YT CAPTIONS] Download nel contesto YouTube:', {
+            status: result.status,
+            contentType: result.contentType,
+            characters: result.text?.length || 0
+        });
+        sendResponse({ success: Boolean(result.ok), ...result });
+    } catch (error) {
+        console.error('[YT CAPTIONS] Errore download traccia:', error);
+        sendResponse({ success: false, error: error.message });
     }
 }
 
