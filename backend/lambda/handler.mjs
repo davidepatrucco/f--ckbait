@@ -305,6 +305,7 @@ export async function summarizeUrlHandler(event) {
         const summaryProfile = ['ultra', 'standard', 'detailed'].includes(body.summaryProfile)
             ? body.summaryProfile
             : 'standard';
+        const summaryModel = getSummaryModel(body.summaryModel);
         
         let text;
         let title;
@@ -336,7 +337,7 @@ export async function summarizeUrlHandler(event) {
             text,
             language,
             summaryProfile,
-            model: getSummaryModel(),
+            model: summaryModel,
             sourceType,
             videoDurationSeconds: hasTranscript ? videoDurationSeconds : 0
         };
@@ -373,6 +374,7 @@ export async function summarizeUrlHandler(event) {
             language: body.lang || 'it',
             sourceType,
             summaryProfile,
+            model: summaryModel,
             videoDurationSeconds: hasTranscript ? videoDurationSeconds : undefined
         });
         const openaiTime = Date.now() - openaiStartTime;

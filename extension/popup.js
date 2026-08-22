@@ -57,6 +57,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const summarizeBtn = document.getElementById('summarizeBtn');
     const languageSelect = document.getElementById('language');
     const summaryProfileSelect = document.getElementById('summaryProfile');
+    const summaryModelSelect = document.getElementById('summaryModel');
+    const historyList = document.getElementById('historyList');
+    const clearHistoryBtn = document.getElementById('clearHistoryBtn');
     
     // Elementi di autenticazione
     const loginCard = document.getElementById('loginCard');
@@ -76,17 +79,55 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Carica configurazione salvata
     const savedConfig = await chrome.storage.local.get([
-        'user', 'authToken', 'loginInProgress', 'summaryLanguage', 'summaryProfile'
+        'user', 'authToken', 'loginInProgress', 'summaryLanguage', 'summaryProfile', 'summaryModel'
     ]);
 
     if (languageSelect) languageSelect.value = savedConfig.summaryLanguage || 'it';
     if (summaryProfileSelect) summaryProfileSelect.value = savedConfig.summaryProfile || 'standard';
+    if (summaryModelSelect) summaryModelSelect.value = savedConfig.summaryModel || 'gpt-5-nano';
     languageSelect?.addEventListener('change', () => {
         chrome.storage.local.set({ summaryLanguage: languageSelect.value });
     });
     summaryProfileSelect?.addEventListener('change', () => {
         chrome.storage.local.set({ summaryProfile: summaryProfileSelect.value });
     });
+    summaryModelSelect?.addEventListener('change', () => {
+        chrome.storage.local.set({ summaryModel: summaryModelSelect.value });
+    });
+
+    async function renderHistory() {
+        if (!historyList) return;
+        const { summaryHistory = [] } = await chrome.storage.local.get(['summaryHistory']);
+        const entries = summaryHistory.slice(0, 5);
+        clearHistoryBtn.hidden = entries.length === 0;
+        if (!entries.length) {
+            historyList.innerHTML = '<p class="history-empty">I tuoi ultimi riassunti appariranno qui.</p>';
+            return;
+        }
+        historyList.innerHTML = `<div class="history-list">${entries.map((entry, index) => {
+            const timestamp = new Date(entry.timestamp).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
+            const cacheStatus = entry.cached ? ' · <span class="cache-badge">cache</span>' : '';
+            return `<button class="history-item" type="button" data-history-index="${index}"><span class="history-item-title">${escapeHtml(entry.title || entry.url)}</span><span class="history-item-meta">${timestamp}${cacheStatus}</span></button>`;
+        }).join('')}</div>`;
+        historyList.querySelectorAll('[data-history-index]').forEach((item) => {
+            item.addEventListener('click', () => {
+                const entry = entries[Number(item.dataset.historyIndex)];
+                if (entry?.url) chrome.tabs.create({ url: entry.url });
+            });
+        });
+    }
+
+    function escapeHtml(value) {
+        const element = document.createElement('span');
+        element.textContent = String(value || '');
+        return element.innerHTML;
+    }
+
+    clearHistoryBtn?.addEventListener('click', async () => {
+        await chrome.storage.local.remove(['summaryHistory']);
+        await renderHistory();
+    });
+    await renderHistory();
     
     // Gestisci stato di login in corso
     if (savedConfig.loginInProgress && !savedConfig.authToken) {
@@ -575,7 +616,8 @@ if (!email || !password) {
                 requestId: crypto.randomUUID(),
                 url: tab.url,
                 lang: languageSelect?.value || 'it',
-                summaryProfile: summaryProfileSelect?.value || 'standard'
+                summaryProfile: summaryProfileSelect?.value || 'standard',
+                summaryModel: summaryModelSelect?.value || 'gpt-5-nano'
             };
             try {
                 await chrome.tabs.sendMessage(tab.id, request);

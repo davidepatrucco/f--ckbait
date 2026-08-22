@@ -513,6 +513,7 @@
                         </span>
                         <span class="lemonsqueezer-stat-text">${timeSavedText}</span>
                     </div>
+                    ${data.cached ? '<div class="lemonsqueezer-stat-item"><span class="lemonsqueezer-stat-text">⚡ Dalla cache</span></div>' : ''}
                 </div>
                 <div class="lemonsqueezer-url">
                     <a href="${data.originalUrl}" target="_blank">${data.originalUrl}</a>
@@ -969,7 +970,8 @@
             const requestBody = {
                 url: request.url,
                 lang: request.lang || 'it',
-                summaryProfile: request.summaryProfile || 'standard'
+                summaryProfile: request.summaryProfile || 'standard',
+                summaryModel: request.summaryModel || 'gpt-5-nano'
             };
 
             if (isYouTubeVideoUrl(request.url)) {
@@ -1045,6 +1047,7 @@
 
             // Salva statistiche di tempo per analytics
             await saveTimeStats(data);
+            await saveSummaryHistory(data);
             
             // Aggiorna modale con risultato normalizzato
             updateModalWithResult(data);
@@ -1106,6 +1109,24 @@
             
         } catch (error) {
             console.error('[CONTENT] Errore salvataggio statistiche:', error);
+        }
+    }
+
+    async function saveSummaryHistory(data) {
+        try {
+            const entry = {
+                timestamp: Date.now(),
+                title: data.title || 'Riassunto',
+                url: data.originalUrl || window.location.href,
+                cached: Boolean(data.cached),
+                sourceType: data.sourceType || 'web'
+            };
+            const { summaryHistory = [] } = await chrome.storage.local.get(['summaryHistory']);
+            const withoutDuplicate = summaryHistory.filter((existing) => existing.url !== entry.url);
+            withoutDuplicate.unshift(entry);
+            await chrome.storage.local.set({ summaryHistory: withoutDuplicate.slice(0, 50) });
+        } catch (error) {
+            console.error('[CONTENT] Errore salvataggio cronologia:', error);
         }
     }
     

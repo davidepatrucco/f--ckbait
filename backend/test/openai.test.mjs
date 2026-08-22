@@ -24,6 +24,8 @@ describe('OpenAI Module Tests', () => {
         assert.equal(videoPlan.savingsPercent, 95);
         assert.equal(buildSummaryPlan({ text: 'one two three' }).profile, 'standard');
         assert.equal(typeof getSummaryModel(), 'string');
+        assert.equal(getSummaryModel('gpt-5.6-luna'), 'gpt-5.6-luna');
+        assert.equal(getSummaryModel('not-a-model'), getSummaryModel());
     });
     test('should validate input parameters', async () => {
         const content = {

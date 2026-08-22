@@ -43,8 +43,11 @@ const WORDS_PER_MINUTE = 220;
 const MAX_SUMMARY_WORDS = Number.parseInt(process.env.SUMMARY_MAX_WORDS || '800', 10);
 const countWords = (text) => String(text || '').trim().split(/\s+/).filter(Boolean).length;
 
-export function getSummaryModel() {
-    return process.env.SUMMARY_MODEL || 'gpt-5-nano';
+const DEFAULT_SUMMARY_MODEL = process.env.SUMMARY_MODEL || 'gpt-5-nano';
+const ALLOWED_SUMMARY_MODELS = new Set([DEFAULT_SUMMARY_MODEL, 'gpt-5-nano', 'gpt-5.6-luna']);
+
+export function getSummaryModel(requestedModel) {
+    return ALLOWED_SUMMARY_MODELS.has(requestedModel) ? requestedModel : DEFAULT_SUMMARY_MODEL;
 }
 
 export function buildSummaryPlan(content) {
@@ -138,7 +141,7 @@ export async function summarizeWithOpenAI(content) {
         }
         
         const plan = buildSummaryPlan(content);
-        const model = getSummaryModel();
+        const model = getSummaryModel(content.model);
         const promptStartTime = Date.now();
         const { systemPrompt, userPrompt } = createPrompt(content, content.language, plan);
         console.log('⚡ [TIMING] Prompt creation took:', Date.now() - promptStartTime, 'ms');
