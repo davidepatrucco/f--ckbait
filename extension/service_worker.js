@@ -59,6 +59,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         getYouTubeCaptionText(request, sender, sendResponse);
         return true;
     }
+
+    if (request.action === 'getYouTubeTranscriptText') {
+        getYouTubeTranscriptText(sender, sendResponse);
+        return true;
+    }
 });
 
 async function getYouTubeCaptionTracks(sender, sendResponse) {
@@ -168,8 +173,6 @@ async function getYouTubeCaptionText(request, sender, sendResponse) {
         if (!sender.tab?.id) throw new Error('Richiesta trascrizione senza tab');
         const captionUrl = new URL(request.baseUrl);
         if (!captionUrl.hostname.endsWith('youtube.com')) throw new Error('Host caption non valido');
-        captionUrl.searchParams.set('fmt', 'json3');
-
         const [{ result = {} } = {}] = await chrome.scripting.executeScript({
             target: { tabId: sender.tab.id },
             world: 'MAIN',
@@ -193,6 +196,84 @@ async function getYouTubeCaptionText(request, sender, sendResponse) {
         sendResponse({ success: Boolean(result.ok), ...result });
     } catch (error) {
         console.error('[YT CAPTIONS] Errore download traccia:', error);
+        sendResponse({ success: false, error: error.message });
+    }
+}
+
+async function getYouTubeTranscriptText(sender, sendResponse) {
+    try {
+        if (!sender.tab?.id) throw new Error('Richiesta trascrizione senza tab');
+        const [{ result = {} } = {}] = await chrome.scripting.executeScript({
+            target: { tabId: sender.tab.id },
+            world: 'MAIN',
+            func: async () => {
+                const findTranscriptParams = (root) => {
+                    const seen = new WeakSet();
+                    const visit = (value) => {
+                        if (!value || typeof value !== 'object' || seen.has(value)) return null;
+                        seen.add(value);
+                        if (typeof value.getTranscriptEndpoint?.params === 'string') {
+                            return value.getTranscriptEndpoint.params;
+                        }
+                        for (const child of Object.values(value)) {
+                            const found = visit(child);
+                            if (found) return found;
+                        }
+                        return null;
+                    };
+                    return visit(root);
+                };
+                const collectSegments = (root) => {
+                    const segments = [];
+                    const seen = new WeakSet();
+                    const visit = (value) => {
+                        if (!value || typeof value !== 'object' || seen.has(value)) return;
+                        seen.add(value);
+                        const renderer = value.transcriptSegmentRenderer;
+                        if (renderer?.snippet?.runs) {
+                            segments.push(renderer.snippet.runs.map((run) => run.text || '').join(''));
+                            return;
+                        }
+                        for (const child of Object.values(value)) visit(child);
+                    };
+                    visit(root);
+                    return segments.join(' ').replace(/\s+/g, ' ').trim();
+                };
+
+                const params = findTranscriptParams(window.ytInitialData) ||
+                    findTranscriptParams(window.ytInitialPlayerResponse);
+                const apiKey = window.ytcfg?.get?.('INNERTUBE_API_KEY');
+                const clientVersion = window.ytcfg?.get?.('INNERTUBE_CLIENT_VERSION');
+                if (!params || !apiKey || !clientVersion) {
+                    return { ok: false, reason: 'Parametri transcript YouTube non disponibili' };
+                }
+
+                const response = await fetch(`/youtubei/v1/get_transcript?prettyPrint=false&key=${encodeURIComponent(apiKey)}`, {
+                    method: 'POST',
+                    headers: {
+                        'content-type': 'application/json',
+                        'x-youtube-client-name': '1',
+                        'x-youtube-client-version': clientVersion
+                    },
+                    body: JSON.stringify({
+                        context: { client: { clientName: 'WEB', clientVersion } },
+                        params
+                    })
+                });
+                if (!response.ok) return { ok: false, reason: `Transcript API HTTP ${response.status}` };
+                const payload = await response.json();
+                const text = collectSegments(payload);
+                return { ok: text.length >= 50, text, characters: text.length };
+            }
+        });
+        console.log('[YT TRANSCRIPT] Risposta API transcript:', {
+            success: result.ok,
+            characters: result.characters || 0,
+            reason: result.reason
+        });
+        sendResponse({ success: Boolean(result.ok), ...result });
+    } catch (error) {
+        console.error('[YT TRANSCRIPT] Errore API transcript:', error);
         sendResponse({ success: false, error: error.message });
     }
 }

@@ -174,13 +174,24 @@
         const track = tracks.find((item) => preferredLanguages.some((language) =>
             item.languageCode === language || item.languageCode?.startsWith(`${language}-`)
         )) || tracks[0];
+
+        // The transcript panel and timed-text endpoint are not always exposed
+        // identically by YouTube. Prefer its structured get_transcript API.
+        const transcriptApi = await chrome.runtime.sendMessage({ action: 'getYouTubeTranscriptText' });
+        if (transcriptApi.success && transcriptApi.text?.length >= 50) {
+            return {
+                text: transcriptApi.text.slice(0, 120000),
+                title: document.title.replace(/\s*-\s*YouTube\s*$/i, '').trim() || 'Video YouTube',
+                language: track.languageCode,
+                durationSeconds: Number.isFinite(durationSeconds) && durationSeconds > 0 ? durationSeconds : undefined
+            };
+        }
+
         const captionUrl = new URL(track.baseUrl);
         if (!captionUrl.hostname.endsWith('youtube.com')) {
             console.error('[YT TRANSCRIPT] Host caption non valido:', captionUrl.hostname);
             return null;
         }
-        captionUrl.searchParams.set('fmt', 'json3');
-
         const captionResponse = await chrome.runtime.sendMessage({
             action: 'getYouTubeCaptionText',
             baseUrl: captionUrl.toString()
@@ -194,13 +205,19 @@
         if (!captionResponse.success || !captionResponse.text) return null;
         const rawTranscript = captionResponse.text;
         let text = '';
-        try {
-            const payload = JSON.parse(rawTranscript.replace(/^\)\]\}'\s*/, ''));
-            text = (payload.events || [])
-                .flatMap((event) => event.segs || [])
-                .map((segment) => segment.utf8 || '')
-                .join(' ');
-        } catch {
+        const normalizedPayload = rawTranscript.replace(/^\)\]\}'\s*/, '').trim();
+        if (normalizedPayload.startsWith('{')) {
+            try {
+                const payload = JSON.parse(normalizedPayload);
+                text = (payload.events || [])
+                    .flatMap((event) => event.segs || [])
+                    .map((segment) => segment.utf8 || '')
+                    .join(' ');
+            } catch {
+                // Try the XML parser below for non-standard payloads.
+            }
+        }
+        if (!text) {
             const xml = new DOMParser().parseFromString(rawTranscript, 'text/xml');
             if (!xml.querySelector('parsererror')) {
                 text = Array.from(xml.querySelectorAll('text, p, s'))
