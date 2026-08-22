@@ -4,11 +4,6 @@
 (function() {
     'use strict';
     
-    // Configurazione
-    const CONFIG = {
-        API_URL: 'https://4jo5gamel9.execute-api.eu-west-1.amazonaws.com/dev'
-    };
-    
     // Funzione per calcolare la densità del testo in un elemento
     function getTextDensity(element) {
         const text = element.textContent || '';
@@ -964,29 +959,22 @@
                 requestBody.videoDurationSeconds = transcript.durationSeconds;
             }
 
-            // Chiama l'API per il riassunto; per YouTube invia la trascrizione
-            // già accessibile nella pagina invece di chiedere al backend di
-            // scaricare o processare il video.
-            const response = await fetch(`${CONFIG.API_URL}/summarize-url`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${authToken}`
-                },
-                body: JSON.stringify(requestBody)
+            // La chiamata parte dal service worker: un fetch eseguito dal
+            // content script eredita l'origine della pagina e viene bloccato
+            // dal CORS del sito visitato (per esempio youtube.com).
+            const apiResult = await chrome.runtime.sendMessage({
+                action: 'summarizePageData',
+                requestBody
             });
-            
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ error: 'Errore di rete' }));
-                
-                if (response.status === 429) {
+
+            if (!apiResult?.success) {
+                if (apiResult?.status === 429) {
                     throw new Error('Limite riassunti raggiunto. Upgrade a Premium per continuare.');
                 }
-                
-                throw new Error(errorData.error || `HTTP ${response.status}`);
+                throw new Error(apiResult?.error || 'Backend non raggiungibile');
             }
-            
-            const dataRaw = await response.json();
+
+            const dataRaw = apiResult.data;
             console.log('[CONTENT] Dati ricevuti (raw):', dataRaw);
 
             // Normalizza e fornisce fallback per campi mancanti

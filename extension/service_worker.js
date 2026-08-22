@@ -64,7 +64,44 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         getYouTubeTranscriptText(sender, sendResponse);
         return true;
     }
+
+    if (request.action === 'summarizePageData') {
+        summarizePageData(request, sendResponse);
+        return true;
+    }
 });
+
+async function summarizePageData(request, sendResponse) {
+    try {
+        const { authToken } = await chrome.storage.local.get(['authToken']);
+        if (!authToken) {
+            sendResponse({ success: false, status: 401, error: 'Utente non autenticato' });
+            return;
+        }
+
+        const response = await fetch('https://4jo5gamel9.execute-api.eu-west-1.amazonaws.com/dev/summarize-url', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify(request.requestBody || {})
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            sendResponse({
+                success: false,
+                status: response.status,
+                error: payload.error || `HTTP ${response.status}`
+            });
+            return;
+        }
+        sendResponse({ success: true, status: response.status, data: payload });
+    } catch (error) {
+        console.error('[SUMMARY API] Errore fetch dal service worker:', error);
+        sendResponse({ success: false, error: `Backend non raggiungibile: ${error.message}` });
+    }
+}
 
 async function getYouTubeCaptionTracks(sender, sendResponse) {
     try {
