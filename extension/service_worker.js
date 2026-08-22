@@ -367,14 +367,15 @@ async function getYouTubeTranscriptText(sender, sendResponse) {
                 let modernPanel = findCurrentPanel();
                 let transcriptClicked = false;
                 const clickTranscriptButton = () => {
-                    const transcriptButton = Array.from(document.querySelectorAll(
+                    const candidates = Array.from(document.querySelectorAll(
                         'ytd-video-description-transcript-section-renderer button, ' +
                         'ytd-video-description-transcript-section-renderer ytd-button-renderer, ' +
                         'button'
-                    )).find((button) => button.offsetParent !== null &&
-                        /mostra trascrizione|show transcript/i.test(button.innerText || button.textContent || ''));
+                    )).filter((button) => /mostra trascrizione|show transcript/i.test(button.innerText || button.textContent || ''));
+                    const transcriptButton = candidates.find((button) => button.offsetParent !== null) || candidates[0];
                     if (transcriptButton) {
                         transcriptButton.click();
+                        transcriptButton.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
                         transcriptClicked = true;
                     }
                 };
@@ -399,6 +400,11 @@ async function getYouTubeTranscriptText(sender, sendResponse) {
                                 source: 'rendered-transcript',
                                 videoId: currentVideoId
                             };
+                        }
+                        const refreshedPanel = findCurrentPanel();
+                        if (refreshedPanel?.params) {
+                            modernPanel = refreshedPanel;
+                            break;
                         }
                         await new Promise((resolve) => setTimeout(resolve, 150));
                     }
