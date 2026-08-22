@@ -292,7 +292,7 @@ async function getYouTubeTranscriptText(sender, sendResponse) {
                         const panelId = command?.contentSourcePanelIdentifier?.tag;
                         const params = command?.globalConfiguration?.params;
                         if (typeof panelId === 'string' && /transcript/i.test(panelId) &&
-                            typeof params === 'string' && belongsToCurrentVideo(params)) {
+                            (typeof params !== 'string' || belongsToCurrentVideo(params))) {
                             return {
                                 panelId,
                                 params,
@@ -344,17 +344,64 @@ async function getYouTubeTranscriptText(sender, sendResponse) {
                     visit(root);
                     return segments.join(' ').replace(/\s+/g, ' ').trim();
                 };
+                const collectRenderedTranscript = () => Array.from(document.querySelectorAll(
+                    'ytd-transcript-segment-renderer, yt-transcript-segment-view-model, ' +
+                    'transcript-segment-view-model'
+                )).map((element) => (element.innerText || element.textContent || '').replace(/\s+/g, ' ').trim())
+                    .filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
 
-                const findCurrentPanel = () => findModernTranscriptPanel(window.ytInitialData) ||
-                    Array.from(document.querySelectorAll('ytd-video-description-transcript-section-renderer'))
-                        .map((element) => findModernTranscriptPanel(element.data))
-                        .find(Boolean);
+                const findCurrentPanel = () => {
+                    const roots = [window.ytInitialData];
+                    for (const element of document.querySelectorAll(
+                        'ytd-video-description-transcript-section-renderer, ' +
+                        'ytd-engagement-panel-section-list-renderer, ' +
+                        'ytd-engagement-panel-title-header-renderer, ' +
+                        'ytd-transcript-renderer'
+                    )) {
+                        if (element.data && typeof element.data === 'object') roots.push(element.data);
+                    }
+                    return roots.map(findModernTranscriptPanel).find(Boolean) || null;
+                };
                 // YouTube is an SPA: after clicking another video, old globals can
                 // remain for a short time. Never send the previous video's params.
                 let modernPanel = findCurrentPanel();
-                for (let attempt = 0; !modernPanel && attempt < 20; attempt += 1) {
-                    await new Promise((resolve) => setTimeout(resolve, 150));
+                let transcriptClicked = false;
+                const clickTranscriptButton = () => {
+                    const transcriptButton = Array.from(document.querySelectorAll(
+                        'ytd-video-description-transcript-section-renderer button, ' +
+                        'ytd-video-description-transcript-section-renderer ytd-button-renderer, ' +
+                        'button'
+                    )).find((button) => button.offsetParent !== null &&
+                        /mostra trascrizione|show transcript/i.test(button.innerText || button.textContent || ''));
+                    if (transcriptButton) {
+                        transcriptButton.click();
+                        transcriptClicked = true;
+                    }
+                };
+                for (let attempt = 0; !modernPanel && attempt < 80; attempt += 1) {
+                    if (!transcriptClicked || attempt % 10 === 0) clickTranscriptButton();
                     modernPanel = findCurrentPanel();
+                    if (modernPanel) break;
+                    await new Promise((resolve) => setTimeout(resolve, 150));
+                }
+                // Some videos use the searchable transcript panel. Its command
+                // intentionally has no params and the rendered panel is the
+                // authoritative source after the button is activated.
+                if (modernPanel && !modernPanel.params) {
+                    if (!transcriptClicked) clickTranscriptButton();
+                    for (let attempt = 0; attempt < 40; attempt += 1) {
+                        const renderedText = collectRenderedTranscript();
+                        if (renderedText.length >= 50) {
+                            return {
+                                ok: true,
+                                text: renderedText,
+                                characters: renderedText.length,
+                                source: 'rendered-transcript',
+                                videoId: currentVideoId
+                            };
+                        }
+                        await new Promise((resolve) => setTimeout(resolve, 150));
+                    }
                 }
                 const endpoint = findTranscriptEndpoint(window.ytInitialData) ||
                     findTranscriptEndpoint(window.ytInitialPlayerResponse);
