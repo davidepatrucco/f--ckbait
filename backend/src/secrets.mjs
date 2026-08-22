@@ -141,7 +141,9 @@ export class SecretsManager {
                 'STRIPE_PREMIUM_MONTHLY_PRICE_ID',
                 'STRIPE_PREMIUM_YEARLY_PRICE_ID',
                 'STRIPE_SUCCESS_URL',
-                'STRIPE_CANCEL_URL'
+                'STRIPE_CANCEL_URL',
+                'GOOGLE_WEB_CLIENT_ID',
+                'GOOGLE_WEB_CLIENT_SECRET'
             ];
 
             this.secrets = await getSecrets(secretNames);

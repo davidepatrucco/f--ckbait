@@ -31,6 +31,30 @@ export async function getUserById(userId) {
 }
 
 /**
+ * Trova utente per email
+ */
+export async function getUserByEmail(email) {
+    try {
+        // Scan table per email (GSI sarebbe meglio ma per ora va bene)
+        const { ScanCommand } = await import('@aws-sdk/lib-dynamodb');
+        const command = new ScanCommand({
+            TableName: TABLE_NAME,
+            FilterExpression: 'email = :email',
+            ExpressionAttributeValues: {
+                ':email': email
+            }
+        });
+        
+        const response = await docClient.send(command);
+        return response.Items?.[0] || null;
+        
+    } catch (error) {
+        console.error('Error getting user by email:', error);
+        throw new Error('Errore accesso database utenti');
+    }
+}
+
+/**
  * Crea nuovo utente
  */
 export async function createUser(userdata) {
@@ -43,6 +67,9 @@ export async function createUser(userdata) {
                 name: userdata.name,
                 picture: userdata.picture,
                 plan: userdata.plan || 'free',
+                auth_provider: userdata.authProvider,
+                password_hash: userdata.passwordHash,
+                password_salt: userdata.passwordSalt,
                 usage_used: userdata.usage?.used || 0,
                 usage_limit: userdata.usage?.limit || 10,
                 usage_reset_date: userdata.usage?.resetDate,
@@ -145,7 +172,10 @@ export async function updateUserPlan(userId, newPlan) {
         const command = new UpdateCommand({
             TableName: TABLE_NAME,
             Key: { id: userId },
-            UpdateExpression: 'SET plan = :plan',
+            UpdateExpression: 'SET #plan = :plan',
+            ExpressionAttributeNames: {
+                '#plan': 'plan'
+            },
             ExpressionAttributeValues: {
                 ':plan': newPlan
             },

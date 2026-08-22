@@ -133,7 +133,7 @@ build_project() {
     
     # Build con SAM
     log "Build SAM..."
-    sam build -t infra/sam-template.yaml
+    sam build -t infra/sam-template-simple.yaml
     
     success "Build completato"
 }
@@ -160,7 +160,7 @@ deploy_infrastructure() {
         --region "$AWS_REGION" \
         --parameter-overrides \
             Environment="$ENVIRONMENT" \
-            OpenAIApiKey="$OPENAI_API_KEY" \
+            AllowedOrigins="${ALLOWED_ORIGINS:-}"
         --no-confirm-changeset
     
     success "Deploy completato"
@@ -177,23 +177,19 @@ get_stack_outputs() {
         --output json)
     
     API_URL=$(echo "$OUTPUTS" | jq -r '.[] | select(.OutputKey=="ApiUrl") | .OutputValue')
-    API_KEY=$(echo "$OUTPUTS" | jq -r '.[] | select(.OutputKey=="ApiKey") | .OutputValue')
-    
-    if [ "$API_URL" = "null" ] || [ "$API_KEY" = "null" ]; then
+    if [ "$API_URL" = "null" ]; then
         error "Impossibile recuperare gli output dello stack"
         exit 1
     fi
     
     success "Output dello stack:"
     echo "  API URL: $API_URL"
-    echo "  API Key: $API_KEY"
     
     # Salva la configurazione
     cat > config.json << EOF
 {
     "environment": "$ENVIRONMENT",
     "apiUrl": "$API_URL",
-    "apiKey": "$API_KEY",
     "region": "$AWS_REGION",
     "stackName": "$STACK_NAME"
 }
@@ -220,12 +216,11 @@ test_deployment() {
         exit 1
     fi
     
-    # Test summarize endpoint (richiede API key)
+    # Test summarize endpoint (requires a configured user/session)
     log "Test summarize endpoint..."
     
     TEST_RESPONSE=$(curl -s -w "%{http_code}" \
         -H "Content-Type: application/json" \
-        -H "x-api-key: $API_KEY" \
         -d '{
             "url": "https://example.com",
             "title": "Test Page",

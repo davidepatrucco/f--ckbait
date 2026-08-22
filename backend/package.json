@@ -12,14 +12,16 @@
     "dev": "nodemon lambda/handler.mjs"
   },
   "dependencies": {
-    "@aws-sdk/client-dynamodb": "^3.0.0",
-    "@aws-sdk/client-ssm": "^3.901.0",
-    "@aws-sdk/lib-dynamodb": "^3.0.0",
-    "@mozilla/readability": "^0.4.0",
-    "jsdom": "^23.0.0",
-    "jsonwebtoken": "^9.0.0",
-    "openai": "^4.20.0",
-    "stripe": "^14.0.0",
+    "@aws-sdk/client-dynamodb": "^3.600.0",
+    "@aws-sdk/client-ssm": "^3.600.0",
+    "@aws-sdk/lib-dynamodb": "^3.600.0",
+    "@mozilla/readability": "^0.6.0",
+    "cheerio": "^1.1.2",
+    "jose": "^5.4.0",
+    "jsdom": "^23.2.0",
+    "jsonwebtoken": "^9.0.2",
+    "openai": "^4.52.0",
+    "stripe": "^14.23.0",
     "uuid": "^10.0.0"
   },
   "devDependencies": {

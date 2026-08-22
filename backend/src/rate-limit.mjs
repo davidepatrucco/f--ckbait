@@ -133,19 +133,9 @@ export async function checkRateLimit(apiKey) {
         
     } catch (error) {
         console.error('Rate limit check failed:', error);
-        
-        // Se il rate limiting fallisce per problemi di infrastruttura,
-        // logga l'errore ma non bloccare la richiesta per uso privato
-        if (error.message.includes('Rate limit exceeded')) {
-            throw error; // Rilancia se è effettivamente un rate limit
-        }
-        
-        console.warn('Rate limiting disabled due to infrastructure issues');
-        return {
-            minute: { count: 1, limit: RATE_LIMITS.perMinute.limit, remaining: RATE_LIMITS.perMinute.limit - 1 },
-            hour: { count: 1, limit: RATE_LIMITS.perHour.limit, remaining: RATE_LIMITS.perHour.limit - 1 },
-            day: { count: 1, limit: RATE_LIMITS.perDay.limit, remaining: RATE_LIMITS.perDay.limit - 1 }
-        };
+        // CRITICAL: Fail closed - deny request if rate limiting cannot be verified
+        // This prevents abuse if the rate limiting service is unavailable
+        throw new Error('Rate limiting service unavailable - request denied for safety');
     }
 }
 

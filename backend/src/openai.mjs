@@ -35,63 +35,68 @@ async function getOpenAIClient() {
 
 // Prompt template per le diverse lingue
 const PROMPTS = {
-    it: `Sei un esperto riassuntore. Il tuo compito è creare un riassunto molto conciso di qualsiasi contenuto web.
+    it: `Sei un esperto riassuntore. Il tuo compito è creare un riassunto ESTREMAMENTE conciso di qualsiasi contenuto web.
 
 REGOLE FONDAMENTALI:
-- Crea un summary (200 parole) + 3-4 bullet points
-- Ogni bullet deve essere massimo 50-100 parole
-- Usa un linguaggio chiaro e diretto
-- Concentrati sui punti più importanti e informativi, evita contenuti marginali e bait
-- Evita ripetizioni
-- Non includere dettagli marginali o promozionali, pubblicitari
+- Il riassunto finale deve essere MASSIMO il 20% delle parole originali (riduzione minima dell'80%)
+- Crea 3-4 bullet points chiarissimi
+- Ogni bullet deve essere massimo 40-60 parole
+- Usa un linguaggio chiaro, diretto e denso di informazioni
+- Concentrati SOLO sui punti più importanti e informativi, elimina tutto il resto
+- Evita ripetizioni, fluff, contenuti marginali, bait, promozionali o pubblicitari
+- Sii spietato: taglia tutto ciò che non è essenziale
 
 Restituisci SOLO i bullet points, uno per riga, preceduti da "• ".`,
 
-    en: `You are an expert summarizer. Your task is to create a very concise summary of any web content.
+    en: `You are an expert summarizer. Your task is to create an EXTREMELY concise summary of any web content.
 
-REGOLE FONDAMENTALI:
-- Summarize (200 word) + 3-4 bullet points
-- Every bullet must be maximum 50-100 words
-- Use clear and direct language
-- Focus on the most important and informative points
-- Avoid repetitions
-- Don't include marginal or promotional details
+FUNDAMENTAL RULES:
+- Final summary must be MAXIMUM 20% of original word count (minimum 80% reduction)
+- Create 3-4 crystal-clear bullet points
+- Each bullet must be maximum 40-60 words
+- Use clear, direct and information-dense language
+- Focus ONLY on the most important and informative points, eliminate everything else
+- Avoid repetitions, fluff, marginal content, bait, promotional or advertising content
+- Be ruthless: cut everything that isn't essential
 
 Return ONLY the bullet points, one per line, preceded by "• ".`,
 
-    es: `Eres un experto en resúmenes. Tu tarea es crear un resumen muy conciso de cualquier contenido web.
+    es: `Eres un experto en resúmenes. Tu tarea es crear un resumen EXTREMADAMENTE conciso de cualquier contenido web.
 
 REGLAS FUNDAMENTALES:
-- Crea EXACTAMENTE 3-4 puntos
-- Cada punto debe tener máximo 25-30 palabras
-- Usa un lenguaje claro y directo
-- Concéntrate en los puntos más importantes e informativos
-- Evita repeticiones
-- No incluyas detalles marginales o promocionales
+- El resumen final debe ser MÁXIMO el 20% de las palabras originales (reducción mínima del 80%)
+- Crea 3-4 puntos ultra-claros
+- Cada punto debe tener máximo 40-60 palabras
+- Usa un lenguaje claro, directo y denso de información
+- Concéntrate SOLO en los puntos más importantes e informativos, elimina todo lo demás
+- Evita repeticiones, fluff, contenido marginal, bait, promocional o publicitario
+- Sé despiadado: corta todo lo que no sea esencial
 
 Devuelve SOLO los puntos, uno por línea, precedidos por "• ".`,
 
-    fr: `Tu es un expert en résumés. Ta tâche est de créer un résumé très concis de tout contenu web.
+    fr: `Tu es un expert en résumés. Ta tâche est de créer un résumé EXTRÊMEMENT concis de tout contenu web.
 
 RÈGLES FONDAMENTALES:
-- Crée EXACTEMENT 3-4 points
-- Chaque point doit faire maximum 25-30 mots
-- Utilise un langage clair et direct
-- Concentre-toi sur les points les plus importants et informatifs
-- Évite les répétitions
-- N'inclus pas de détails marginaux ou promotionnels
+- Le résumé final doit être MAXIMUM 20% du nombre de mots originaux (réduction minimale de 80%)
+- Crée 3-4 points ultra-clairs
+- Chaque point doit faire maximum 40-60 mots
+- Utilise un langage clair, direct et dense en informations
+- Concentre-toi UNIQUEMENT sur les points les plus importants et informatifs, élimine tout le reste
+- Évite les répétitions, le fluff, le contenu marginal, le bait, le promotionnel ou publicitaire
+- Sois impitoyable: coupe tout ce qui n'est pas essentiel
 
 Retourne SEULEMENT les points, un par ligne, précédés de "• ".`,
 
-    de: `Du bist ein Experte für Zusammenfassungen. Deine Aufgabe ist es, eine sehr prägnante Zusammenfassung von jedem Web-Inhalt zu erstellen.
+    de: `Du bist ein Experte für Zusammenfassungen. Deine Aufgabe ist es, eine EXTREM prägnante Zusammenfassung von jedem Web-Inhalt zu erstellen.
 
 GRUNDREGELN:
-- Erstelle GENAU 3-4 Aufzählungspunkte
-- Jeder Punkt darf maximal 25-30 Wörter haben
-- Verwende klare und direkte Sprache
-- Konzentriere dich auf die wichtigsten und informativsten Punkte
-- Vermeide Wiederholungen
-- Füge keine marginalen oder werblichen Details hinzu
+- Die finale Zusammenfassung muss MAXIMAL 20% der ursprünglichen Wortanzahl sein (mindestens 80% Reduzierung)
+- Erstelle 3-4 ultra-klare Aufzählungspunkte
+- Jeder Punkt darf maximal 40-60 Wörter haben
+- Verwende klare, direkte und informationsdichte Sprache
+- Konzentriere dich NUR auf die wichtigsten und informativsten Punkte, eliminiere alles andere
+- Vermeide Wiederholungen, Füllwörter, marginale Inhalte, Bait, werbliche Details
+- Sei gnadenlos: schneide alles weg, was nicht essentiell ist
 
 Gib NUR die Punkte zurück, einen pro Zeile, mit "• " vorangestellt.`
 };
@@ -99,11 +104,12 @@ Gib NUR die Punkte zurück, einen pro Zeile, mit "• " vorangestellt.`
 // Funzione per creare il prompt completo
 function createPrompt(content, language = 'it') {
     const systemPrompt = PROMPTS[language] || PROMPTS.it;
+    const sourceLabel = content.sourceType === 'video' ? 'Trascrizione video' : 'Contenuto pagina web';
     
     const userPrompt = `Titolo: ${content.title}
 URL: ${content.url}
 
-Contenuto:
+${sourceLabel}:
 ${content.text}
 
 Riassumi questo contenuto seguendo le regole specificate.`;
@@ -201,19 +207,7 @@ export async function summarizeWithOpenAI(content) {
         const apiCallTime = Date.now() - apiCallStartTime;
         console.log('⚡ [TIMING] OpenAI API call took:', apiCallTime, 'ms');
         
-        console.log('Full OpenAI completion:', JSON.stringify(completion, null, 2));
-        
         const response = completion.choices[0]?.message?.content;
-        
-        console.log('Extracted response:', response);
-        console.log('Choices length:', completion.choices?.length);
-        console.log('First choice:', completion.choices?.[0]);
-        
-        if (!response) {
-            throw new Error('Risposta vuota da OpenAI');
-        }
-        
-        console.log('OpenAI response:', response);
         
         if (!response) {
             throw new Error('Risposta vuota da OpenAI');
@@ -242,7 +236,7 @@ export async function summarizeWithOpenAI(content) {
         const totalOpenAITime = Date.now() - startTime;
         console.log('🏁 [TIMING] Total OpenAI function time:', totalOpenAITime, 'ms');
         
-        // Log del risultato (senza contenuto per privacy)
+        // Do not log generated content: it may contain sensitive page data.
         console.log('✅ [TIMING] Summary generated:', {
             url: content.url,
             title: content.title,

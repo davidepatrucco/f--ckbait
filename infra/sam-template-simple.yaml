@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: 'LemonSqueezer - Infrastructure semplificata (senza DynamoDB per test)'
+Description: 'LemonSqueezer - Chrome extension backend'
 
 Parameters:
   Environment:
@@ -8,10 +8,14 @@ Parameters:
     Default: 'dev'
     AllowedValues: ['dev', 'staging', 'prod']
     Description: Environment name
+  AllowedOrigins:
+    Type: String
+    Default: ''
+    Description: Comma-separated browser origins permitted by Lambda CORS.
 
 Globals:
   Function:
-    Timeout: 30
+    Timeout: 60
     MemorySize: 512
     Runtime: nodejs20.x
     Architectures:
@@ -26,6 +30,7 @@ Globals:
         CACHE_TABLE_NAME: !Ref CacheTable
         RATE_LIMIT_TABLE_NAME: !Ref RateLimitTable
         ANALYTICS_TABLE_NAME: !Ref AnalyticsTable
+        ALLOWED_ORIGINS: !Ref AllowedOrigins
 
 Resources:
   # API Gateway
@@ -33,10 +38,6 @@ Resources:
     Type: AWS::Serverless::Api
     Properties:
       StageName: !Ref Environment
-      Cors:
-        AllowMethods: "'GET,POST,OPTIONS'"
-        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-api-key'"
-        AllowOrigin: "'*'"
 
   # Lambda Function
   SummarizeFunction:
@@ -53,6 +54,8 @@ Resources:
             TableName: !Ref SubscriptionsTable
         - DynamoDBCrudPolicy:
             TableName: !Ref PaymentsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PaymentSessionsTable
         - DynamoDBCrudPolicy:
             TableName: !Ref CacheTable
         - DynamoDBCrudPolicy:
@@ -74,24 +77,87 @@ Resources:
             RestApiId: !Ref LemonSqueezerAPI
             Path: /summarize-url
             Method: POST
+        AuthGoogleAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LemonSqueezerAPI
+            Path: /auth/google
+            Method: POST
+        AuthVerifyAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LemonSqueezerAPI
+            Path: /auth/verify
+            Method: POST
+        PaymentsCreateCheckoutAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LemonSqueezerAPI
+            Path: /payments/create-checkout
+            Method: POST
+        PaymentsVerifyCheckoutAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LemonSqueezerAPI
+            Path: /payments/verify-checkout
+            Method: POST
         HealthAPI:
           Type: Api
           Properties:
             RestApiId: !Ref LemonSqueezerAPI
             Path: /health
             Method: GET
-        OptionsAPI:
+        ProxyAPI:
           Type: Api
           Properties:
             RestApiId: !Ref LemonSqueezerAPI
             Path: /{proxy+}
-            Method: OPTIONS
+            Method: ANY
+
+  # Lambda Function URL for Stripe Webhook (bypass API Gateway)
+  StripeWebhookFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'lemonsqueezer-stripe-webhook-${Environment}'
+      CodeUri: ../backend/
+      Handler: lambda/handler.stripeWebhookHandler
+      Description: 'Stripe webhook handler with raw body'
+      Timeout: 60
+      MemorySize: 512
+      Runtime: nodejs20.x
+      Environment:
+        Variables:
+          ENVIRONMENT: !Ref Environment
+          PARAMETER_STORE_PREFIX: !Sub '/lemonsqueezer/${Environment}'
+          USERS_TABLE_NAME: !Ref UsersTable
+          SUBSCRIPTIONS_TABLE_NAME: !Ref SubscriptionsTable
+          PAYMENTS_TABLE_NAME: !Ref PaymentsTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SubscriptionsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PaymentsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PaymentSessionsTable
+        - SSMParameterReadPolicy:
+            ParameterName: !Sub 'lemonsqueezer/${Environment}/*'
+      FunctionUrlConfig:
+        AuthType: NONE
+        InvokeMode: BUFFERED
 
   # CloudWatch Log Group for Lambda
   SummarizeFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub '/aws/lambda/lemonsqueezer-summarize-${Environment}'
+      RetentionInDays: 14
+
+  StripeWebhookFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/lemonsqueezer-stripe-webhook-${Environment}'
       RetentionInDays: 14
 
   # DynamoDB Tables
@@ -148,6 +214,23 @@ Resources:
               KeyType: HASH
           Projection:
             ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+
+  PaymentSessionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'lemonsqueezer-payments-${Environment}_sessions'
+      AttributeDefinitions:
+        - AttributeName: session_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: session_id
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
       BillingMode: PAY_PER_REQUEST
       SSESpecification:
         SSEEnabled: true
@@ -225,6 +308,12 @@ Outputs:
     Value: !Sub 'https://${LemonSqueezerAPI}.execute-api.${AWS::Region}.amazonaws.com/${Environment}'
     Export:
       Name: !Sub '${AWS::StackName}-ApiUrl'
+
+  StripeWebhookUrl:
+    Description: 'Stripe Webhook Function URL (use this in Stripe Dashboard)'
+    Value: !GetAtt StripeWebhookFunctionUrl.FunctionUrl
+    Export:
+      Name: !Sub '${AWS::StackName}-StripeWebhookUrl'
 
   FunctionName:
     Description: 'Lambda Function Name'

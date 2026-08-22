@@ -1,62 +1,149 @@
-// popup.js - Gestione del popup dell'estensione LemonSqueezer con autenticazione
+// popup.js - Gestione del popup dell'estensione LemonSqueezer con autenticazione OAuth PKCE
 
-// Configurazione hard-coded
+import { GOOGLE_WEB_CLIENT_ID } from './oauth-config.js';
+
+// Configurazione
 const CONFIG = {
-    API_URL: 'https://8udffsiwnc.execute-api.eu-west-1.amazonaws.com/dev'
+    API_URL: 'https://4jo5gamel9.execute-api.eu-west-1.amazonaws.com/dev'
 };
 
+const REDIRECT_URI = `https://${chrome.runtime.id}.chromiumapp.org/`;
+const OAUTH_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
+
+// Utility functions per PKCE
+function base64url(buf) {
+    return btoa(String.fromCharCode(...new Uint8Array(buf)))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/g, '');
+}
+
+async function generateCodeVerifier() {
+    const array = new Uint8Array(64);
+    crypto.getRandomValues(array);
+    return base64url(array);
+}
+
+async function generateCodeChallenge(verifier) {
+    const data = new TextEncoder().encode(verifier);
+    const digest = await crypto.subtle.digest('SHA-256', data);
+    return base64url(digest);
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
-    const languageSelect = document.getElementById('language');
+    console.log('[POPUP] ===== POPUP OPENED =====');
+    
+    // CONTROLLO: verifica se login completato durante chiusura popup
+    const storage = await chrome.storage.local.get(['loginInProgress', 'authToken', 'user']);
+    console.log('[POPUP] Storage check:', { 
+        loginInProgress: storage.loginInProgress,
+        hasToken: !!storage.authToken,
+        hasUser: !!storage.user
+    });
+    
+    // Se c'era login in corso e ora ci sono token/user, login completato!
+    if (storage.loginInProgress && storage.authToken && storage.user) {
+        console.log('[POPUP] Login completato durante chiusura, rimuovo flag...');
+        await chrome.storage.local.remove('loginInProgress');
+    }
+    
+    // Se ci sono token/user freschi (creati negli ultimi 30 secondi), potrebbero essere da login appena completato
+    if (storage.authToken && storage.user && !storage.loginInProgress) {
+        const userUpdatedAt = storage.user.updatedAt || storage.user.createdAt;
+        if (userUpdatedAt && (Date.now() - new Date(userUpdatedAt).getTime()) < 30000) {
+            console.log('[POPUP] Login fresco rilevato (< 30s), aggiorno UI...');
+        }
+    }
     const summarizeBtn = document.getElementById('summarizeBtn');
-    const copyBtn = document.getElementById('copyBtn');
-    const loadingDiv = document.getElementById('loading');
-    const resultDiv = document.getElementById('result');
-    const resultTitle = document.getElementById('resultTitle');
-    const resultStats = document.getElementById('resultStats');
-    const resultContent = document.getElementById('resultContent');
-    const errorDiv = document.getElementById('error');
-    const errorMessage = document.getElementById('errorMessage');
     
     // Elementi di autenticazione
     const loginCard = document.getElementById('loginCard');
     const googleLoginBtn = document.getElementById('googleLoginBtn');
+    const emailInput = document.getElementById('emailInput');
+    const passwordInput = document.getElementById('passwordInput');
+    const emailLoginBtn = document.getElementById('emailLoginBtn');
+    const emailRegisterBtn = document.getElementById('emailRegisterBtn');
+    const emailLoginError = document.getElementById('emailLoginError');
     const userInfo = document.getElementById('userInfo');
     const userAvatar = document.getElementById('userAvatar');
     const userName = document.getElementById('userName');
     const userPlan = document.getElementById('userPlan');
     const logoutBtn = document.getElementById('logoutBtn');
     
-    let currentSummary = '';
     let currentUser = null;
     
     // Carica configurazione salvata
-    const savedConfig = await chrome.storage.local.get(['language', 'user', 'authToken']);
-    if (savedConfig.language) languageSelect.value = savedConfig.language;
-    if (savedConfig.user && savedConfig.authToken) {
+    const savedConfig = await chrome.storage.local.get(['user', 'authToken', 'loginInProgress']);
+    
+    // Gestisci stato di login in corso
+    if (savedConfig.loginInProgress && !savedConfig.authToken) {
+        // Login ancora in corso, mostra stato di attesa
+        console.log('[POPUP] Login in corso rilevato, mostro stato attesa...');
+        googleLoginBtn.disabled = true;
+        googleLoginBtn.textContent = 'Completa il login nella finestra Google...';
+        
+        // Polling per verificare completamento
+        let attempts = 0;
+        const maxAttempts = 60; // 30 secondi
+        const pollInterval = setInterval(async () => {
+            attempts++;
+            const check = await chrome.storage.local.get(['authToken', 'user', 'loginInProgress']);
+            
+            if (check.authToken && check.user) {
+                // Login completato!
+                clearInterval(pollInterval);
+                await chrome.storage.local.remove('loginInProgress');
+                console.log('[POPUP] Login completato durante polling!');
+                location.reload(); // Ricarica il popup per mostrare stato loggato
+            } else if (!check.loginInProgress) {
+                // Login fallito/cancellato
+                clearInterval(pollInterval);
+                console.log('[POPUP] Login cancellato/fallito');
+                googleLoginBtn.disabled = false;
+                googleLoginBtn.textContent = 'Connetti con Google';
+            } else if (attempts >= maxAttempts) {
+                // Timeout
+                clearInterval(pollInterval);
+                await chrome.storage.local.remove('loginInProgress');
+                console.log('[POPUP] Timeout login');
+                googleLoginBtn.disabled = false;
+                googleLoginBtn.textContent = 'Timeout - Riprova';
+                setTimeout(() => {
+                    googleLoginBtn.textContent = 'Connetti con Google';
+                }, 3000);
+            }
+        }, 500);
+    } else if (savedConfig.user && savedConfig.authToken) {
         currentUser = savedConfig.user;
-        await checkUserAuth();
+        
+        // Se il login è fresco (< 5 secondi), skippa checkUserAuth per evitare conflitti
+        const userUpdatedAt = savedConfig.user.updatedAt || savedConfig.user.createdAt;
+        const isFreshLogin = userUpdatedAt && (Date.now() - new Date(userUpdatedAt).getTime()) < 5000;
+        
+        if (isFreshLogin) {
+            console.log('[POPUP] Login fresco rilevato, skippo checkUserAuth...');
+            // Usa direttamente i dati salvati
+        } else {
+            console.log('[POPUP] Login esistente, verifico con backend...');
+            await checkUserAuth();
+        }
     }
     
     // Inizializza UI basata sullo stato di login
     updateUIForAuthState();
     
-    // Salva configurazione quando cambia la lingua
-    const saveConfig = async () => {
-        await chrome.storage.local.set({
-            language: languageSelect.value
-        });
-    };
-    
-    languageSelect.addEventListener('change', saveConfig);
-    
     // Controllo autenticazione utente
     async function checkUserAuth() {
+        console.log('[AUTH CHECK] ===== INIZIO VERIFICA =====');
         try {
             const { authToken } = await chrome.storage.local.get(['authToken']);
+            console.log('[AUTH CHECK] Token presente:', !!authToken);
+
             if (!authToken) {
                 throw new Error('Token mancante');
             }
-            
+
+            console.log('[AUTH CHECK] Chiamando /auth/verify...');
             const response = await fetch(`${CONFIG.API_URL}/auth/verify`, {
                 method: 'POST',
                 headers: {
@@ -65,21 +152,81 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             });
             
+            console.log('[AUTH CHECK] Response status:', response.status);
+            
             if (!response.ok) {
-                throw new Error('Token non valido');
+                const errorData = await response.json().catch(() => ({}));
+                console.log('[AUTH CHECK] Response error:', errorData);
+                throw new Error(`Token non valido: ${response.status} - ${errorData.error || 'Unknown'}`);
             }
             
             const userData = await response.json();
+            console.log('[AUTH CHECK] User data ricevuta:', userData.email);
             currentUser = userData;
             
             // Aggiorna storage
             await chrome.storage.local.set({ user: userData });
+            console.log('[AUTH CHECK] ===== VERIFICA OK =====');
             
             return true;
         } catch (error) {
-            console.log('Auth check fallito:', error.message);
+            console.error('[AUTH CHECK] ===== VERIFICA FALLITA =====');
+            console.error('[AUTH CHECK] Errore:', error.message);
+            console.log('[AUTH CHECK] Chiamando logout...');
             await logout();
             return false;
+        }
+    }
+    
+    // Funzioni per statistiche di tempo utente
+    async function getUserTimeStats() {
+        try {
+            const { userTimeStats = [] } = await chrome.storage.local.get(['userTimeStats']);
+            return userTimeStats;
+        } catch (error) {
+            console.error('[STATS] Errore recupero statistiche:', error);
+            return [];
+        }
+    }
+    
+    async function getAggregatedStats() {
+        const stats = await getUserTimeStats();
+        const now = new Date();
+        const currentMonth = now.toISOString().slice(0, 7); // YYYY-MM
+        
+        // Calcola totali
+        const lifetime = stats.reduce((acc, entry) => {
+            acc.timeSaved += entry.timeSavedMinutes || 0;
+            acc.readingTime += entry.readingTimeMinutes || 0;
+            acc.summaries += 1;
+            return acc;
+        }, { timeSaved: 0, readingTime: 0, summaries: 0 });
+        
+        // Calcola per mese corrente
+        const thisMonth = stats
+            .filter(entry => entry.month === currentMonth)
+            .reduce((acc, entry) => {
+                acc.timeSaved += entry.timeSavedMinutes || 0;
+                acc.readingTime += entry.readingTimeMinutes || 0;
+                acc.summaries += 1;
+                return acc;
+            }, { timeSaved: 0, readingTime: 0, summaries: 0 });
+        
+        return { lifetime, thisMonth };
+    }
+    
+    function formatTime(minutes) {
+        if (minutes < 1) {
+            const seconds = Math.round(minutes * 60);
+            return `${seconds} sec`;
+        } else if (minutes < 60) {
+            const mins = Math.floor(minutes);
+            const secs = Math.round((minutes - mins) * 60);
+            return secs > 0 ? `${mins}m ${secs}s` : `${mins} min`;
+        } else {
+            const hours = Math.floor(minutes / 60);
+            const mins = Math.round(minutes % 60);
+            return mins > 0 ? `${hours}h ${mins}m` : `${hours} ore`;
         }
     }
     
@@ -100,18 +247,25 @@ document.addEventListener('DOMContentLoaded', async () => {
                 userAvatar.style.display = 'none';
             }
             
-            // Aggiorna piano e limiti
+            // Aggiorna piano e limiti con statistiche
             const plan = currentUser.plan || 'free';
             const usage = currentUser.usage || { used: 0, limit: 10 };
             const planText = plan === 'premium' ? 'Piano Premium' : 'Piano Free';
-            const usageText = `${usage.used}/${usage.limit} riassunti`;
-            userPlan.textContent = `${planText} • ${usageText}`;
+            const usageText = plan === 'premium' 
+                ? 'Riassunti illimitati' 
+                : `${usage.used}/${usage.limit} riassunti`;
+            
+            // Aggiorna con statistiche di tempo (async)
+            updateUserPlanWithStats(planText, usageText);
             
             // Disabilita bottone se limiti superati
             if (usage.used >= usage.limit && plan === 'free') {
                 summarizeBtn.disabled = true;
-                summarizeBtn.textContent = '⚠️ Limite raggiunto - Upgrade a Premium';
+                summarizeBtn.textContent = 'Limite raggiunto - Upgrade a Premium';
             }
+            
+            // Aggiunge bottone Premium per utenti free
+            addPremiumButtonIfNeeded(plan);
         } else {
             // Utente non loggato
             loginCard.style.display = 'block';
@@ -119,282 +273,313 @@ document.addEventListener('DOMContentLoaded', async () => {
             summarizeBtn.disabled = true;
         }
     }
-    
-    // Login con Google
-    googleLoginBtn.addEventListener('click', async () => {
+
+    function setEmailLoginError(message) {
+        if (!emailLoginError) return;
+        if (message) {
+            emailLoginError.textContent = message;
+            emailLoginError.style.display = 'block';
+        } else {
+            emailLoginError.textContent = '';
+            emailLoginError.style.display = 'none';
+        }
+    }
+
+    function setEmailFormDisabled(disabled) {
+        if (emailInput) emailInput.disabled = disabled;
+        if (passwordInput) passwordInput.disabled = disabled;
+        if (emailLoginBtn) emailLoginBtn.disabled = disabled;
+        if (emailRegisterBtn) emailRegisterBtn.disabled = disabled;
+    }
+
+    async function handleEmailAuth(mode) {
         try {
-            googleLoginBtn.disabled = true;
-            googleLoginBtn.textContent = 'Connessione in corso...';
-            
-            // Usa Chrome Identity API per OAuth
-            const token = await new Promise((resolve, reject) => {
-                chrome.identity.getAuthToken({ interactive: true }, (token) => {
-                    if (chrome.runtime.lastError) {
-                        reject(chrome.runtime.lastError);
-                    } else {
-                        resolve(token);
-                    }
-                });
-            });
-            
-            // Verifica token con il backend
-            const response = await fetch(`${CONFIG.API_URL}/auth/login`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    googleToken: token
-                })
-            });
-            
-            if (!response.ok) {
-                throw new Error('Login fallito');
+            setEmailLoginError('');
+            const email = (emailInput?.value || '').trim();
+            const password = passwordInput?.value || '';
+
+if (!email || !password) {
+                setEmailLoginError('Inserisci email e password.');
+                return;
             }
-            
-            const userData = await response.json();
-            currentUser = userData;
-            
-            // Salva dati utente
-            await chrome.storage.local.set({
-                user: userData,
-                authToken: userData.authToken
+            if (password.length < 8) {
+                setEmailLoginError('La password deve avere almeno 8 caratteri.');
+                return;
+            }
+
+            setEmailFormDisabled(true);
+
+            const endpoint = mode === 'register' ? '/auth/register' : '/auth/login';
+            const response = await fetch(`${CONFIG.API_URL}${endpoint}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
             });
-            
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.error || 'Login non riuscito');
+            }
+
+            await chrome.storage.local.set({
+                authToken: data.authToken,
+                user: data.user
+            });
+
+            currentUser = data.user;
             updateUIForAuthState();
-            
         } catch (error) {
-            console.error('Errore login:', error);
-            showError('Errore durante il login: ' + error.message);
+            setEmailLoginError(error.message);
         } finally {
-            googleLoginBtn.disabled = false;
-            googleLoginBtn.innerHTML = `
-                <svg class="google-icon" viewBox="0 0 24 24">
-                    <path fill="#4285f4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                    <path fill="#34a853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                    <path fill="#fbbc05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                    <path fill="#ea4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                </svg>
-                Accedi con Google
-            `;
+            setEmailFormDisabled(false);
         }
-    });
-    
-    // Logout
-    async function logout() {
-        currentUser = null;
-        await chrome.storage.local.remove(['user', 'authToken']);
-        
-        // Revoca token Google
-        try {
-            chrome.identity.removeCachedAuthToken({ token: '' });
-        } catch (e) {
-            // Ignora errori
-        }
-        
-        updateUIForAuthState();
     }
     
-    logoutBtn.addEventListener('click', logout);
-    
-    // Mostra errore
-    const showError = (message) => {
-        hideAll();
-        errorMessage.textContent = message;
-        errorDiv.style.display = 'block';
-        setTimeout(() => {
-            errorDiv.style.display = 'none';
-        }, 5000);
-    };
-    
-    // Nasconde tutti i risultati
-    const hideAll = () => {
-        resultDiv.style.display = 'none';
-        copyBtn.style.display = 'none';
-        errorDiv.style.display = 'none';
-        loadingDiv.style.display = 'none';
-    };
-    
-    // Mostra loading
-    const showLoading = () => {
-        hideAll();
-        loadingDiv.style.display = 'block';
-        summarizeBtn.disabled = true;
-    };
-    
-    // Nasconde loading
-    const hideLoading = () => {
-        loadingDiv.style.display = 'none';
-        summarizeBtn.disabled = currentUser ? false : true;
-    };
-    
-    // Mostra risultato con il nuovo design
-    const showResult = (summary, title, readingTime, wordsCount, timeSavedText = '') => {
-        hideAll();
-        
-        // Aggiorna title
-        resultTitle.textContent = title || '📝 Riassunto';
-        
-        // Aggiorna stats
-        resultStats.innerHTML = '';
-        if (readingTime || wordsCount || timeSavedText) {
-            if (readingTime) {
-                const timeBadge = document.createElement('div');
-                timeBadge.className = 'stat-badge';
-                timeBadge.innerHTML = `
-                    <span>📖</span>
-                    <span class="stat-value">${readingTime}</span>
-                    <span class="stat-label">min</span>
-                `;
-                resultStats.appendChild(timeBadge);
-            }
-            
-            if (wordsCount) {
-                const wordsBadge = document.createElement('div');
-                wordsBadge.className = 'stat-badge';
-                wordsBadge.innerHTML = `
-                    <span>✏️</span>
-                    <span class="stat-value">${wordsCount}</span>
-                    <span class="stat-label">parole</span>
-                `;
-                resultStats.appendChild(wordsBadge);
-            }
-            
-            if (timeSavedText) {
-                const timeSavedBadge = document.createElement('div');
-                timeSavedBadge.className = 'stat-badge stat-highlight';
-                timeSavedBadge.innerHTML = `
-                    <span>⚡</span>
-                    <span class="stat-value">${timeSavedText}</span>
-                `;
-                resultStats.appendChild(timeSavedBadge);
-            }
-        }
-        
-        // Aggiorna contenuto
-        resultContent.innerHTML = summary.replace(/\n/g, '<br>');
-        
-        // Mostra risultato e bottone copia
-        resultDiv.style.display = 'block';
-        copyBtn.style.display = 'block';
-        
-        // Salva per copia
-        currentSummary = summary;
-    };
-    
-    // Copia negli appunti
-    copyBtn.addEventListener('click', async () => {
+    // Aggiorna il piano utente con statistiche di tempo
+    async function updateUserPlanWithStats(planText, usageText) {
         try {
-            await navigator.clipboard.writeText(currentSummary);
-            const originalText = copyBtn.textContent;
-            copyBtn.textContent = '✅ Copiato!';
-            copyBtn.style.background = 'rgba(76, 175, 80, 0.3)';
-            setTimeout(() => {
-                copyBtn.textContent = originalText;
-                copyBtn.style.background = '';
-            }, 2000);
+            const stats = await getAggregatedStats();
+            
+            let statsText = '';
+            if (stats.thisMonth.summaries > 0 || stats.lifetime.summaries > 0) {
+                if (stats.thisMonth.timeSaved > 0) {
+                    statsText += `Questo mese: ${formatTime(stats.thisMonth.timeSaved)} risparmiati`;
+                }
+                if (stats.lifetime.timeSaved > 0) {
+                    if (statsText) statsText += ' • ';
+                    statsText += `Totale: ${formatTime(stats.lifetime.timeSaved)} risparmiati`;
+                }
+            }
+            
+            if (statsText) {
+                userPlan.innerHTML = `
+                    <div>${planText} • ${usageText}</div>
+                    <div style="font-size: 11px; color: #666; margin-top: 2px;">${statsText}</div>
+                `;
+            } else {
+                userPlan.textContent = `${planText} • ${usageText}`;
+            }
         } catch (error) {
-            console.error('Errore nella copia:', error);
-            showError('Errore nella copia negli appunti');
+            console.error('[POPUP] Errore aggiornamento statistiche:', error);
+            userPlan.textContent = `${planText} • ${usageText}`;
         }
-    });
+    }
     
-    // Riassumi pagina
-    summarizeBtn.addEventListener('click', async () => {
-        if (!currentUser) {
-            showError('Effettua prima il login');
-            return;
-        }
+    // Aggiunge bottone Premium se necessario
+    function addPremiumButtonIfNeeded(plan) {
+        // Rimuovi bottone esistente se presente
+        const existingBtn = document.getElementById('premiumBtn');
+        if (existingBtn) existingBtn.remove();
         
+        if (plan === 'free') {
+            const premiumBtn = document.createElement('button');
+            premiumBtn.id = 'premiumBtn';
+            premiumBtn.className = 'premium-btn';
+            premiumBtn.innerHTML = 'Passa a Premium';
+            premiumBtn.style.cssText = `
+                width: 100%;
+                padding: 10px 12px;
+                margin-top: 10px;
+                background: #111827;
+                color: #f9fafb;
+                border: none;
+                border-radius: 10px;
+                font-size: 13px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: background 0.2s ease;
+            `;
+            
+            premiumBtn.addEventListener('mouseover', () => {
+                premiumBtn.style.background = '#0b1220';
+            });
+            premiumBtn.addEventListener('mouseout', () => {
+                premiumBtn.style.background = '#111827';
+            });
+            
+            premiumBtn.addEventListener('click', handlePremiumUpgrade);
+            
+            // Inserisci dopo userPlan
+            userPlan.parentNode.insertBefore(premiumBtn, userPlan.nextSibling);
+        }
+    }
+    
+    // Gestisce il click sul bottone Premium
+    async function handlePremiumUpgrade() {
         try {
-            showLoading();
-            
-            // Ottieni il contenuto della pagina corrente
-            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            
-            if (!tab) {
-                throw new Error('Nessun tab attivo trovato');
-            }
-            
-            // Ottieni token di auth
             const { authToken } = await chrome.storage.local.get(['authToken']);
             
-            // Usa l'endpoint /summarize-url con autenticazione
-            const response = await fetch(`${CONFIG.API_URL}/summarize-url`, {
+            if (!authToken) {
+                console.error('[PREMIUM] Token mancante');
+                return;
+            }
+            
+            console.log('[PREMIUM] Avviando processo di upgrade...');
+            
+            // Chiama endpoint per creare sessione di pagamento
+            const response = await fetch(`${CONFIG.API_URL}/payments/create-checkout`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${authToken}`
                 },
                 body: JSON.stringify({
-                    url: tab.url,
-                    lang: languageSelect.value
+                    planType: 'premium_monthly'
                 })
             });
             
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ error: 'Errore di rete' }));
-                
-                if (response.status === 429) {
-                    throw new Error('Limite riassunti raggiunto. Upgrade a Premium per continuare.');
-                }
-                
                 throw new Error(errorData.error || `HTTP ${response.status}`);
             }
             
             const data = await response.json();
-            console.log('Dati ricevuti dal popup:', data);
+            const checkoutUrl = data.checkout_session?.url;
             
-            // Aggiorna contatore utilizzo locale
-            if (currentUser.usage) {
-                currentUser.usage.used = (currentUser.usage.used || 0) + 1;
-                await chrome.storage.local.set({ user: currentUser });
-                updateUIForAuthState();
+            if (checkoutUrl) {
+                // Apri checkout in nuova tab
+                chrome.tabs.create({ url: checkoutUrl });
+                window.close(); // Chiudi popup
+            } else {
+                throw new Error('URL checkout non ricevuto');
             }
-            
-            // Calcola tempo risparmiato come fa la modale
-            let timeSavedText = '';
-            if (data.stats) {
-                const originalWordsCount = data.stats.originalWords || 0;
-                const summaryWordsCount = data.stats.summaryWords || data.wordsCount || 0;
-                
-                // Parole risparmiate
-                const wordsSaved = Math.max(0, originalWordsCount - summaryWordsCount);
-                // Tempo risparmiato in minuti (220 parole/minuto)
-                const timeSavedMinutes = wordsSaved / 220;
-                
-                // Formatta il tempo risparmiato
-                if (timeSavedMinutes >= 1) {
-                    const minutes = Math.floor(timeSavedMinutes);
-                    const seconds = Math.round((timeSavedMinutes - minutes) * 60);
-                    if (seconds > 0) {
-                        timeSavedText = `${minutes}m ${seconds}s risparmiati`;
-                    } else {
-                        timeSavedText = `${minutes} min risparmiati`;
-                    }
-                } else {
-                    const totalSeconds = Math.max(1, Math.round(timeSavedMinutes * 60));
-                    timeSavedText = `${totalSeconds} sec risparmiati`;
-                }
-            }
-            
-            // Mostra risultato con i dati corretti
-            showResult(
-                data.summary || 'Riassunto non disponibile',
-                data.title || tab.title,
-                data.readingTimeMinutes,
-                data.wordsCount,
-                timeSavedText
-            );
             
         } catch (error) {
-            console.error('Errore:', error);
-            showError(error.message || 'Errore generico');
-        } finally {
-            hideLoading();
+            console.error('[PREMIUM] Errore upgrade:', error);
+            alert(`Errore durante l'upgrade: ${error.message}`);
+        }
+    }
+    
+    // Login con Google usando OAuth PKCE Flow (delegato al service worker)
+    googleLoginBtn.addEventListener('click', async () => {
+        // Prevenire click multipli
+        if (googleLoginBtn.disabled) {
+            console.log('[LOGIN] Click ignorato, già in corso...');
+            return;
+        }
+        
+        try {
+            googleLoginBtn.disabled = true;
+            googleLoginBtn.textContent = 'Autenticazione in corso...';
+            
+            console.log('[LOGIN] Generazione PKCE parametri...');
+            
+            // Genera state e PKCE parameters
+            const state = crypto.randomUUID();
+            const codeVerifier = await generateCodeVerifier();
+            const codeChallenge = await generateCodeChallenge(codeVerifier);
+            
+            console.log('[LOGIN] Invio richiesta al service worker...');
+            
+            // Salva flag che indica login in corso
+            await chrome.storage.local.set({ loginInProgress: true });
+            
+            // Delega al service worker (il popup si chiuderà, è normale)
+            chrome.runtime.sendMessage({
+                action: 'googleLogin',
+                state,
+                codeChallenge,
+                codeVerifier,
+                redirectUri: REDIRECT_URI,
+                clientId: GOOGLE_WEB_CLIENT_ID,
+                apiUrl: CONFIG.API_URL
+            }, (response) => {
+                // Questa callback potrebbe non essere chiamata se popup si chiude
+                console.log('[LOGIN] Callback ricevuta:', response);
+                if (response?.success) {
+                    chrome.storage.local.remove('loginInProgress');
+                    location.reload();
+                } else if (response?.error) {
+                    chrome.storage.local.remove('loginInProgress');
+                    googleLoginBtn.textContent = response.error;
+                    googleLoginBtn.disabled = false;
+                }
+            });
+            
+            // Mostra messaggio all'utente
+            googleLoginBtn.textContent = 'Completa il login nella finestra Google...';
+            console.log('[LOGIN] Il popup potrebbe chiudersi. Riaprilo dopo il login.');
+            
+        } catch (error) {
+            console.error('[LOGIN] Errore completo:', error);
+            googleLoginBtn.textContent = error.message;
+            await chrome.storage.local.remove('loginInProgress');
+            googleLoginBtn.disabled = false;
+            setTimeout(() => {
+                googleLoginBtn.innerHTML = `
+                    <svg class="google-icon" viewBox="0 0 24 24">
+                        <path fill="#4285f4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34a853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#fbbc05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                        <path fill="#ea4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                    Accedi con Google
+                `;
+            }, 3000);
+        }
+    });
+
+    if (emailLoginBtn) {
+        emailLoginBtn.addEventListener('click', () => handleEmailAuth('login'));
+    }
+    if (emailRegisterBtn) {
+        emailRegisterBtn.addEventListener('click', () => handleEmailAuth('register'));
+    }
+    
+    // Logout
+    async function logout() {
+        console.log('[LOGOUT] Inizio logout...');
+        
+        currentUser = null;
+        await chrome.storage.local.remove(['user', 'authToken']);
+        
+        console.log('[LOGOUT] Logout completato');
+        updateUIForAuthState();
+    }
+    
+    logoutBtn.addEventListener('click', logout);
+    
+    // Riassumi pagina - apre la modale nel tab attivo
+    summarizeBtn.addEventListener('click', async () => {
+        if (!currentUser) {
+            console.error('[POPUP] Utente non loggato');
+            return;
+        }
+        
+        try {
+            // Ottieni il tab attivo
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            
+            if (!tab) {
+                console.error('[POPUP] Nessun tab attivo');
+                return;
+            }
+            
+            console.log('[POPUP] Aprendo modale nel tab:', tab.url);
+
+            const request = { action: 'openSummaryModal', url: tab.url };
+            try {
+                await chrome.tabs.sendMessage(tab.id, request);
+            } catch (messageError) {
+                // A tab already open when the extension is reloaded can be
+                // missing its content script. Inject it once and retry.
+                await chrome.scripting.executeScript({
+                    target: { tabId: tab.id },
+                    files: ['content.js']
+                });
+                await chrome.tabs.sendMessage(tab.id, request);
+            }
+
+            // Close only after the tab confirmed receiving the request.
+            window.close();
+            
+        } catch (error) {
+            console.error('[POPUP] Errore apertura modale:', error);
+            summarizeBtn.textContent = 'Impossibile avviare il riassunto';
+            setTimeout(() => {
+                summarizeBtn.textContent = 'Riassumi questa pagina';
+            }, 3000);
         }
     });
     
-    // Inizializzazione
-    hideAll();
 });

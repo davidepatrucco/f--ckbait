@@ -13,7 +13,7 @@ chrome.runtime.onInstalled.addListener((details) => {
     // Crea il context menu per i link
     chrome.contextMenus.create({
         id: 'summarize-link',
-        title: '🍋 Riassumi questo link',
+        title: 'Riassumi questo link',
         contexts: ['link'],
         documentUrlPatterns: ['http://*/*', 'https://*/*']
     });
@@ -43,7 +43,79 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         handleSummarizeUrl(request, sender, sendResponse);
         return true;
     }
+    
+    if (request.action === 'googleLogin') {
+        // Gestisce il login Google OAuth
+        handleGoogleLogin(request, sender, sendResponse);
+        return true;
+    }
+
+    if (request.action === 'getYouTubeCaptionTracks') {
+        getYouTubeCaptionTracks(sender, sendResponse);
+        return true;
+    }
 });
+
+async function getYouTubeCaptionTracks(sender, sendResponse) {
+    try {
+        if (!sender.tab?.id) throw new Error('Richiesta trascrizione senza tab');
+        const [{ result: tracks = [] } = {}] = await chrome.scripting.executeScript({
+            target: { tabId: sender.tab.id },
+            world: 'MAIN',
+            func: () => {
+                const extractTracks = (response) => response?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
+                let captionTracks = extractTracks(window.ytInitialPlayerResponse);
+
+                if (!captionTracks.length) {
+                    try {
+                        const serializedResponse = window.ytplayer?.config?.args?.player_response;
+                        captionTracks = extractTracks(JSON.parse(serializedResponse || '{}'));
+                    } catch {
+                        // Keep searching the initial player payload below.
+                    }
+                }
+
+                if (!captionTracks.length) {
+                    const scriptText = Array.from(document.scripts)
+                        .map((script) => script.textContent || '')
+                        .find((text) => text.includes('"captionTracks"'));
+                    const marker = scriptText?.indexOf('"captionTracks"') ?? -1;
+                    const start = marker >= 0 ? scriptText.indexOf('[', marker) : -1;
+                    if (start >= 0) {
+                        let depth = 0;
+                        let string = false;
+                        let escaped = false;
+                        for (let index = start; index < scriptText.length; index += 1) {
+                            const character = scriptText[index];
+                            if (string) {
+                                if (escaped) escaped = false;
+                                else if (character === '\\') escaped = true;
+                                else if (character === '"') string = false;
+                            } else if (character === '"') string = true;
+                            else if (character === '[') depth += 1;
+                            else if (character === ']' && --depth === 0) {
+                                try { captionTracks = JSON.parse(scriptText.slice(start, index + 1)); } catch { /* no tracks */ }
+                                break;
+                            }
+                        }
+                    }
+                }
+                return {
+                    tracks: captionTracks.map(({ baseUrl, languageCode, name }) => ({
+                        baseUrl,
+                        languageCode,
+                        name: name?.simpleText || ''
+                    })),
+                    durationSeconds: Number(window.ytInitialPlayerResponse?.videoDetails?.lengthSeconds || 0)
+                };
+            }
+        });
+        sendResponse({ success: true, tracks: tracks.tracks || [], durationSeconds: tracks.durationSeconds || 0 });
+    } catch (error) {
+        console.error('Impossibile leggere le caption track YouTube:', error);
+        sendResponse({ success: false, tracks: [] });
+    }
+}
 
 // Funzione per ottenere il contenuto della pagina
 async function handleGetPageContent(request, sender, sendResponse) {
@@ -83,8 +155,20 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
             const { user, authToken } = await chrome.storage.local.get(['user', 'authToken']);
             
             if (!user || !authToken) {
-                // Utente non loggato - mostra modal di login
-                await showLoginModal(linkUrl, tab.id);
+                // Utente non loggato - apri popup per login invece di modale
+                console.log('Utente non loggato, aprendo popup per login...');
+                try {
+                    await chrome.action.openPopup();
+                } catch (error) {
+                    console.log('Errore nell\'aprire popup:', error);
+                    // Fallback: mostra notifica
+                    chrome.notifications.create({
+                        type: 'basic',
+                        iconUrl: 'assets/icon-48.png',
+                        title: 'LemonSqueezer - Login richiesto',
+                        message: 'Apri l\'estensione per effettuare il login, poi riprova con il link.'
+                    });
+                }
                 return;
             }
             
@@ -92,7 +176,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
             await showLoadingModal(linkUrl, tab.id);
             
             // 3. CHIAMA L'API CON AUTENTICAZIONE
-            const apiUrl = 'https://8udffsiwnc.execute-api.eu-west-1.amazonaws.com/dev';
+            const apiUrl = 'https://4jo5gamel9.execute-api.eu-west-1.amazonaws.com/dev';
             console.log('Chiamando API:', apiUrl);
             
             const result = await summarizeUrlDirectly(linkUrl, apiUrl, authToken, 'it');
@@ -180,34 +264,12 @@ async function showLoadingModal(url, tabId) {
             type: 'basic',
             iconUrl: 'assets/icon-48.png',
             title: 'LemonSqueezer - TL;DR',
-            message: '🍋 Squeezing...'
+            message: 'Analisi in corso...'
         });
     }
 }
 
 // Funzione per mostrare la modale di login
-async function showLoginModal(url, tabId) {
-    try {
-        // Inietta il content script se necessario
-        await ensureContentScript(tabId);
-        
-        // Mostra la modale di login
-        await chrome.tabs.sendMessage(tabId, {
-            action: 'showLoginModal',
-            data: { url }
-        });
-    } catch (error) {
-        console.error('Errore nel mostrare login modal:', error);
-        // Fallback: notifica
-        chrome.notifications.create({
-            type: 'basic',
-            iconUrl: 'assets/icon-48.png',
-            title: 'LemonSqueezer - Login richiesto',
-            message: 'Apri l\'estensione per effettuare il login'
-        });
-    }
-}
-
 // Funzione per aggiornare la modale con il risultato
 async function updateModalWithResult(summaryData, originalUrl, tabId) {
     try {
@@ -343,3 +405,116 @@ self.addEventListener('error', (event) => {
 self.addEventListener('unhandledrejection', (event) => {
     console.error('Promise rejetta nel service worker:', event.reason);
 });
+
+// Google OAuth Login Handler (eseguito nel background)
+async function handleGoogleLogin(request, sender, sendResponse) {
+    console.log('[SW LOGIN] ===== INIZIO GOOGLE LOGIN =====');
+    console.log('[SW LOGIN] Request ricevuto:', { hasState: !!request.state, hasChallenge: !!request.codeChallenge, hasVerifier: !!request.codeVerifier });
+    
+    try {
+        const { state, codeChallenge, codeVerifier, redirectUri, clientId, apiUrl } = request;
+        
+        if (!state || !codeChallenge || !codeVerifier || !redirectUri || !clientId || !apiUrl) {
+            throw new Error('Parametri mancanti per OAuth');
+        }
+        
+        // Costruisci URL autorizzazione
+        const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({
+            client_id: clientId,
+            redirect_uri: redirectUri,
+            response_type: 'code',
+            scope: 'openid email profile',
+            prompt: 'consent',
+            access_type: 'offline',
+            include_granted_scopes: 'true',
+            state: state,
+            code_challenge: codeChallenge,
+            code_challenge_method: 'S256'
+        })}`;
+        
+        console.log('[SW LOGIN] Avvio launchWebAuthFlow...');
+        console.log('[SW LOGIN] Auth URL:', authUrl.substring(0, 100) + '...');
+        
+        // Lancia OAuth flow - questo rimane attivo anche se popup si chiude
+        const redirectUrl = await chrome.identity.launchWebAuthFlow({
+            url: authUrl,
+            interactive: true
+        });
+        
+        console.log('[SW LOGIN] Redirect URL ricevuto');
+        
+        // Parse redirect URL
+        const url = new URL(redirectUrl);
+        const returnedState = url.searchParams.get('state');
+        const code = url.searchParams.get('code');
+        
+        if (returnedState !== state) {
+            throw new Error('State mismatch - possibile attacco CSRF');
+        }
+        
+        if (!code) {
+            throw new Error('Authorization code mancante');
+        }
+        
+        console.log('[SW LOGIN] Code ottenuto, invio al backend...');
+        
+        // Invia code al backend per scambio token
+        const backendResponse = await fetch(`${apiUrl}/auth/google`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                code,
+                code_verifier: codeVerifier,
+                redirect_uri: redirectUri
+            })
+        });
+        
+        if (!backendResponse.ok) {
+            const error = await backendResponse.json().catch(() => ({}));
+            console.error('[SW LOGIN] Errore backend:', error);
+            throw new Error(error.error || 'Login fallito');
+        }
+        
+        const data = await backendResponse.json();
+        console.log('[SW LOGIN] Dati ricevuti dal backend');
+        
+        // Salva JWT token e user info in storage
+        console.log('[SW LOGIN] Salvataggio in storage...');
+        await chrome.storage.local.set({
+            authToken: data.authToken,
+            user: data.user
+        });
+        
+        // RIMUOVI il flag loginInProgress
+        await chrome.storage.local.remove('loginInProgress');
+        
+        // Verifica subito che sia salvato
+        const check = await chrome.storage.local.get(['authToken', 'user', 'loginInProgress']);
+        console.log('[SW LOGIN] Verifica storage:', { 
+            hasToken: !!check.authToken, 
+            hasUser: !!check.user,
+            loginInProgress: check.loginInProgress 
+        });
+        
+        console.log('[SW LOGIN] Login completato! User:', data.user.email);
+        console.log('[SW LOGIN] ===== FINE GOOGLE LOGIN =====');
+        
+        sendResponse({ 
+            success: true, 
+            user: data.user,
+            authToken: data.authToken
+        });
+        
+    } catch (error) {
+        console.error('[SW LOGIN] ===== ERRORE GOOGLE LOGIN =====');
+        console.error('[SW LOGIN] Errore:', error);
+        console.error('[SW LOGIN] Stack:', error.stack);
+        
+        // IMPORTANTE: Rimuovi sempre il flag loginInProgress in caso di errore
+        await chrome.storage.local.remove('loginInProgress');
+        
+        sendResponse({ success: false, error: error.message });
+    }
+}

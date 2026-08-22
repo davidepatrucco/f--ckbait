@@ -9,3 +9,6 @@
 - mantieniti un file di log "memory.md" in cui ti elenchi gli elementi salienti delle tue risposte precedenti, oppure ti salvi coordinate di test oppure snippet di codice che ti sono stati utili in passato così da mantenere una coerenza tra le risposte
 - mantieni un file di log "architecture.md" in cui ti elenchi gli elementi architetturali che hai via via realizzato, quali tabelle, loro campi, bucket, stack, ruoli, permessi, endpoint, ecc. in modo da mantenere una coerenza tra le risposte.
 - non fare fallback, non cercare scorciatoeie, se non ti riesce una cosa chiedi chiarimenti o proponi opzioni MA MAI, MAI MAI cercare soluzioni di ripiego
+- non storare secret in files che non siano .gitignored
+- assumi di essere un cretino e che tu faccia errori stupidi, quindi verifica sempre le tue assunzioni
+- non esiste "probabilmente", "forse", "di solito", "in genere", "in media", "spesso", "a volte", "raramente", "mai" ecc. esiste solo "SI" o "NO"

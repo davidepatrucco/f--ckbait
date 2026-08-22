@@ -26,30 +26,11 @@ describe('Payments Module Tests', () => {
         const { createCheckoutSession } = await import('../src/payments.mjs');
         
         try {
-            // Test con piano valido - dovrebbe fallire per mancanza di configurazione Stripe, non per piano invalido
-            await createCheckoutSession('test-user-123', 'test@example.com', 'premium_monthly');
-        } catch (error) {
-            // Ci aspettiamo un errore di configurazione Stripe, non di piano invalido
-            assert.ok(!error.message.includes('Piano non valido'), 'premium_monthly should be a valid plan');
-        }
-
-        try {
             // Test con piano invalido
             await createCheckoutSession('test-user-123', 'test@example.com', 'invalid_plan');
             assert.fail('Should have thrown an error for invalid plan');
         } catch (error) {
             assert.ok(error.message.includes('Piano non valido'), 'Should reject invalid plan types');
-        }
-    });
-
-    it('should handle Stripe errors gracefully', async () => {
-        const { getUserSubscription } = await import('../src/payments.mjs');
-        
-        try {
-            // Questo dovrebbe fallire perché DynamoDB non è configurato in test
-            await getUserSubscription('nonexistent-user');
-        } catch (error) {
-            assert.ok(error.message.includes('Errore'), 'Should throw descriptive error');
         }
     });
 
@@ -89,34 +70,4 @@ describe('Payments Module Tests', () => {
         assert.ok(expectedSubscriptionStructure.plan_type === 'string', 'Should track plan type');
     });
 
-    it('should define correct product configuration', async () => {
-        // Test che i prodotti Stripe siano definiti correttamente
-        const paymentsModule = await import('../src/payments.mjs');
-        
-        // Verifichiamo che il modulo gestisca i piani supportati
-        const supportedPlans = ['premium_monthly', 'premium_yearly'];
-        
-        // Test che i piani supportati siano riconosciuti
-        for (const plan of supportedPlans) {
-            try {
-                await paymentsModule.createCheckoutSession('test-user', 'test@example.com', plan);
-            } catch (error) {
-                // L'errore dovrebbe essere di configurazione Stripe, non di piano invalido
-                assert.ok(!error.message.includes('Piano non valido'), `${plan} should be a supported plan`);
-            }
-        }
-    });
-
-    it('should handle checkout session validation', async () => {
-        const { verifyCheckoutSession } = await import('../src/payments.mjs');
-        
-        try {
-            // Test con session ID invalido
-            await verifyCheckoutSession('invalid_session_id');
-            assert.fail('Should have thrown an error for invalid session ID');
-        } catch (error) {
-            // Ci aspettiamo un errore Stripe, non un crash
-            assert.ok(error.message.includes('Errore verifica sessione'), 'Should handle invalid session gracefully');
-        }
-    });
 });

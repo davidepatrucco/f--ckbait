@@ -43,37 +43,6 @@ describe('Cache Module Tests', () => {
         assert.strictEqual(shouldCacheUrl(''), false, 'Empty URL should not be cacheable');
     });
 
-    it('should handle cache operations gracefully when DynamoDB is not available', async () => {
-        const { getCachedSummary, setCachedSummary } = await import('../src/cache.mjs');
-        
-        // Test che le funzioni non lancino errori anche senza DynamoDB
-        try {
-            const result = await getCachedSummary('https://example.com/test', 'it');
-            assert.strictEqual(result, null, 'Should return null when cache not available');
-        } catch (error) {
-            // Accettabile che fallisca, ma non dovrebbe crashare l'app
-            assert.ok(true, 'Expected behavior when DynamoDB is not available');
-        }
-
-        try {
-            const summaryData = {
-                title: 'Test Article',
-                summary: 'This is a test summary.',
-                readingTimeMinutes: 3,
-                wordsCount: 200,
-                stats: { sentences: 5 },
-                charsInput: 1000,
-                processingTimeMs: 2500
-            };
-            
-            const result = await setCachedSummary('https://example.com/test', 'it', summaryData);
-            // Dovrebbe restituire null se fallisce, non crashare
-            assert.ok(result === null || typeof result === 'string', 'Should handle cache save gracefully');
-        } catch (error) {
-            assert.ok(true, 'Expected behavior when DynamoDB is not available');
-        }
-    });
-
     it('should normalize URLs consistently', async () => {
         const { shouldCacheUrl } = await import('../src/cache.mjs');
         

@@ -1,0 +1,72 @@
+name: Test and deploy backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'infra/**'
+      - '.github/workflows/deploy-backend.yml'
+  workflow_dispatch:
+
+# OIDC gives this workflow short-lived AWS credentials. No access keys in GitHub.
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: lemonsqueezer-dev-deploy
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: eu-west-1
+  STACK_NAME: lemonsqueezer-dev
+  ENVIRONMENT: dev
+
+jobs:
+  test:
+    name: Test backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm test
+
+  deploy:
+    name: Deploy AWS dev
+    needs: test
+    runs-on: ubuntu-latest
+    environment: development
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - uses: aws-actions/setup-sam@v2
+      - name: Validate template
+        run: sam validate --template-file infra/sam-template-simple.yaml
+      - name: Build backend
+        run: sam build --template-file infra/sam-template-simple.yaml
+      - name: Deploy backend
+        run: >-
+          sam deploy
+          --template-file .aws-sam/build/template.yaml
+          --stack-name "$STACK_NAME"
+          --region "$AWS_REGION"
+          --resolve-s3
+          --s3-prefix "lemonsqueezer-$ENVIRONMENT"
+          --capabilities CAPABILITY_IAM
+          --no-confirm-changeset
+          --no-fail-on-empty-changeset
+          --parameter-overrides
+          "Environment=$ENVIRONMENT"
+          "AllowedOrigins=${{ vars.ALLOWED_ORIGINS }}"

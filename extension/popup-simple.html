@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LemonSqueezer - TL;DR</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;700&family=Manrope:wght@400;600;700&display=swap');
+
+        :root {
+            --font-display: "Fraunces", "Times New Roman", serif;
+            --font-sans: "Manrope", "Helvetica Neue", Arial, sans-serif;
+            --text-xs: 12px;
+            --text-sm: 13px;
+            --text-md: 14px;
+            --text-lg: 16px;
+            --text-xl: 18px;
+            --line-base: 1.6;
+        }
+
+        body {
+            width: 350px;
+            min-height: 280px;
+            margin: 0;
+            font-family: var(--font-sans);
+            font-size: var(--text-md);
+            line-height: var(--line-base);
+            background: white;
+            color: #333;
+            padding: 0;
+            overflow: hidden;
+        }
+        
+        .popup-container {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 20px 20px 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .header h1 {
+            margin: 0 0 4px 0;
+            font-size: var(--text-xl);
+            font-weight: 600;
+            font-family: var(--font-display);
+        }
+        
+        .header p {
+            margin: 0;
+            font-size: var(--text-xs);
+            opacity: 0.9;
+        }
+        
+        .content-area {
+            padding: 20px;
+        }
+        
+        /* Login Card */
+        .login-card {
+            text-align: center;
+            padding: 20px 0;
+        }
+        
+        .login-title {
+            font-size: var(--text-lg);
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        
+        .login-subtitle {
+            font-size: var(--text-sm);
+            color: #666;
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
+        
+        .google-login-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 12px 16px;
+            background: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: var(--text-md);
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .google-login-btn:hover {
+            background: #3367d6;
+        }
+        
+        .google-login-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .google-icon {
+            width: 18px;
+            height: 18px;
+            margin-right: 8px;
+        }
+        
+        /* User Info */
+        .user-info {
+            display: none;
+            flex-direction: column;
+            gap: 16px;
+        }
+        
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #ddd;
+        }
+        
+        .user-details {
+            flex: 1;
+        }
+        
+        .user-name {
+            font-size: var(--text-md);
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 2px;
+        }
+        
+        .user-plan {
+            font-size: var(--text-xs);
+            color: #666;
+        }
+        
+        .logout-btn {
+            background: none;
+            border: 1px solid #ddd;
+            color: #666;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: var(--text-xs);
+            cursor: pointer;
+        }
+        
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .language-select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: var(--text-sm);
+            background: white;
+        }
+        
+        .button-primary {
+            width: 100%;
+            padding: 12px 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: var(--text-md);
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .button-primary:hover:not(:disabled) {
+            transform: translateY(-1px);
+        }
+        
+        .button-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .status-message {
+            text-align: center;
+            padding: 12px;
+            background: #e3f2fd;
+            color: #1976d2;
+            border-radius: 6px;
+            font-size: var(--text-sm);
+            margin-top: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="popup-container">
+        <div class="header">
+            <h1>LemonSqueezer</h1>
+            <p>Riassunti intelligenti in un click</p>
+        </div>
+        
+        <div class="content-area">
+            <!-- Login Card (mostrata se non loggato) -->
+            <div id="loginCard" class="login-card">
+                <div class="login-title">Accesso richiesto</div>
+                <div class="login-subtitle">
+                    Effettua l'accesso per iniziare a riassumere pagine web
+                </div>
+                <button id="googleLoginBtn" class="google-login-btn">
+                    <svg class="google-icon" viewBox="0 0 24 24">
+                        <path fill="#ffffff" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#ffffff" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#ffffff" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                        <path fill="#ffffff" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                    Accedi con Google
+                </button>
+            </div>
+            
+            <!-- User Info (mostrata se loggato) -->
+            <div id="userInfo" class="user-info">
+                <div class="user-profile">
+                    <img id="userAvatar" class="user-avatar" src="" alt="User">
+                    <div class="user-details">
+                        <div id="userName" class="user-name"></div>
+                        <div id="userPlan" class="user-plan"></div>
+                    </div>
+                    <button id="logoutBtn" class="logout-btn">Esci</button>
+                </div>
+                
+                <div class="controls">
+                    <select id="language" class="language-select">
+                        <option value="it">Italiano</option>
+                        <option value="en">English</option>
+                        <option value="es">Español</option>
+                        <option value="fr">Français</option>
+                        <option value="de">Deutsch</option>
+                    </select>
+                    
+                    <button id="summarizeBtn" class="button-primary" disabled>
+                        Riassumi questa pagina
+                    </button>
+                </div>
+                
+                <div id="statusMessage" class="status-message" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="popup.js"></script>
+</body>
+</html>

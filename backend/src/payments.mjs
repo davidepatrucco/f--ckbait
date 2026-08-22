@@ -176,46 +176,56 @@ export async function verifyCheckoutSession(sessionId) {
 export async function handleStripeWebhook(body, signature) {
     try {
         const { stripe } = await initializeStripe();
-        const endpointSecret = await secretsManager.getSecret('STRIPE_WEBHOOK_SECRET');
-        if (!endpointSecret) {
-            throw new Error('STRIPE_WEBHOOK_SECRET non configurato');
+        const webhookSecret = await secretsManager.getSecret('STRIPE_WEBHOOK_SECRET');
+
+        // CRITICAL: Always verify webhook signatures - never skip in any environment
+        if (!webhookSecret || !signature) {
+            throw new Error('STRIPE_WEBHOOK_SECRET not configured or signature missing');
         }
 
-        const event = stripe.webhooks.constructEvent(body, signature, endpointSecret);
-
-        console.log('Stripe webhook event:', event.type);
-
-        switch (event.type) {
-            case 'customer.subscription.created':
-                await handleSubscriptionCreated(event.data.object);
-                break;
-            
-            case 'customer.subscription.updated':
-                await handleSubscriptionUpdated(event.data.object);
-                break;
-            
-            case 'customer.subscription.deleted':
-                await handleSubscriptionDeleted(event.data.object);
-                break;
-            
-            case 'invoice.payment_succeeded':
-                await handlePaymentSucceeded(event.data.object);
-                break;
-            
-            case 'invoice.payment_failed':
-                await handlePaymentFailed(event.data.object);
-                break;
-            
-            default:
-                console.log(`Unhandled event type: ${event.type}`);
-        }
-
-        return { received: true, eventType: event.type };
+        // Verify webhook signature with raw body
+        const event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+        return await handleStripeEvent(event);
 
     } catch (error) {
         console.error('Error handling Stripe webhook:', error);
         throw new Error('Errore gestione webhook Stripe: ' + error.message);
     }
+}
+
+async function handleStripeEvent(event) {
+    console.log('Stripe webhook event:', event.type);
+
+    switch (event.type) {
+        case 'checkout.session.completed':
+            await handleCheckoutCompleted(event.data.object);
+            break;
+        
+        case 'customer.subscription.created':
+            await handleSubscriptionCreated(event.data.object);
+            break;
+        
+        case 'customer.subscription.updated':
+            await handleSubscriptionUpdated(event.data.object);
+            break;
+        
+        case 'customer.subscription.deleted':
+            await handleSubscriptionDeleted(event.data.object);
+            break;
+        
+        case 'invoice.payment_succeeded':
+            await handlePaymentSucceeded(event.data.object);
+            break;
+        
+        case 'invoice.payment_failed':
+            await handlePaymentFailed(event.data.object);
+            break;
+        
+        default:
+            console.log(`Unhandled event type: ${event.type}`);
+    }
+
+    return { received: true, eventType: event.type };
 }
 
 /**
@@ -242,6 +252,8 @@ export async function getUserSubscription(userId) {
  */
 export async function cancelSubscription(userId) {
     try {
+        const { stripe } = await initializeStripe();
+
         const subscription = await getUserSubscription(userId);
         if (!subscription) {
             throw new Error('Subscription non trovata');
@@ -273,6 +285,8 @@ export async function cancelSubscription(userId) {
  */
 export async function reactivateSubscription(userId) {
     try {
+        const { stripe } = await initializeStripe();
+
         const subscription = await getUserSubscription(userId);
         if (!subscription) {
             throw new Error('Subscription non trovata');
@@ -370,9 +384,56 @@ async function updateSubscriptionStatus(userId, status) {
 
 // --- Webhook handlers ---
 
+async function handleCheckoutCompleted(session) {
+    console.log('=== CHECKOUT COMPLETED HANDLER START ===');
+    console.log('Session ID:', session.id);
+    console.log('Client reference ID:', session.client_reference_id);
+    console.log('Metadata:', JSON.stringify(session.metadata));
+    console.log('Payment status:', session.payment_status);
+    console.log('Status:', session.status);
+    
+    const userId = session.client_reference_id;
+    const planType = session.metadata?.plan_type || 'premium_monthly';
+    
+    if (!userId) {
+        console.error('Missing user ID in checkout session');
+        return;
+    }
+    
+    console.log(`Processing upgrade for user ${userId} to plan ${planType}`);
+    
+    try {
+        console.log('Calling updateUserPlan...');
+        await updateUserPlan(userId, 'premium');
+        console.log('updateUserPlan completed successfully');
+        
+        // Salva record subscription
+        const subscriptionData = {
+            user_id: userId,
+            subscription_id: session.subscription,
+            plan_type: planType,
+            status: 'active',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        };
+        
+        console.log('Saving subscription record...', subscriptionData);
+        await saveSubscriptionRecord(userId, subscriptionData);
+        console.log('Subscription record saved successfully');
+        
+        console.log(`User ${userId} upgraded to premium plan: ${planType}`);
+        console.log('=== CHECKOUT COMPLETED HANDLER END ===');
+        
+    } catch (error) {
+        console.error('Error processing checkout completion:', error);
+        console.error('Error stack:', error.stack);
+        throw error;
+    }
+}
+
 async function handleSubscriptionCreated(subscription) {
     console.log('Subscription created:', subscription.id);
-    // Logica già gestita in verifyCheckoutSession
+    // Logica già gestita in handleCheckoutCompleted
 }
 
 async function handleSubscriptionUpdated(subscription) {
@@ -407,4 +468,23 @@ async function handlePaymentSucceeded(invoice) {
 async function handlePaymentFailed(invoice) {
     console.log('Payment failed for invoice:', invoice.id);
     // Eventualmente inviare email di avviso
+}
+
+/**
+ * Salva record subscription nel database
+ */
+async function saveSubscriptionRecord(userId, subscriptionData) {
+    try {
+        const command = new PutCommand({
+            TableName: PAYMENTS_TABLE,
+            Item: subscriptionData
+        });
+
+        await docClient.send(command);
+        console.log('Subscription record saved for user:', userId);
+
+    } catch (error) {
+        console.error('Error saving subscription record:', error);
+        throw new Error('Errore salvataggio subscription record');
+    }
 }

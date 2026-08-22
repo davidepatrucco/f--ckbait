@@ -1,8 +1,41 @@
-import { JSDOM } from 'jsdom';
-import { Readability } from '@mozilla/readability';
+import * as cheerio from 'cheerio';
+import { isIP } from 'node:net';
+import { lookup } from 'node:dns/promises';
 
 // Config
 const MAX_TEXT_CHARS = parseInt(process.env.MAX_TEXT_CHARS || '6000', 10);
+
+function isPrivateAddress(address) {
+    if (isIP(address) === 4) {
+        const [a, b] = address.split('.').map(Number);
+        return a === 0 || a === 10 || a === 127 ||
+            (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) ||
+            (a === 192 && b === 168);
+    }
+    if (isIP(address) === 6) {
+        const normalized = address.toLowerCase();
+        return normalized === '::1' || normalized.startsWith('fc') ||
+            normalized.startsWith('fd') || normalized.startsWith('fe80:');
+    }
+    return true;
+}
+
+async function assertPublicUrl(validUrl) {
+    const hostname = validUrl.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+    if (hostname === 'localhost' || hostname.endsWith('.localhost')) {
+        throw new Error('Gli URL locali non sono consentiti');
+    }
+
+    if (isIP(hostname)) {
+        if (isPrivateAddress(hostname)) throw new Error('Gli indirizzi privati non sono consentiti');
+        return;
+    }
+
+    const addresses = await lookup(hostname, { all: true });
+    if (!addresses.length || addresses.some(({ address }) => isPrivateAddress(address))) {
+        throw new Error('L\'host deve risolvere esclusivamente a indirizzi pubblici');
+    }
+}
 
 /**
  * Estrae il contenuto testuale da HTML rimuovendo script, stili e elementi non necessari
@@ -11,51 +44,16 @@ const MAX_TEXT_CHARS = parseInt(process.env.MAX_TEXT_CHARS || '6000', 10);
  */
 function extractTextFromHtml(html) {
     try {
-        const dom = new JSDOM(html, { url: 'http://localhost' });
-        const document = dom.window.document;
-
-        // Prima prova con Mozilla Readability: più robusto e restituisce solo il contenuto principale
-        try {
-            const reader = new Readability(document);
-            const article = reader.parse();
-            if (article && article.textContent && article.textContent.length > 50) {
-                let text = article.textContent;
-                // Normalize whitespace
-                text = text.replace(/\s+/g, ' ').replace(/\n\s*\n/g, '\n').trim();
-                return text;
-            }
-        } catch (readErr) {
-            // Se Readability fallisce, continuiamo con il fallback
-            console.warn('Readability extraction failed, falling back to manual extraction:', readErr && readErr.message);
-        }
-
-        // Fallback: rimuovi script/style/elements tipici e prendi il body
-        // Rimuovi script, style, nav, footer, header, aside
-        const elementsToRemove = ['script', 'style', 'nav', 'footer', 'header', 'aside', 'noscript'];
-        elementsToRemove.forEach(tag => {
-            const elements = document.querySelectorAll(tag);
-            elements.forEach(el => el.remove());
-        });
-
-        // Rimuovi elementi con classi comuni per ads/sidebar
-        const adSelectors = [
-            '.ad', '.ads', '.advertisement', '.sidebar', '.social', '.share',
-            '.comment', '.comments', '.footer', '.header', '.navigation',
-            '.menu', '.popup', '.modal', '.cookie'
-        ];
-        adSelectors.forEach(selector => {
-            try {
-                const elements = document.querySelectorAll(selector);
-                elements.forEach(el => el.remove());
-            } catch (e) {
-                // Ignora errori di selettori
-            }
-        });
-
-        // Usa body come fallback
-        const mainContent = document.body || document.documentElement;
-        let text = mainContent.textContent || '';
-        text = text.replace(/\s+/g, ' ').replace(/\n\s*\n/g, '\n').trim();
+        const $ = cheerio.load(html);
+        
+        // Rimuovi immediatamente elementi inutili
+        $('script, style, nav, footer, header, aside, noscript, iframe, svg').remove();
+        
+        // Estrai testo dal body
+        let text = $('body').text() || $('html').text() || '';
+        
+        // Normalize whitespace
+        text = text.replace(/\s+/g, ' ').trim();
         return text;
         
     } catch (error) {
@@ -71,25 +69,17 @@ function extractTextFromHtml(html) {
  */
 function extractTitleFromHtml(html) {
     try {
-        const dom = new JSDOM(html);
-        const document = dom.window.document;
+        const $ = cheerio.load(html);
         
         // Prova diversi selettori per il titolo
-        const titleSelectors = [
-            'title',
-            'h1',
-            '.title',
-            '.post-title',
-            '.article-title',
-            '.entry-title'
-        ];
+        let title = $('title').first().text().trim();
+        if (title) return title;
         
-        for (const selector of titleSelectors) {
-            const element = document.querySelector(selector);
-            if (element && element.textContent.trim()) {
-                return element.textContent.trim();
-            }
-        }
+        title = $('h1').first().text().trim();
+        if (title) return title;
+        
+        title = $('.title').first().text().trim();
+        if (title) return title;
         
         return 'Contenuto web';
         
@@ -118,8 +108,10 @@ export async function fetchWebContent(url) {
         if (!['http:', 'https:'].includes(validUrl.protocol)) {
             throw new Error('Solo URL HTTP/HTTPS sono supportati');
         }
+
+        await assertPublicUrl(validUrl);
         
-        console.log('Fetching URL:', validUrl.toString());
+        console.log('Fetching URL host:', validUrl.hostname);
         
         // Fetch con timeout e headers appropriati
     const controller = new AbortController();
@@ -128,6 +120,9 @@ export async function fetchWebContent(url) {
         
         const response = await fetch(validUrl.toString(), {
             method: 'GET',
+            // A redirect can turn a safe public URL into an internal one. Reject
+            // it unless a redirect-aware, revalidating fetcher is introduced.
+            redirect: 'error',
             headers: {
                 'User-Agent': 'Mozilla/5.0 (compatible; LemonSqueezer-TLDR/1.0)',
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',

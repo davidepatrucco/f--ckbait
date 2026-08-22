@@ -4,6 +4,11 @@
 (function() {
     'use strict';
     
+    // Configurazione
+    const CONFIG = {
+        API_URL: 'https://4jo5gamel9.execute-api.eu-west-1.amazonaws.com/dev'
+    };
+    
     // Funzione per calcolare la densità del testo in un elemento
     function getTextDensity(element) {
         const text = element.textContent || '';
@@ -136,12 +141,69 @@
             timestamp: Date.now()
         };
     }
+
+    function isYouTubeVideoUrl(url = window.location.href) {
+        try {
+            const parsed = new URL(url);
+            const hostname = parsed.hostname.replace(/^www\./, '');
+            if (hostname === 'youtu.be') return parsed.pathname.length > 1;
+            if (!['youtube.com', 'm.youtube.com'].includes(hostname)) return false;
+            return (parsed.pathname === '/watch' && Boolean(parsed.searchParams.get('v'))) ||
+                /^\/(shorts|live)\/.+/.test(parsed.pathname);
+        } catch {
+            return false;
+        }
+    }
+
+    async function getYouTubeTranscript() {
+        if (!isYouTubeVideoUrl()) return null;
+
+        // Use the player's structured caption tracks, not the rendered page
+        // or its controls. This is independent of whether the transcript UI is
+        // open and never allows a YouTube HTML/footer summary.
+        const { success, tracks, durationSeconds } = await chrome.runtime.sendMessage({ action: 'getYouTubeCaptionTracks' });
+        if (!success || !Array.isArray(tracks) || tracks.length === 0) return null;
+
+        const preferredLanguages = [navigator.language?.slice(0, 2), 'it', 'en'].filter(Boolean);
+        const track = tracks.find((item) => preferredLanguages.includes(item.languageCode)) || tracks[0];
+        const captionUrl = new URL(track.baseUrl);
+        if (!captionUrl.hostname.endsWith('youtube.com')) return null;
+        captionUrl.searchParams.set('fmt', 'json3');
+
+        const captionResponse = await fetch(captionUrl, { credentials: 'include' });
+        if (!captionResponse.ok) return null;
+        const rawTranscript = await captionResponse.text();
+        let text = '';
+        try {
+            const payload = JSON.parse(rawTranscript);
+            text = (payload.events || [])
+                .flatMap((event) => event.segs || [])
+                .map((segment) => segment.utf8 || '')
+                .join(' ');
+        } catch {
+            const xml = new DOMParser().parseFromString(rawTranscript, 'text/xml');
+            if (!xml.querySelector('parsererror')) {
+                text = Array.from(xml.querySelectorAll('text, p, s'))
+                    .map((node) => node.textContent || '')
+                    .join(' ');
+            }
+        }
+        text = text.replace(/\s+/g, ' ').trim();
+
+        return text && text.length >= 50 ? {
+            text: text.slice(0, 120000),
+            title: document.title.replace(/\s*-\s*YouTube\s*$/i, '').trim() || 'Video YouTube',
+            language: track.languageCode,
+            durationSeconds: Number.isFinite(durationSeconds) && durationSeconds > 0 ? durationSeconds : undefined
+        } : null;
+    }
     
     // Rendi disponibile la funzione per il popup
     if (typeof window !== 'undefined') {
         window.lemonsqueezer = {
             getPageData: getPageData,
-            extractReadableText: extractReadableText
+            extractReadableText: extractReadableText,
+            getYouTubeTranscript: getYouTubeTranscript
         };
     }
     
@@ -161,6 +223,13 @@
                 sendResponse({ success: false, error: error.message });
             }
             return;
+        }
+
+        if (request.action === 'extractYouTubeTranscript') {
+            getYouTubeTranscript()
+                .then((data) => sendResponse({ success: Boolean(data), data, error: data ? undefined : 'Trascrizione non disponibile per questo video' }))
+                .catch((error) => sendResponse({ success: false, error: error.message }));
+            return true;
         }
         
         if (request.action === 'showLoadingModal') {
@@ -213,6 +282,16 @@
             return;
         }
         
+        if (request.action === 'openSummaryModal') {
+            try {
+                openSummaryModal(request);
+                sendResponse({ success: true });
+            } catch (error) {
+                sendResponse({ success: false, error: error.message });
+            }
+            return;
+        }
+        
         return true; // Mantiene il canale di risposta aperto
     });
     
@@ -231,13 +310,13 @@
             <div class="lemonsqueezer-modal-overlay">
                 <div class="lemonsqueezer-modal-content">
                     <div class="lemonsqueezer-modal-header">
-                        <h3>🍋 LemonSqueezer - TL;DR</h3>
+                        <h3>LemonSqueezer - TL;DR</h3>
                         <button class="lemonsqueezer-modal-close">&times;</button>
                     </div>
                     <div class="lemonsqueezer-modal-body" id="lemonsqueezer-modal-body">
                         <div class="lemonsqueezer-loading">
                             <div class="lemonsqueezer-spinner"></div>
-                            <div class="lemonsqueezer-loading-text">🍋 Squeezing...</div>
+                            <div class="lemonsqueezer-loading-text">Analisi in corso...</div>
                             <div class="lemonsqueezer-url-preview">${data.url}</div>
                         </div>
                     </div>
@@ -252,45 +331,12 @@
     }
     
     // Funzione per mostrare la modale di login
+    // Funzione semplificata: Non mostra più modale di login
+    // Il login ora viene gestito solo nel popup
     function showLoginModal(data) {
-        // Rimuovi modal esistenti
-        const existingModal = document.getElementById('lemonsqueezer-modal');
-        if (existingModal) {
-            existingModal.remove();
-        }
-        
-        // Crea il modal di login
-        const modal = document.createElement('div');
-        modal.id = 'lemonsqueezer-modal';
-        modal.innerHTML = getModalStyles() + `
-            <div class="lemonsqueezer-modal-overlay">
-                <div class="lemonsqueezer-modal-content">
-                    <div class="lemonsqueezer-modal-header">
-                        <h3>🍋 LemonSqueezer - TL;DR</h3>
-                        <button class="lemonsqueezer-modal-close">&times;</button>
-                    </div>
-                    <div class="lemonsqueezer-modal-body" id="lemonsqueezer-modal-body">
-                        <div class="lemonsqueezer-login">
-                            <div class="lemonsqueezer-login-icon">🔐</div>
-                            <div class="lemonsqueezer-login-title">Accesso richiesto</div>
-                            <div class="lemonsqueezer-login-message">
-                                Per riassumere questo link devi effettuare l'accesso.<br>
-                                Apri l'estensione per effettuare il login.
-                            </div>
-                            <div class="lemonsqueezer-url-preview">${data.url}</div>
-                            <button class="lemonsqueezer-btn-primary" onclick="chrome.runtime.openOptionsPage ? chrome.runtime.openOptionsPage() : window.open(chrome.runtime.getURL('popup.html'))">
-                                🚀 Apri Estensione
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-        
-        // Event listeners
-        setupModalEventListeners(modal);
+        console.log('[CONTENT] showLoginModal chiamata ma rimossa - login gestito nel popup');
+        // Questa funzione non dovrebbe più essere chiamata con la nuova UX
+        // ma la lascio per compatibilità con il codice esistente
     }
     
     // Funzione per aggiornare la modale con il risultato
@@ -298,7 +344,7 @@
         const modalBody = document.getElementById('lemonsqueezer-modal-body');
         if (!modalBody) return;
         
-        // Calcola tempo risparmiato: (parole originali - parole squeezate) / 220 parole/minuto
+        // Calcola tempi usando la stessa logica per consistenza
         const originalWordsCount = data.stats?.originalWords || 0;
         const summaryWordsCount = data.stats?.summaryWords || data.wordsCount || 0;
         
@@ -308,44 +354,92 @@
             stats: data.stats 
         });
         
-        // Parole risparmiate
-        const wordsSaved = Math.max(0, originalWordsCount - summaryWordsCount);
-        // Tempo risparmiato in minuti (220 parole/minuto)
-        const timeSavedMinutes = wordsSaved / 220;
-        
-        console.log('DEBUG calcolo:', { wordsSaved, timeSavedMinutes });
-        
-        // Formatta il tempo risparmiato in minuti e secondi
-        let timeSavedText = '';
-        if (timeSavedMinutes >= 1) {
-            const minutes = Math.floor(timeSavedMinutes);
-            const seconds = Math.round((timeSavedMinutes - minutes) * 60);
-            if (seconds > 0) {
-                timeSavedText = `Hai risparmiato ${minutes}m ${seconds}s!`;
-            } else {
-                timeSavedText = `Hai risparmiato ${minutes} min!`;
-            }
+        const videoDurationSeconds = Number(data.videoDurationSeconds);
+        const isVideo = data.sourceType === 'video' && Number.isFinite(videoDurationSeconds) && videoDurationSeconds > 0;
+        const formatDuration = (seconds) => {
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = Math.round(seconds % 60);
+            return minutes > 0 ? `${minutes}m ${remainingSeconds}s` : `${remainingSeconds}s`;
+        };
+
+        // A video is measured against its actual runtime, never by transcript
+        // word count. Web pages retain the reading-time calculation.
+        let readingTimeDisplay;
+        if (isVideo) {
+            readingTimeDisplay = `Video: ${formatDuration(videoDurationSeconds)}`;
+        } else if (data.stats?.readingTime && data.stats.readingTime !== 'N/D') {
+            readingTimeDisplay = `${data.stats.readingTime} min di lettura`;
+        } else if (originalWordsCount > 0) {
+            const readingTimeMinutes = Math.max(1, Math.round(originalWordsCount / 220));
+            readingTimeDisplay = `${readingTimeMinutes} min di lettura`;
         } else {
-            const totalSeconds = Math.max(1, Math.round(timeSavedMinutes * 60));
-            timeSavedText = `Hai risparmiato ${totalSeconds} sec!`;
+            readingTimeDisplay = 'Tempo non disponibile';
         }
         
-        console.log('DEBUG risultato:', timeSavedText);
+        // Calcola tempo risparmiato solo se abbiamo i dati
+        let timeSavedText = '';
+        if (isVideo || (originalWordsCount > 0 && summaryWordsCount >= 0)) {
+            const summarySeconds = (summaryWordsCount / 220) * 60;
+            const timeSavedMinutes = isVideo
+                ? Math.max(0, (videoDurationSeconds - summarySeconds) / 60)
+                : Math.max(0, (originalWordsCount - summaryWordsCount) / 220);
+            
+            console.log('DEBUG calcolo:', {
+                isVideo,
+                videoDurationSeconds,
+                originalWordsCount,
+                summaryWordsCount,
+                timeSavedMinutes
+            });
+            
+            if (timeSavedMinutes >= 1) {
+                const minutes = Math.floor(timeSavedMinutes);
+                const seconds = Math.round((timeSavedMinutes - minutes) * 60);
+                if (seconds > 0) {
+                    timeSavedText = `Hai risparmiato ${minutes}m ${seconds}s!`;
+                } else {
+                    timeSavedText = `Hai risparmiato ${minutes} min!`;
+                }
+            } else {
+                const totalSeconds = Math.max(1, Math.round(timeSavedMinutes * 60));
+                timeSavedText = `Hai risparmiato ${totalSeconds} sec!`;
+            }
+        } else {
+            timeSavedText = 'Risparmio non calcolabile';
+        }
+        
+        console.log('DEBUG risultato:', { readingTimeDisplay, timeSavedText });
         
         modalBody.innerHTML = `
             <div class="lemonsqueezer-summary-meta">
                 <strong>${data.title || 'Riassunto'}</strong>
                 <div class="lemonsqueezer-stats">
                     <div class="lemonsqueezer-stat-item">
-                        <span class="lemonsqueezer-stat-icon">📖</span>
-                        <span class="lemonsqueezer-stat-text">${data.stats?.readingTime || 'N/A'} min di lettura</span>
+                        <span class="lemonsqueezer-stat-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M4 5h10"></path>
+                                <path d="M4 9h10"></path>
+                                <path d="M4 13h6"></path>
+                                <path d="M14 4h6v16h-6"></path>
+                            </svg>
+                        </span>
+                        <span class="lemonsqueezer-stat-text">${readingTimeDisplay}</span>
                     </div>
                     <div class="lemonsqueezer-stat-item">
-                        <span class="lemonsqueezer-stat-icon">✏️</span>
+                        <span class="lemonsqueezer-stat-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 20h9"></path>
+                                <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path>
+                            </svg>
+                        </span>
                         <span class="lemonsqueezer-stat-text">${data.stats?.summaryWords || data.wordsCount || 'N/A'} parole</span>
                     </div>
                     <div class="lemonsqueezer-stat-item lemonsqueezer-stat-highlight">
-                        <span class="lemonsqueezer-stat-icon">⚡</span>
+                        <span class="lemonsqueezer-stat-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M13 2L4 14h7l-1 8 9-12h-7z"></path>
+                            </svg>
+                        </span>
                         <span class="lemonsqueezer-stat-text">${timeSavedText}</span>
                     </div>
                 </div>
@@ -364,8 +458,24 @@
             const footer = document.createElement('div');
             footer.className = 'lemonsqueezer-modal-footer';
             footer.innerHTML = `
-                <button class="lemonsqueezer-btn-secondary" id="lemonsqueezer-copy-summary">📋 Copia</button>
-                <button class="lemonsqueezer-btn-primary" id="lemonsqueezer-open-link">🔗 Apri Link</button>
+                <button class="lemonsqueezer-btn-secondary" id="lemonsqueezer-copy-summary">
+                    <span class="lemonsqueezer-btn-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="9" y="9" width="10" height="10" rx="2"></rect>
+                            <rect x="5" y="5" width="10" height="10" rx="2"></rect>
+                        </svg>
+                    </span>
+                    Copia
+                </button>
+                <button class="lemonsqueezer-btn-primary" id="lemonsqueezer-open-link">
+                    <span class="lemonsqueezer-btn-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"></path>
+                            <path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"></path>
+                        </svg>
+                    </span>
+                    Apri link
+                </button>
             `;
             modal.querySelector('.lemonsqueezer-modal-content').appendChild(footer);
             
@@ -381,7 +491,13 @@
         
         modalBody.innerHTML = `
             <div class="lemonsqueezer-error">
-                <div class="lemonsqueezer-error-icon">❌</div>
+                <div class="lemonsqueezer-error-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="9"></circle>
+                        <path d="M15 9l-6 6"></path>
+                        <path d="M9 9l6 6"></path>
+                    </svg>
+                </div>
                 <div class="lemonsqueezer-error-title">Errore</div>
                 <div class="lemonsqueezer-error-message">${data.error}</div>
                 <button class="lemonsqueezer-btn-secondary" onclick="document.getElementById('lemonsqueezer-modal').remove()">Chiudi</button>
@@ -469,8 +585,15 @@
             }
             
             .lemonsqueezer-error-icon {
-                font-size: 48px;
-                margin-bottom: 16px;
+                width: 44px;
+                height: 44px;
+                margin: 0 auto 16px;
+                color: #d32f2f;
+            }
+
+            .lemonsqueezer-error-icon svg {
+                width: 100%;
+                height: 100%;
             }
             
             .lemonsqueezer-error-title {
@@ -573,7 +696,20 @@
             }
             
             .lemonsqueezer-stat-icon {
-                font-size: 14px;
+                width: 14px;
+                height: 14px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .lemonsqueezer-stat-icon svg {
+                width: 14px;
+                height: 14px;
+            }
+
+            .lemonsqueezer-stat-highlight .lemonsqueezer-stat-icon svg {
+                color: #ffffff;
             }
             
             .lemonsqueezer-stat-text {
@@ -613,6 +749,22 @@
                 cursor: pointer;
                 font-size: 14px;
                 font-weight: 500;
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .lemonsqueezer-btn-icon {
+                width: 14px;
+                height: 14px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .lemonsqueezer-btn-icon svg {
+                width: 14px;
+                height: 14px;
             }
             
             .lemonsqueezer-btn-primary {
@@ -692,7 +844,7 @@
             copyBtn.addEventListener('click', () => {
                 navigator.clipboard.writeText(data.summary).then(() => {
                     const originalText = copyBtn.textContent;
-                    copyBtn.textContent = '✅ Copiato!';
+                    copyBtn.textContent = 'Copiato!';
                     setTimeout(() => {
                         copyBtn.textContent = originalText;
                     }, 2000);
@@ -723,6 +875,161 @@
         setTimeout(() => {
             updateModalWithResult(data);
         }, 100);
+    }
+    
+    // Funzione per aprire la modale dal popup e avviare il riassunto
+    async function openSummaryModal(request) {
+        console.log('[CONTENT] openSummaryModal chiamata:', request);
+        
+        // Mostra loading modal
+        showLoadingModal({ url: request.url });
+        
+        try {
+            // Verifica se l'utente è autenticato
+            const { authToken } = await chrome.storage.local.get(['authToken']);
+            
+            if (!authToken) {
+                throw new Error('Utente non autenticato');
+            }
+            
+            const requestBody = {
+                url: request.url,
+                lang: 'it'
+            };
+
+            if (isYouTubeVideoUrl(request.url)) {
+                const transcript = await getYouTubeTranscript();
+                if (!transcript) {
+                    throw new Error('Questo video non ha una trascrizione accessibile. Apri un video con sottotitoli disponibili.');
+                }
+                requestBody.transcript = transcript.text;
+                requestBody.title = transcript.title;
+                requestBody.transcriptLanguage = transcript.language;
+                requestBody.videoDurationSeconds = transcript.durationSeconds;
+            }
+
+            // Chiama l'API per il riassunto; per YouTube invia la trascrizione
+            // già accessibile nella pagina invece di chiedere al backend di
+            // scaricare o processare il video.
+            const response = await fetch(`${CONFIG.API_URL}/summarize-url`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
+                body: JSON.stringify(requestBody)
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ error: 'Errore di rete' }));
+                
+                if (response.status === 429) {
+                    throw new Error('Limite riassunti raggiunto. Upgrade a Premium per continuare.');
+                }
+                
+                throw new Error(errorData.error || `HTTP ${response.status}`);
+            }
+            
+            const dataRaw = await response.json();
+            console.log('[CONTENT] Dati ricevuti (raw):', dataRaw);
+
+            // Normalizza e fornisce fallback per campi mancanti
+            const data = Object.assign({}, dataRaw);
+
+            // originalUrl: fallback alla request.url (il tab corrente)
+            if (!data.originalUrl) data.originalUrl = request.url || window.location.href;
+
+            // title: fallback al document.title o all'URL
+            if (!data.title) data.title = dataRaw.title || document.title || data.originalUrl;
+
+            // summary: fallback stringa vuota
+            if (!data.summary) data.summary = dataRaw.summary || '';
+
+            // stats: assicurati che esista e abbia readingTime e summaryWords
+            data.stats = data.stats || {};
+
+            // readingTime: se mancante, proviamo a calcolarlo da originalWords (se presente) o usare 'N/D'
+            if (data.stats.readingTime == null) {
+                const approxWords = data.stats.originalWords || data.originalWords || 0;
+                if (approxWords > 0) {
+                    // calcola minutes approssimativi a 220 parole/min
+                    data.stats.readingTime = Math.max(1, Math.round(approxWords / 220));
+                } else {
+                    data.stats.readingTime = 'N/D';
+                }
+            }
+
+            // summaryWords: fallback a conteggio parole del summary
+            if (data.stats.summaryWords == null) {
+                const summaryWordsCount = (data.summary || '').trim().split(/\s+/).filter(Boolean).length;
+                data.stats.summaryWords = summaryWordsCount || (data.wordsCount || 0);
+            }
+
+            // wordsCount: fallback a stats.summaryWords
+            if (data.wordsCount == null) data.wordsCount = data.stats.summaryWords || 0;
+
+            // Salva statistiche di tempo per analytics
+            await saveTimeStats(data);
+            
+            // Aggiorna modale con risultato normalizzato
+            updateModalWithResult(data);
+            
+        } catch (error) {
+            console.error('[CONTENT] Errore riassunto:', error);
+            updateModalWithError({ error: error.message });
+        }
+    }
+    
+    // Funzione per salvare statistiche di tempo per analytics utente
+    async function saveTimeStats(data) {
+        try {
+            const originalWords = data.stats?.originalWords || 0;
+            const summaryWords = data.stats?.summaryWords || data.wordsCount || 0;
+            const videoDurationSeconds = Number(data.videoDurationSeconds);
+            const isVideo = data.sourceType === 'video' && Number.isFinite(videoDurationSeconds) && videoDurationSeconds > 0;
+            
+            if (!isVideo && originalWords <= 0) return; // Skip se non abbiamo dati validi
+            
+            // Calcola tempi in minuti
+            const readingTimeMinutes = isVideo ? videoDurationSeconds / 60 : originalWords / 220;
+            const summaryTimeMinutes = summaryWords / 220;
+            const timeSavedMinutes = Math.max(0, readingTimeMinutes - summaryTimeMinutes);
+            
+            // Crea record delle statistiche
+            const statsEntry = {
+                timestamp: Date.now(),
+                date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+                month: new Date().toISOString().slice(0, 7), // YYYY-MM
+                originalWords,
+                summaryWords,
+                readingTimeMinutes,
+                timeSavedMinutes,
+                url: data.originalUrl || window.location.href
+            };
+            
+            // Recupera statistiche esistenti
+            const { userTimeStats = [] } = await chrome.storage.local.get(['userTimeStats']);
+            
+            // Aggiungi nuovo record
+            userTimeStats.push(statsEntry);
+            
+            // Mantieni solo ultimi 1000 record per non saturare storage
+            if (userTimeStats.length > 1000) {
+                userTimeStats.splice(0, userTimeStats.length - 1000);
+            }
+            
+            // Salva nel storage
+            await chrome.storage.local.set({ userTimeStats });
+            
+            console.log('[CONTENT] Statistiche salvate:', {
+                readingTime: readingTimeMinutes.toFixed(1),
+                timeSaved: timeSavedMinutes.toFixed(1),
+                totalEntries: userTimeStats.length
+            });
+            
+        } catch (error) {
+            console.error('[CONTENT] Errore salvataggio statistiche:', error);
+        }
     }
     
 })();

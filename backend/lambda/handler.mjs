@@ -3,7 +3,8 @@ import { summarizeWithOpenAI } from '../src/openai.mjs';
 import { validateSubscription } from '../src/subscription.mjs';
 import { checkRateLimit } from '../src/rate-limit.mjs';
 import { fetchWebContent } from '../src/web-fetcher.mjs';
-import { loginWithGoogle, verifyAuthToken, requireAuth, canUserSummarize, incrementUsage } from '../src/auth.mjs';
+import { loginWithGoogle, loginWithEmail, registerWithEmail, verifyAuthToken, requireAuth, canUserSummarize, incrementUsage } from '../src/auth.mjs';
+import { handleGoogleAuth } from '../src/auth-google.mjs';
 import { logSummaryEvent, getUserStats, getGlobalStats, getTrendingDomains } from '../src/analytics.mjs';
 import { getCachedSummary, setCachedSummary, shouldCacheUrl, getCacheStats, cleanExpiredCache } from '../src/cache.mjs';
 import { 
@@ -15,27 +16,53 @@ import {
     reactivateSubscription 
 } from '../src/payments.mjs';
 
-// Configurazione CORS
-const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-api-key',
-    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
-};
+// Origins are deployment configuration.  Do not ship a fake extension ID or
+// fall back to a wildcard: callers from an unlisted web origin receive no CORS
+// permission. Chrome extension host permissions do not need a wildcard here.
+const ALLOWED_ORIGINS = new Set(
+    (process.env.ALLOWED_ORIGINS || '')
+        .split(',')
+        .map((origin) => origin.trim())
+        .filter(Boolean)
+);
 
-// Risposta CORS per preflight
-const corsResponse = {
-    statusCode: 200,
-    headers: corsHeaders,
-    body: ''
-};
+function getCorsHeaders(event) {
+    const origin = event.headers?.origin || event.headers?.Origin || '';
+    const headers = {
+        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+        'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
+    };
+    if (ALLOWED_ORIGINS.has(origin)) {
+        headers['Access-Control-Allow-Origin'] = origin;
+        headers.Vary = 'Origin';
+    }
+    return headers;
+}
 
-// Funzione per creare una risposta JSON
+// Factory function to create response handler bound to event
+function createResponseFactory(event) {
+    return (statusCode, body, additionalHeaders = {}) => {
+        return {
+            statusCode,
+            headers: {
+                ...getCorsHeaders(event),
+                'Content-Type': 'application/json',
+                ...additionalHeaders
+            },
+            body: JSON.stringify(body)
+        };
+    };
+}
+
+// Several routed handlers predate createResponseFactory. Keep their responses
+// safe and consistent instead of letting them fail with ReferenceError.
 function createResponse(statusCode, body, additionalHeaders = {}) {
     return {
         statusCode,
         headers: {
-            ...corsHeaders,
             'Content-Type': 'application/json',
+            'X-Content-Type-Options': 'nosniff',
+            'Cache-Control': 'no-store',
             ...additionalHeaders
         },
         body: JSON.stringify(body)
@@ -74,14 +101,28 @@ function validatePayload(body) {
     return errors;
 }
 
+function isYouTubeUrl(value) {
+    try {
+        const hostname = new URL(value).hostname.replace(/^www\./, '');
+        return hostname === 'youtube.com' || hostname === 'm.youtube.com' || hostname === 'youtu.be';
+    } catch {
+        return false;
+    }
+}
+
 // Handler per l'endpoint /summarize
 export async function summarizeHandler(event) {
-    console.log('Request:', JSON.stringify(event, null, 2));
-    
+    const createResponse = createResponseFactory(event);
+    console.log('Summarize request received:', { method: event.httpMethod });
+
     try {
         // Gestione preflight CORS
         if (event.httpMethod === 'OPTIONS') {
-            return corsResponse;
+            return {
+                statusCode: 200,
+                headers: getCorsHeaders(event),
+                body: ''
+            };
         }
         
         // Solo POST è supportato
@@ -92,7 +133,7 @@ export async function summarizeHandler(event) {
         }
         
         // Verifica presenza API key
-        const apiKey = event.headers['x-api-key'] || event.headers['X-Api-Key'];
+        const apiKey = event.headers?.['x-api-key'] || event.headers?.['X-Api-Key'];
         if (!apiKey) {
             return createResponse(401, {
                 error: 'API key mancante. Aggiungi header x-api-key.'
@@ -119,27 +160,18 @@ export async function summarizeHandler(event) {
         }
         
         const { url, title, text, lang = 'it' } = requestBody;
+
+        // Rate limiting check - CRITICAL for cost control
+        try {
+            await checkRateLimit(apiKey);
+        } catch (rateLimitError) {
+            return createResponse(429, {
+                error: 'Rate limit superato. Riprova più tardi.',
+                retryAfter: 60
+            });
+        }
         
-        // Per la versione semplificata, saltiamo subscription e rate limiting
-        // In futuro qui andrà la validazione subscription completa
-        // const isValidSubscription = await validateSubscription(apiKey);
-        // if (!isValidSubscription) {
-        //     return createResponse(403, {
-        //         error: 'Subscription non valida o scaduta'
-        //     });
-        // }
-        
-        // Rate limiting semplificato (per ora solo log)
-        // try {
-        //     await checkRateLimit(apiKey);
-        // } catch (rateLimitError) {
-        //     return createResponse(429, {
-        //         error: 'Rate limit superato. Riprova più tardi.',
-        //         retryAfter: 60
-        //     });
-        // }
-        
-        console.log(`Processing request for API key: ${apiKey.substring(0, 8)}...`)
+        console.log('Processing authenticated summarize request');
         
         // Chiama OpenAI per il riassunto
         const summary = await summarizeWithOpenAI({
@@ -155,13 +187,13 @@ export async function summarizeHandler(event) {
             title,
             language: lang,
             textLength: text.length,
-            apiKeyPrefix: apiKey.substring(0, 8) + '...'
+            authenticated: true
         });
         
         return createResponse(200, {
             success: true,
-            summary: summary.summary,
-            bullets: summary.bullets,
+            summary: summary.text,
+            bullets: summary.text.split(/\r?\n/).filter(Boolean),
             stats: summary.stats,
             metadata: {
                 url,
@@ -203,7 +235,11 @@ export async function summarizeUrlHandler(event) {
     
     try {
         if (event.httpMethod === 'OPTIONS') {
-            return corsResponse;
+            return {
+                statusCode: 200,
+                headers: getCorsHeaders(event),
+                body: ''
+            };
         }
 
         if (event.httpMethod !== 'POST') {
@@ -247,10 +283,30 @@ export async function summarizeUrlHandler(event) {
             });
         }
 
+        const hasTranscript = typeof body.transcript === 'string';
+        const videoDurationSeconds = Number(body.videoDurationSeconds);
+        if (isYouTubeUrl(body.url) && !hasTranscript) {
+            return createResponse(422, {
+                error: 'Trascrizione YouTube non ricevuta dall’estensione',
+                code: 'YOUTUBE_TRANSCRIPT_REQUIRED'
+            });
+        }
+        if (hasTranscript && (body.transcript.length < 50 || body.transcript.length > 120000)) {
+            return createResponse(400, {
+                error: 'La trascrizione deve contenere tra 50 e 120.000 caratteri',
+                code: 'INVALID_TRANSCRIPT'
+            });
+        }
+        if (body.videoDurationSeconds !== undefined && (!Number.isFinite(videoDurationSeconds) || videoDurationSeconds < 1 || videoDurationSeconds > 86400)) {
+            return createResponse(400, { error: 'Durata video non valida', code: 'INVALID_VIDEO_DURATION' });
+        }
+
         const language = body.lang || 'it';
 
         // 🚀 CONTROLLO CACHE PRIMA DEL PROCESSING
-        if (shouldCacheUrl(body.url)) {
+        // Client-provided transcripts are user input; never cache them by URL,
+        // otherwise one user could poison another user's video summary.
+        if (!hasTranscript && shouldCacheUrl(body.url)) {
             console.log('🔍 [CACHE] Checking cache for URL...');
             const cacheStartTime = Date.now();
             
@@ -308,13 +364,20 @@ export async function summarizeUrlHandler(event) {
             console.log('🚫 [CACHE] URL not cacheable - proceeding with normal processing');
         }
         
-        console.log('🌐 [TIMING] Starting fetch for URL:', body.url);
-        const fetchStartTime = Date.now();
-        
-        // Fetch del contenuto della pagina
-        const { text, title } = await fetchWebContent(body.url);
-        const fetchTime = Date.now() - fetchStartTime;
-        console.log('⚡ [TIMING] Web fetch took:', fetchTime, 'ms');
+        let text;
+        let title;
+        let fetchTime = 0;
+        if (hasTranscript) {
+            text = body.transcript.trim();
+            title = typeof body.title === 'string' && body.title.trim() ? body.title.trim() : 'Video';
+            console.log('Using client-provided video transcript:', { textLength: text.length });
+        } else {
+            console.log('🌐 [TIMING] Starting fetch for URL:', body.url);
+            const fetchStartTime = Date.now();
+            ({ text, title } = await fetchWebContent(body.url));
+            fetchTime = Date.now() - fetchStartTime;
+            console.log('⚡ [TIMING] Web fetch took:', fetchTime, 'ms');
+        }
         
         if (!text || text.length < 50) {
             return createResponse(400, {
@@ -331,7 +394,8 @@ export async function summarizeUrlHandler(event) {
             url: body.url,
             title: title,
             text: text,
-            language: body.lang || 'it'
+            language: body.lang || 'it',
+            sourceType: hasTranscript ? 'video' : 'web'
         });
         const openaiTime = Date.now() - openaiStartTime;
         console.log('⚡ [TIMING] OpenAI call took:', openaiTime, 'ms');
@@ -350,7 +414,7 @@ export async function summarizeUrlHandler(event) {
         user = await incrementUsage(user);
 
         // 💾 SALVA IN CACHE SE POSSIBILE
-        if (shouldCacheUrl(body.url)) {
+        if (!hasTranscript && shouldCacheUrl(body.url)) {
             console.log('💾 [CACHE] Saving to cache...');
             try {
                 const processingTime = Date.now() - startTime;
@@ -402,6 +466,8 @@ export async function summarizeUrlHandler(event) {
             stats: summary.stats,
             url: body.url,
             title: title || 'Contenuto web',
+            sourceType: hasTranscript ? 'video' : 'web',
+            videoDurationSeconds: hasTranscript && Number.isFinite(videoDurationSeconds) ? videoDurationSeconds : undefined,
             user: {
                 usage: user.usage,
                 plan: user.plan
@@ -436,6 +502,132 @@ export async function summarizeUrlHandler(event) {
 
 
 
+// Handler per verificare token di autenticazione
+export async function authVerifyHandler(event) {
+    try {
+        if (event.httpMethod === 'OPTIONS') {
+            return {
+                statusCode: 200,
+                headers: getCorsHeaders(event),
+                body: ''
+            };
+        }
+        
+        if (event.httpMethod !== 'POST') {
+            return createResponse(405, { error: 'Metodo non supportato. Usa POST.' });
+        }
+        
+        // Estrai token dall'header Authorization
+        const authHeader = event.headers['Authorization'] || event.headers['authorization'];
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return createResponse(401, { error: 'Token di autorizzazione mancante' });
+        }
+        
+        const token = authHeader.substring(7);
+        
+        // Verifica token
+        const user = await verifyAuthToken(token);
+        
+        return createResponse(200, {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            picture: user.picture,
+            plan: user.plan,
+            usage: user.usage,
+            valid: true
+        });
+        
+    } catch (error) {
+        console.error('Error in authVerifyHandler:', error);
+        return createResponse(401, { 
+            error: 'Token non valido: ' + error.message,
+            valid: false
+        });
+    }
+}
+
+// Handler per login legacy (placeholder)
+export async function authLoginHandler(event) {
+    try {
+        if (event.httpMethod === 'OPTIONS') {
+            return {
+                statusCode: 200,
+                headers: getCorsHeaders(event),
+                body: ''
+            };
+        }
+        
+        if (event.httpMethod !== 'POST') {
+            return createResponse(405, { error: 'Metodo non supportato. Usa POST.' });
+        }
+
+        let body;
+        try {
+            body = JSON.parse(event.body || '{}');
+        } catch {
+            return createResponse(400, { error: 'Body della richiesta non valido', code: 'INVALID_JSON' });
+        }
+
+        const { email, password } = body;
+        if (!email || !password) {
+            return createResponse(400, { error: 'Email e password richieste' });
+        }
+
+        const result = await loginWithEmail(email, password);
+        const { authToken, ...user } = result;
+
+        return createResponse(200, {
+            authToken,
+            user
+        });
+    } catch (error) {
+        console.error('Error in authLoginHandler:', error);
+        const message = error.message || 'Login fallito';
+        const status = message.includes('Credenziali') ? 401 : 400;
+        return createResponse(status, { error: message });
+    }
+}
+
+export async function authRegisterHandler(event) {
+    try {
+        if (event.httpMethod === 'OPTIONS') {
+            return {
+                statusCode: 200,
+                headers: getCorsHeaders(event),
+                body: ''
+            };
+        }
+        
+        if (event.httpMethod !== 'POST') {
+            return createResponse(405, { error: 'Metodo non supportato. Usa POST.' });
+        }
+
+        let body;
+        try {
+            body = JSON.parse(event.body || '{}');
+        } catch {
+            return createResponse(400, { error: 'Body della richiesta non valido', code: 'INVALID_JSON' });
+        }
+
+        const { email, password, name } = body;
+        if (!email || !password) {
+            return createResponse(400, { error: 'Email e password richieste' });
+        }
+
+        const result = await registerWithEmail(email, password, name);
+        const { authToken, ...user } = result;
+
+        return createResponse(201, {
+            authToken,
+            user
+        });
+    } catch (error) {
+        console.error('Error in authRegisterHandler:', error);
+        return createResponse(400, { error: error.message || 'Registrazione fallita' });
+    }
+}
+
 // Handler per health check
 export async function healthHandler(event) {
     return createResponse(200, {
@@ -449,7 +641,11 @@ export async function healthHandler(event) {
 export async function userStatsHandler(event) {
     try {
         if (event.httpMethod === 'OPTIONS') {
-            return corsResponse;
+            return {
+                statusCode: 200,
+                headers: getCorsHeaders(event),
+                body: ''
+            };
         }
         
         if (event.httpMethod !== 'GET') {
@@ -493,20 +689,27 @@ export async function userStatsHandler(event) {
 export async function globalStatsHandler(event) {
     try {
         if (event.httpMethod === 'OPTIONS') {
-            return corsResponse;
+            return {
+                statusCode: 200,
+                headers: getCorsHeaders(event),
+                body: ''
+            };
         }
         
         if (event.httpMethod !== 'GET') {
             return createResponse(405, { error: 'Metodo non supportato. Usa GET.' });
         }
 
-        // Verifica autenticazione admin (per ora qualsiasi utente autenticato)
+        // Verifica autenticazione e autorizzazione admin
         const user = await requireAuth(event);
-        
-        // TODO: In futuro aggiungere controllo admin role
-        // if (user.role !== 'admin') {
-        //     return createResponse(403, { error: 'Accesso riservato agli admin' });
-        // }
+
+        // Admin authorization check - required for sensitive analytics
+        if (user.role !== 'admin') {
+            return createResponse(403, {
+                error: 'Accesso riservato agli amministratori',
+                code: 'ADMIN_REQUIRED'
+            });
+        }
         
         const days = parseInt(event.queryStringParameters?.days || '7', 10);
         
@@ -537,7 +740,11 @@ export async function globalStatsHandler(event) {
 export async function trendingDomainsHandler(event) {
     try {
         if (event.httpMethod === 'OPTIONS') {
-            return corsResponse;
+            return {
+                statusCode: 200,
+                headers: getCorsHeaders(event),
+                body: ''
+            };
         }
         
         if (event.httpMethod !== 'GET') {
@@ -575,7 +782,11 @@ export async function trendingDomainsHandler(event) {
 export async function cacheStatsHandler(event) {
     try {
         if (event.httpMethod === 'OPTIONS') {
-            return corsResponse;
+            return {
+                statusCode: 200,
+                headers: getCorsHeaders(event),
+                body: ''
+            };
         }
         
         if (event.httpMethod !== 'GET') {
@@ -608,7 +819,11 @@ export async function cacheStatsHandler(event) {
 export async function cleanCacheHandler(event) {
     try {
         if (event.httpMethod === 'OPTIONS') {
-            return corsResponse;
+            return {
+                statusCode: 200,
+                headers: getCorsHeaders(event),
+                body: ''
+            };
         }
         
         if (event.httpMethod !== 'POST') {
@@ -641,7 +856,11 @@ export async function cleanCacheHandler(event) {
 export async function createCheckoutHandler(event) {
     try {
         if (event.httpMethod === 'OPTIONS') {
-            return corsResponse;
+            return {
+                statusCode: 200,
+                headers: getCorsHeaders(event),
+                body: ''
+            };
         }
         
         if (event.httpMethod !== 'POST') {
@@ -690,7 +909,11 @@ export async function createCheckoutHandler(event) {
 export async function verifyCheckoutHandler(event) {
     try {
         if (event.httpMethod === 'OPTIONS') {
-            return corsResponse;
+            return {
+                statusCode: 200,
+                headers: getCorsHeaders(event),
+                body: ''
+            };
         }
         
         if (event.httpMethod !== 'POST') {
@@ -722,28 +945,54 @@ export async function verifyCheckoutHandler(event) {
 }
 
 // Handler per webhook Stripe
-export async function stripeWebhookHandler(event) {
+export const stripeWebhookHandler = async (event) => {
     try {
-        const signature = event.headers['stripe-signature'];
+        console.log('Stripe webhook received');
+        
+        // Normalizza headers case-insensitive
+        const headers = Object.fromEntries(
+            Object.entries(event.headers || {}).map(([k, v]) => [k.toLowerCase(), v])
+        );
+        
+        const signature = headers['stripe-signature'];
+        
         if (!signature) {
-            return createResponse(400, { error: 'Missing Stripe signature' });
+            console.error('Missing Stripe signature in headers');
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ error: 'Missing Stripe signature' })
+            };
         }
 
-        const result = await handleStripeWebhook(event.body, signature);
+        // event.body arriva RAW da Function URL - NON modificare
+        const rawBody = event.body;
         
-        return createResponse(200, result);
+        const result = await handleStripeWebhook(rawBody, signature);
+        console.log('Stripe webhook processed successfully');
+        
+        return {
+            statusCode: 200,
+            body: JSON.stringify(result)
+        };
         
     } catch (error) {
         console.error('Error in stripeWebhookHandler:', error);
-        return createResponse(400, { error: 'Webhook verification failed: ' + error.message });
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ error: 'Internal server error' })
+        };
     }
-}
+};
 
 // Handler per ottenere subscription utente
 export async function getUserSubscriptionHandler(event) {
     try {
         if (event.httpMethod === 'OPTIONS') {
-            return corsResponse;
+            return {
+                statusCode: 200,
+                headers: getCorsHeaders(event),
+                body: ''
+            };
         }
         
         if (event.httpMethod !== 'GET') {
@@ -781,7 +1030,11 @@ export async function getUserSubscriptionHandler(event) {
 export async function cancelSubscriptionHandler(event) {
     try {
         if (event.httpMethod === 'OPTIONS') {
-            return corsResponse;
+            return {
+                statusCode: 200,
+                headers: getCorsHeaders(event),
+                body: ''
+            };
         }
         
         if (event.httpMethod !== 'POST') {
@@ -815,7 +1068,7 @@ export async function cancelSubscriptionHandler(event) {
 
 // Handler principale (router)
 export async function handler(event, context) {
-    console.log('Event:', JSON.stringify(event, null, 2));
+    console.log('Request received:', { path: event.path || event.rawPath, method: event.httpMethod });
     
     const path = event.path || event.rawPath;
     
@@ -824,8 +1077,12 @@ export async function handler(event, context) {
             return await summarizeHandler(event);
         case '/summarize-url':
             return await summarizeUrlHandler(event);
+        case '/auth/google':
+            return await handleGoogleAuth(event);
         case '/auth/login':
             return await authLoginHandler(event);
+        case '/auth/register':
+            return await authRegisterHandler(event);
         case '/auth/verify':
             return await authVerifyHandler(event);
         case '/analytics/user-stats':
@@ -855,8 +1112,10 @@ export async function handler(event, context) {
                 error: 'Endpoint non trovato',
                 availableEndpoints: [
                     '/summarize', 
-                    '/summarize-url', 
-                    '/auth/login', 
+                    '/summarize-url',
+                    '/auth/google',
+                    '/auth/login',
+                    '/auth/register',
                     '/auth/verify',
                     '/analytics/user-stats',
                     '/analytics/global-stats', 

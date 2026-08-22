@@ -1,7 +1,7 @@
 // Extension E2E Test
 // Test manuale per Chrome Extension
 
-console.log('🧪 TLDR Extension E2E Test Suite');
+console.log('TLDR Extension E2E Test Suite');
 console.log('================================\n');
 
 // Configurazione
@@ -153,7 +153,7 @@ test('Language detection from page', async () => {
 // MANUAL TEST INSTRUCTIONS
 // ============================================
 
-console.log('\n📋 MANUAL TEST CHECKLIST\n');
+console.log('\nMANUAL TEST CHECKLIST\n');
 console.log('1. Load Extension');
 console.log('   ☐ Open chrome://extensions/');
 console.log('   ☐ Enable Developer Mode');
