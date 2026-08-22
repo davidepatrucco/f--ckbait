@@ -37,7 +37,6 @@ Globals:
         USERS_TABLE_NAME: !Ref UsersTable
         SUBSCRIPTIONS_TABLE_NAME: !Ref SubscriptionsTable
         PAYMENTS_TABLE_NAME: !Ref PaymentsTable
-        CACHE_TABLE_NAME: !Ref SummaryCacheTable
         RATE_LIMIT_TABLE_NAME: !Ref RateLimitTable
         ANALYTICS_TABLE_NAME: !Ref AnalyticsTable
         ALLOWED_ORIGINS: !Ref AllowedOrigins
@@ -59,6 +58,7 @@ Resources:
       Description: 'Main Lambda function for page summarization'
       Environment:
         Variables:
+          CACHE_TABLE_NAME: !Ref SummaryCacheTable
           SUMMARY_MODEL: !Ref SummaryModel
           SUMMARY_MAX_WORDS: !Ref SummaryMaxWords
       Policies:
