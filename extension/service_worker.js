@@ -349,6 +349,11 @@ async function getYouTubeTranscriptText(sender, sendResponse) {
                     'transcript-segment-view-model'
                 )).map((element) => (element.innerText || element.textContent || '').replace(/\s+/g, ' ').trim())
                     .filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+                const buildModernPanelParams = (videoId) => {
+                    if (!videoId) return '';
+                    const bytes = [0xaa, 0x09, 0x0f, 0x0a, videoId.length, ...Array.from(videoId, (char) => char.charCodeAt(0)), 0x18, 0x01];
+                    return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+                };
 
                 const findCurrentPanel = () => {
                     const roots = [window.ytInitialData];
@@ -384,6 +389,23 @@ async function getYouTubeTranscriptText(sender, sendResponse) {
                     modernPanel = findCurrentPanel();
                     if (modernPanel) break;
                     await new Promise((resolve) => setTimeout(resolve, 150));
+                }
+                // Newer YouTube pages expose only the searchable-transcript tag
+                // without params. The PAmodern params are a stable protobuf envelope
+                // containing the current video ID; generate it directly so extraction
+                // does not depend on opening the side panel.
+                if (modernPanel && !modernPanel.params && currentVideoId) {
+                    modernPanel = {
+                        panelId: 'PAmodern_transcript_view',
+                        params: buildModernPanelParams(currentVideoId),
+                        clickTrackingParams: modernPanel.clickTrackingParams
+                    };
+                } else if (!modernPanel && currentVideoId) {
+                    modernPanel = {
+                        panelId: 'PAmodern_transcript_view',
+                        params: buildModernPanelParams(currentVideoId),
+                        clickTrackingParams: null
+                    };
                 }
                 // Some videos use the searchable transcript panel. Its command
                 // intentionally has no params and the rendered panel is the
