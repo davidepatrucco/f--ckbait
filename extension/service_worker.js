@@ -226,6 +226,29 @@ async function getYouTubeTranscriptText(sender, sendResponse) {
                     };
                     return visit(root);
                 };
+                const findModernTranscriptPanel = (root) => {
+                    const seen = new WeakSet();
+                    const visit = (value) => {
+                        if (!value || typeof value !== 'object' || seen.has(value)) return null;
+                        seen.add(value);
+                        const command = value.updateEngagementPanelContentCommand;
+                        const panelId = command?.contentSourcePanelIdentifier?.tag;
+                        const params = command?.globalConfiguration?.params;
+                        if (typeof panelId === 'string' && /transcript/i.test(panelId) && typeof params === 'string') {
+                            return {
+                                panelId,
+                                params,
+                                clickTrackingParams: value.clickTrackingParams || null
+                            };
+                        }
+                        for (const child of Object.values(value)) {
+                            const found = visit(child);
+                            if (found) return found;
+                        }
+                        return null;
+                    };
+                    return visit(root);
+                };
                 const collectSegments = (root) => {
                     const segments = [];
                     const seen = new WeakSet();
@@ -242,20 +265,46 @@ async function getYouTubeTranscriptText(sender, sendResponse) {
                     visit(root);
                     return segments.join(' ').replace(/\s+/g, ' ').trim();
                 };
+                const collectModernSegments = (root) => {
+                    const segments = [];
+                    const seenObjects = new WeakSet();
+                    const seenSegments = new Set();
+                    const visit = (value) => {
+                        if (!value || typeof value !== 'object' || seenObjects.has(value)) return;
+                        seenObjects.add(value);
+                        const segment = value.transcriptSegmentViewModel;
+                        if (typeof segment?.simpleText === 'string') {
+                            const text = segment.simpleText.replace(/\s+/g, ' ').trim();
+                            const key = `${segment.timestamp || ''}\u0000${text}`;
+                            if (text && !seenSegments.has(key)) {
+                                seenSegments.add(key);
+                                segments.push(text);
+                            }
+                        }
+                        for (const child of Object.values(value)) visit(child);
+                    };
+                    visit(root);
+                    return segments.join(' ').replace(/\s+/g, ' ').trim();
+                };
 
+                const modernPanel = findModernTranscriptPanel(window.ytInitialData) ||
+                    Array.from(document.querySelectorAll('ytd-video-description-transcript-section-renderer'))
+                        .map((element) => findModernTranscriptPanel(element.data))
+                        .find(Boolean);
                 const endpoint = findTranscriptEndpoint(window.ytInitialData) ||
                     findTranscriptEndpoint(window.ytInitialPlayerResponse);
                 const apiKey = window.ytcfg?.get?.('INNERTUBE_API_KEY');
                 const clientVersion = window.ytcfg?.get?.('INNERTUBE_CLIENT_VERSION');
                 const context = window.ytcfg?.get?.('INNERTUBE_CONTEXT');
-                if (!endpoint?.params || !apiKey || !clientVersion || !context?.client) {
-                    return { ok: false, reason: 'Parametri transcript YouTube non disponibili' };
+                if (!clientVersion || !context?.client || (!modernPanel && (!endpoint?.params || !apiKey))) {
+                    return { ok: false, reason: 'Parametri trascrizione YouTube non disponibili' };
                 }
 
                 const requestContext = JSON.parse(JSON.stringify(context));
                 requestContext.client.originalUrl = location.href;
-                if (endpoint.clickTrackingParams) {
-                    requestContext.clickTracking = { clickTrackingParams: endpoint.clickTrackingParams };
+                const clickTrackingParams = modernPanel?.clickTrackingParams || endpoint?.clickTrackingParams;
+                if (clickTrackingParams) {
+                    requestContext.clickTracking = { clickTrackingParams };
                 }
 
                 const headers = {
@@ -276,18 +325,67 @@ async function getYouTubeTranscriptText(sender, sendResponse) {
                     if (separator < 0) return [part.trim(), ''];
                     return [part.slice(0, separator).trim(), part.slice(separator + 1)];
                 }));
-                const sapisid = cookies.SAPISID || cookies.__Secure_3PAPISID || cookies.__Secure_1PAPISID ||
-                    cookies['__Secure-3PAPISID'] || cookies['__Secure-1PAPISID'];
-                if (sapisid) {
+                const decodeCookie = (value) => {
+                    try { return decodeURIComponent(value); } catch { return value; }
+                };
+                const baseSapisid = window.__SAPISID || cookies.SAPISID || cookies['__Secure-3PAPISID'];
+                const onePartySapisid = window.__1PSAPISID || cookies['__Secure-1PAPISID'];
+                const threePartySapisid = window.__3PSAPISID || cookies['__Secure-3PAPISID'];
+                const sidTokens = [
+                    ['SAPISIDHASH', baseSapisid],
+                    ['SAPISID1PHASH', onePartySapisid],
+                    ['SAPISID3PHASH', threePartySapisid]
+                ].filter(([, secret]) => Boolean(secret));
+                if (sidTokens.length) {
                     const timestamp = Math.floor(Date.now() / 1000);
-                    const input = new TextEncoder().encode(`${timestamp} ${decodeURIComponent(sapisid)} ${location.origin}`);
-                    const digest = await crypto.subtle.digest('SHA-1', input);
-                    const hash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
-                    headers.authorization = `SAPISIDHASH ${timestamp}_${hash}`;
+                    const tokens = [];
+                    for (const [name, secret] of sidTokens) {
+                        const input = new TextEncoder().encode(`${timestamp} ${decodeCookie(secret)} ${location.origin}`);
+                        const digest = await crypto.subtle.digest('SHA-1', input);
+                        const hash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+                        tokens.push(`${name} ${timestamp}_${hash}`);
+                    }
+                    headers.authorization = tokens.join(' ');
                     headers['x-origin'] = location.origin;
                     headers['x-goog-authuser'] = String(window.ytcfg?.get?.('SESSION_INDEX') || 0);
                     const delegatedSessionId = window.ytcfg?.get?.('DELEGATED_SESSION_ID');
                     if (delegatedSessionId) headers['x-goog-pageid'] = delegatedSessionId;
+                }
+
+                // YouTube's current transcript UI (2026) no longer uses
+                // get_transcript. It loads PAmodern_transcript_view through
+                // get_panel, even while the panel is closed.
+                let modernPanelFailure = null;
+                if (modernPanel) {
+                    const panelResponse = await fetch('/youtubei/v1/get_panel?prettyPrint=false', {
+                        method: 'POST',
+                        headers,
+                        credentials: 'same-origin',
+                        body: JSON.stringify({
+                            context: requestContext,
+                            panelId: modernPanel.panelId,
+                            params: modernPanel.params
+                        })
+                    });
+                    if (panelResponse.ok) {
+                        const payload = await panelResponse.json();
+                        const text = collectModernSegments(payload);
+                        if (text.length >= 50) {
+                            return {
+                                ok: true,
+                                text,
+                                characters: text.length,
+                                source: 'modern-panel'
+                            };
+                        }
+                        modernPanelFailure = `get_panel HTTP ${panelResponse.status}, 0 segmenti`;
+                    } else {
+                        modernPanelFailure = `get_panel HTTP ${panelResponse.status}`;
+                    }
+                }
+
+                if (!endpoint?.params || !apiKey) {
+                    return { ok: false, reason: modernPanelFailure || 'Endpoint trascrizione YouTube non disponibile' };
                 }
 
                 const response = await fetch(`/youtubei/v1/get_transcript?prettyPrint=false&key=${encodeURIComponent(apiKey)}`, {
@@ -303,7 +401,7 @@ async function getYouTubeTranscriptText(sender, sendResponse) {
                     const errorBody = await response.text();
                     return {
                         ok: false,
-                        reason: `Transcript API HTTP ${response.status}`,
+                        reason: `${modernPanelFailure ? `${modernPanelFailure}; ` : ''}Transcript API HTTP ${response.status}`,
                         responseCode: (() => {
                             try { return JSON.parse(errorBody)?.error?.status || null; } catch { return null; }
                         })()
@@ -311,12 +409,13 @@ async function getYouTubeTranscriptText(sender, sendResponse) {
                 }
                 const payload = await response.json();
                 const text = collectSegments(payload);
-                return { ok: text.length >= 50, text, characters: text.length };
+                return { ok: text.length >= 50, text, characters: text.length, source: 'legacy-transcript' };
             }
         });
         console.log('[YT TRANSCRIPT] Risposta API transcript:', {
             success: result.ok,
             characters: result.characters || 0,
+            source: result.source,
             reason: result.reason,
             responseCode: result.responseCode
         });

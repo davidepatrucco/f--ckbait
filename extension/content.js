@@ -168,25 +168,30 @@
             trackCount: Array.isArray(tracks) ? tracks.length : 0,
             error: response.error
         });
-        if (!success || !Array.isArray(tracks) || tracks.length === 0) {
-            throw new Error(`YouTube: tracce sottotitoli non trovate${response.error ? ` (${response.error})` : ''}`);
-        }
 
         const preferredLanguages = [navigator.language?.slice(0, 2), 'it', 'en'].filter(Boolean);
-        const track = tracks.find((item) => preferredLanguages.some((language) =>
+        const availableTracks = Array.isArray(tracks) ? tracks : [];
+        const track = availableTracks.find((item) => preferredLanguages.some((language) =>
             item.languageCode === language || item.languageCode?.startsWith(`${language}-`)
-        )) || tracks[0];
+        )) || availableTracks[0];
 
-        // The transcript panel and timed-text endpoint are not always exposed
-        // identically by YouTube. Prefer its structured get_transcript API.
+        // YouTube's structured transcript APIs are authoritative. Modern
+        // videos may expose get_panel even when captionTracks is unavailable.
         const transcriptApi = await chrome.runtime.sendMessage({ action: 'getYouTubeTranscriptText' });
         if (transcriptApi.success && transcriptApi.text?.length >= 50) {
             return {
                 text: transcriptApi.text.slice(0, 120000),
                 title: document.title.replace(/\s*-\s*YouTube\s*$/i, '').trim() || 'Video YouTube',
-                language: track.languageCode,
+                language: track?.languageCode || document.documentElement.lang || 'auto',
                 durationSeconds: Number.isFinite(durationSeconds) && durationSeconds > 0 ? durationSeconds : undefined
             };
+        }
+
+        if (!success || !track) {
+            throw new Error(
+                `YouTube: ${transcriptApi.reason || transcriptApi.error || 'trascrizione strutturata non disponibile'}; ` +
+                `tracce timedtext non trovate${response.error ? ` (${response.error})` : ''}`
+            );
         }
 
         const captionUrl = new URL(track.baseUrl);
