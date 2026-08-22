@@ -168,7 +168,9 @@
             trackCount: Array.isArray(tracks) ? tracks.length : 0,
             error: response.error
         });
-        if (!success || !Array.isArray(tracks) || tracks.length === 0) return null;
+        if (!success || !Array.isArray(tracks) || tracks.length === 0) {
+            throw new Error(`YouTube: tracce sottotitoli non trovate${response.error ? ` (${response.error})` : ''}`);
+        }
 
         const preferredLanguages = [navigator.language?.slice(0, 2), 'it', 'en'].filter(Boolean);
         const track = tracks.find((item) => preferredLanguages.some((language) =>
@@ -202,7 +204,12 @@
             contentType: captionResponse.contentType,
             characters: captionResponse.text?.length || 0
         });
-        if (!captionResponse.success || !captionResponse.text) return null;
+        if (!captionResponse.success || !captionResponse.text) {
+            throw new Error(
+                `YouTube: API trascrizione ${transcriptApi.reason || transcriptApi.error || 'fallita'}; ` +
+                `timedtext HTTP ${captionResponse.status || 'N/D'}, ${captionResponse.text?.length || 0} caratteri`
+            );
+        }
         const rawTranscript = captionResponse.text;
         let text = '';
         const normalizedPayload = rawTranscript.replace(/^\)\]\}'\s*/, '').trim();
@@ -228,12 +235,18 @@
         text = text.replace(/\s+/g, ' ').trim();
 
         console.log('[YT TRANSCRIPT] Testo estratto:', { characters: text.length, language: track.languageCode });
-        return text && text.length >= 50 ? {
+        if (!text || text.length < 50) {
+            throw new Error(
+                `YouTube: API trascrizione ${transcriptApi.reason || transcriptApi.error || 'fallita'}; ` +
+                `timedtext scaricato (${rawTranscript.length} caratteri) ma non contiene segmenti leggibili`
+            );
+        }
+        return {
             text: text.slice(0, 120000),
             title: document.title.replace(/\s*-\s*YouTube\s*$/i, '').trim() || 'Video YouTube',
             language: track.languageCode,
             durationSeconds: Number.isFinite(durationSeconds) && durationSeconds > 0 ? durationSeconds : undefined
-        } : null;
+        };
     }
     
     // Rendi disponibile la funzione per il popup

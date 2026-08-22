@@ -207,13 +207,16 @@ async function getYouTubeTranscriptText(sender, sendResponse) {
             target: { tabId: sender.tab.id },
             world: 'MAIN',
             func: async () => {
-                const findTranscriptParams = (root) => {
+                const findTranscriptEndpoint = (root) => {
                     const seen = new WeakSet();
                     const visit = (value) => {
                         if (!value || typeof value !== 'object' || seen.has(value)) return null;
                         seen.add(value);
                         if (typeof value.getTranscriptEndpoint?.params === 'string') {
-                            return value.getTranscriptEndpoint.params;
+                            return {
+                                params: value.getTranscriptEndpoint.params,
+                                clickTrackingParams: value.clickTrackingParams || null
+                            };
                         }
                         for (const child of Object.values(value)) {
                             const found = visit(child);
@@ -240,27 +243,72 @@ async function getYouTubeTranscriptText(sender, sendResponse) {
                     return segments.join(' ').replace(/\s+/g, ' ').trim();
                 };
 
-                const params = findTranscriptParams(window.ytInitialData) ||
-                    findTranscriptParams(window.ytInitialPlayerResponse);
+                const endpoint = findTranscriptEndpoint(window.ytInitialData) ||
+                    findTranscriptEndpoint(window.ytInitialPlayerResponse);
                 const apiKey = window.ytcfg?.get?.('INNERTUBE_API_KEY');
                 const clientVersion = window.ytcfg?.get?.('INNERTUBE_CLIENT_VERSION');
-                if (!params || !apiKey || !clientVersion) {
+                const context = window.ytcfg?.get?.('INNERTUBE_CONTEXT');
+                if (!endpoint?.params || !apiKey || !clientVersion || !context?.client) {
                     return { ok: false, reason: 'Parametri transcript YouTube non disponibili' };
+                }
+
+                const requestContext = JSON.parse(JSON.stringify(context));
+                requestContext.client.originalUrl = location.href;
+                if (endpoint.clickTrackingParams) {
+                    requestContext.clickTracking = { clickTrackingParams: endpoint.clickTrackingParams };
+                }
+
+                const headers = {
+                    'content-type': 'application/json',
+                    'x-youtube-client-name': String(window.ytcfg?.get?.('INNERTUBE_CONTEXT_CLIENT_NAME') || 1),
+                    'x-youtube-client-version': clientVersion,
+                    'x-youtube-bootstrap-logged-in': String(Boolean(window.ytcfg?.get?.('LOGGED_IN')))
+                };
+                const visitorData = window.ytcfg?.get?.('VISITOR_DATA') || requestContext.client.visitorData;
+                if (visitorData) headers['x-goog-visitor-id'] = visitorData;
+                const identityToken = window.ytcfg?.get?.('ID_TOKEN');
+                if (identityToken) headers['x-youtube-identity-token'] = identityToken;
+
+                // YouTube's own network layer adds this signature for logged-in
+                // sessions. A plain fetch does not, causing FAILED_PRECONDITION.
+                const cookies = Object.fromEntries(document.cookie.split(';').map((part) => {
+                    const separator = part.indexOf('=');
+                    if (separator < 0) return [part.trim(), ''];
+                    return [part.slice(0, separator).trim(), part.slice(separator + 1)];
+                }));
+                const sapisid = cookies.SAPISID || cookies.__Secure_3PAPISID || cookies.__Secure_1PAPISID ||
+                    cookies['__Secure-3PAPISID'] || cookies['__Secure-1PAPISID'];
+                if (sapisid) {
+                    const timestamp = Math.floor(Date.now() / 1000);
+                    const input = new TextEncoder().encode(`${timestamp} ${decodeURIComponent(sapisid)} ${location.origin}`);
+                    const digest = await crypto.subtle.digest('SHA-1', input);
+                    const hash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+                    headers.authorization = `SAPISIDHASH ${timestamp}_${hash}`;
+                    headers['x-origin'] = location.origin;
+                    headers['x-goog-authuser'] = String(window.ytcfg?.get?.('SESSION_INDEX') || 0);
+                    const delegatedSessionId = window.ytcfg?.get?.('DELEGATED_SESSION_ID');
+                    if (delegatedSessionId) headers['x-goog-pageid'] = delegatedSessionId;
                 }
 
                 const response = await fetch(`/youtubei/v1/get_transcript?prettyPrint=false&key=${encodeURIComponent(apiKey)}`, {
                     method: 'POST',
-                    headers: {
-                        'content-type': 'application/json',
-                        'x-youtube-client-name': '1',
-                        'x-youtube-client-version': clientVersion
-                    },
+                    headers,
+                    credentials: 'same-origin',
                     body: JSON.stringify({
-                        context: { client: { clientName: 'WEB', clientVersion } },
-                        params
+                        context: requestContext,
+                        params: endpoint.params
                     })
                 });
-                if (!response.ok) return { ok: false, reason: `Transcript API HTTP ${response.status}` };
+                if (!response.ok) {
+                    const errorBody = await response.text();
+                    return {
+                        ok: false,
+                        reason: `Transcript API HTTP ${response.status}`,
+                        responseCode: (() => {
+                            try { return JSON.parse(errorBody)?.error?.status || null; } catch { return null; }
+                        })()
+                    };
+                }
                 const payload = await response.json();
                 const text = collectSegments(payload);
                 return { ok: text.length >= 50, text, characters: text.length };
@@ -269,7 +317,8 @@ async function getYouTubeTranscriptText(sender, sendResponse) {
         console.log('[YT TRANSCRIPT] Risposta API transcript:', {
             success: result.ok,
             characters: result.characters || 0,
-            reason: result.reason
+            reason: result.reason,
+            responseCode: result.responseCode
         });
         sendResponse({ success: Boolean(result.ok), ...result });
     } catch (error) {
