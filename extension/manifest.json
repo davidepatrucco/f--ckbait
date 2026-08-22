@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "LemonSqueezer - TL;DR",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Riassumi qualsiasi pagina web in 3-4 bullet points secchi",
   "permissions": [
     "activeTab",

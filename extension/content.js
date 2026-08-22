@@ -152,6 +152,14 @@
 
     async function getYouTubeTranscript() {
         if (!isYouTubeVideoUrl()) return null;
+        const currentVideoId = (() => {
+            try {
+                const parsed = new URL(window.location.href);
+                return parsed.searchParams.get('v') || parsed.pathname.match(/^\/(?:shorts|live)\/([^/?]+)/)?.[1] || '';
+            } catch {
+                return '';
+            }
+        })();
 
         // Use the player's structured caption tracks, not the rendered page
         // or its controls. This is independent of whether the transcript UI is
@@ -161,6 +169,7 @@
         console.log('[YT TRANSCRIPT] Risposta service worker:', {
             success,
             trackCount: Array.isArray(tracks) ? tracks.length : 0,
+            videoId: response.videoId,
             error: response.error
         });
 
@@ -173,7 +182,17 @@
         // YouTube's structured transcript APIs are authoritative. Modern
         // videos may expose get_panel even when captionTracks is unavailable.
         const transcriptApi = await chrome.runtime.sendMessage({ action: 'getYouTubeTranscriptText' });
+        console.log('[YT TRANSCRIPT] API risultato:', {
+            success: transcriptApi.success,
+            source: transcriptApi.source,
+            videoId: transcriptApi.videoId,
+            characters: transcriptApi.characters || 0,
+            reason: transcriptApi.reason || transcriptApi.error
+        });
         if (transcriptApi.success && transcriptApi.text?.length >= 50) {
+            if (transcriptApi.videoId && currentVideoId && transcriptApi.videoId !== currentVideoId) {
+                throw new Error(`YouTube: trascrizione del video sbagliato (${transcriptApi.videoId} invece di ${currentVideoId})`);
+            }
             return {
                 text: transcriptApi.text.slice(0, 120000),
                 title: document.title.replace(/\s*-\s*YouTube\s*$/i, '').trim() || 'Video YouTube',

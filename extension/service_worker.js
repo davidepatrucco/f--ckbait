@@ -111,13 +111,20 @@ async function getYouTubeCaptionTracks(sender, sendResponse) {
             world: 'MAIN',
             func: async () => {
                 const extractTracks = (response) => response?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
-                let captionTracks = extractTracks(window.ytInitialPlayerResponse);
-                let durationSeconds = Number(window.ytInitialPlayerResponse?.videoDetails?.lengthSeconds || 0);
+                const currentVideoId = new URL(location.href).searchParams.get('v') ||
+                    location.pathname.match(/^\/(?:shorts|live)\/([^/?]+)/)?.[1] || '';
+                const isCurrentPlayer = (response) => !currentVideoId ||
+                    !response?.videoDetails?.videoId || response.videoDetails.videoId === currentVideoId;
+                let captionTracks = isCurrentPlayer(window.ytInitialPlayerResponse)
+                    ? extractTracks(window.ytInitialPlayerResponse) : [];
+                let durationSeconds = isCurrentPlayer(window.ytInitialPlayerResponse)
+                    ? Number(window.ytInitialPlayerResponse?.videoDetails?.lengthSeconds || 0) : 0;
 
                 if (!captionTracks.length) {
                     try {
                         const serializedResponse = window.ytplayer?.config?.args?.player_response;
-                        captionTracks = extractTracks(JSON.parse(serializedResponse || '{}'));
+                        const player = JSON.parse(serializedResponse || '{}');
+                        if (isCurrentPlayer(player)) captionTracks = extractTracks(player);
                     } catch {
                         // Keep searching the initial player payload below.
                     }
@@ -244,12 +251,25 @@ async function getYouTubeTranscriptText(sender, sendResponse) {
             target: { tabId: sender.tab.id },
             world: 'MAIN',
             func: async () => {
+                const currentVideoId = new URL(location.href).searchParams.get('v') ||
+                    location.pathname.match(/^\/(?:shorts|live)\/([^/?]+)/)?.[1] || '';
+                const decodeParams = (params) => {
+                    try {
+                        let value = String(params).replace(/-/g, '+').replace(/_/g, '/');
+                        value += '='.repeat((4 - value.length % 4) % 4);
+                        return atob(value);
+                    } catch {
+                        return '';
+                    }
+                };
+                const belongsToCurrentVideo = (params) => !currentVideoId || decodeParams(params).includes(currentVideoId);
                 const findTranscriptEndpoint = (root) => {
                     const seen = new WeakSet();
                     const visit = (value) => {
                         if (!value || typeof value !== 'object' || seen.has(value)) return null;
                         seen.add(value);
-                        if (typeof value.getTranscriptEndpoint?.params === 'string') {
+                        if (typeof value.getTranscriptEndpoint?.params === 'string' &&
+                            belongsToCurrentVideo(value.getTranscriptEndpoint.params)) {
                             return {
                                 params: value.getTranscriptEndpoint.params,
                                 clickTrackingParams: value.clickTrackingParams || null
@@ -271,7 +291,8 @@ async function getYouTubeTranscriptText(sender, sendResponse) {
                         const command = value.updateEngagementPanelContentCommand;
                         const panelId = command?.contentSourcePanelIdentifier?.tag;
                         const params = command?.globalConfiguration?.params;
-                        if (typeof panelId === 'string' && /transcript/i.test(panelId) && typeof params === 'string') {
+                        if (typeof panelId === 'string' && /transcript/i.test(panelId) &&
+                            typeof params === 'string' && belongsToCurrentVideo(params)) {
                             return {
                                 panelId,
                                 params,
@@ -324,10 +345,17 @@ async function getYouTubeTranscriptText(sender, sendResponse) {
                     return segments.join(' ').replace(/\s+/g, ' ').trim();
                 };
 
-                const modernPanel = findModernTranscriptPanel(window.ytInitialData) ||
+                const findCurrentPanel = () => findModernTranscriptPanel(window.ytInitialData) ||
                     Array.from(document.querySelectorAll('ytd-video-description-transcript-section-renderer'))
                         .map((element) => findModernTranscriptPanel(element.data))
                         .find(Boolean);
+                // YouTube is an SPA: after clicking another video, old globals can
+                // remain for a short time. Never send the previous video's params.
+                let modernPanel = findCurrentPanel();
+                for (let attempt = 0; !modernPanel && attempt < 20; attempt += 1) {
+                    await new Promise((resolve) => setTimeout(resolve, 150));
+                    modernPanel = findCurrentPanel();
+                }
                 const endpoint = findTranscriptEndpoint(window.ytInitialData) ||
                     findTranscriptEndpoint(window.ytInitialPlayerResponse);
                 const apiKey = window.ytcfg?.get?.('INNERTUBE_API_KEY');
@@ -412,7 +440,8 @@ async function getYouTubeTranscriptText(sender, sendResponse) {
                                 ok: true,
                                 text,
                                 characters: text.length,
-                                source: 'modern-panel'
+                                source: 'modern-panel',
+                                videoId: currentVideoId
                             };
                         }
                         modernPanelFailure = `get_panel HTTP ${panelResponse.status}, 0 segmenti`;
@@ -446,7 +475,7 @@ async function getYouTubeTranscriptText(sender, sendResponse) {
                 }
                 const payload = await response.json();
                 const text = collectSegments(payload);
-                return { ok: text.length >= 50, text, characters: text.length, source: 'legacy-transcript' };
+                return { ok: text.length >= 50, text, characters: text.length, source: 'legacy-transcript', videoId: currentVideoId };
             }
         });
         console.log('[YT TRANSCRIPT] Risposta API transcript:', {
