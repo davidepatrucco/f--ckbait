@@ -8,6 +8,7 @@ describe('Cache Module Tests', () => {
         const { 
             getCachedSummary, 
             setCachedSummary, 
+            buildSummaryCacheKey,
             shouldCacheUrl,
             getCacheStats,
             cleanExpiredCache 
@@ -15,6 +16,7 @@ describe('Cache Module Tests', () => {
         
         assert.strictEqual(typeof getCachedSummary, 'function', 'getCachedSummary should be a function');
         assert.strictEqual(typeof setCachedSummary, 'function', 'setCachedSummary should be a function');
+        assert.strictEqual(typeof buildSummaryCacheKey, 'function', 'buildSummaryCacheKey should be a function');
         assert.strictEqual(typeof shouldCacheUrl, 'function', 'shouldCacheUrl should be a function');
         assert.strictEqual(typeof getCacheStats, 'function', 'getCacheStats should be a function');
         assert.strictEqual(typeof cleanExpiredCache, 'function', 'cleanExpiredCache should be a function');
@@ -63,9 +65,13 @@ describe('Cache Module Tests', () => {
         // Test della struttura dati che dovremmo salvare in cache
         const expectedCacheStructure = {
             cache_key: 'string',
+            cache_version: 'string',
             url: 'string',
-            original_url: 'string',
             language: 'string',
+            summary_profile: 'string',
+            model: 'string',
+            source_type: 'string',
+            content_hash: 'string',
             title: 'string',
             summary: 'string',
             reading_time_minutes: 'number',
@@ -80,9 +86,29 @@ describe('Cache Module Tests', () => {
         };
 
         // Verifichiamo che la struttura sia quella attesa
-        assert.ok(Object.keys(expectedCacheStructure).length === 15, 'Cache should have 15 fields');
+        assert.ok(Object.keys(expectedCacheStructure).length === 19, 'Cache should have 19 fields');
         assert.ok(expectedCacheStructure.cache_key === 'string', 'Should have cache_key');
         assert.ok(expectedCacheStructure.ttl === 'number', 'Should have TTL for auto-cleanup');
         assert.ok(expectedCacheStructure.cache_hits === 'number', 'Should track cache hits');
+    });
+
+    it('should key shared cache by content and output configuration', async () => {
+        const { buildSummaryCacheKey } = await import('../src/cache.mjs');
+        const base = {
+            text: 'A source document with the same actual content.',
+            language: 'it',
+            summaryProfile: 'standard',
+            model: 'gpt-5-nano',
+            sourceType: 'web'
+        };
+        assert.strictEqual(
+            buildSummaryCacheKey(base),
+            buildSummaryCacheKey({ ...base, text: ' A source  document\nwith the same actual content. ' }),
+            'Whitespace-only differences must share cache'
+        );
+        assert.notStrictEqual(buildSummaryCacheKey(base), buildSummaryCacheKey({ ...base, language: 'en' }));
+        assert.notStrictEqual(buildSummaryCacheKey(base), buildSummaryCacheKey({ ...base, summaryProfile: 'ultra' }));
+        assert.notStrictEqual(buildSummaryCacheKey(base), buildSummaryCacheKey({ ...base, model: 'gpt-5.6-luna' }));
+        assert.notStrictEqual(buildSummaryCacheKey(base), buildSummaryCacheKey({ ...base, text: 'Different content' }));
     });
 });

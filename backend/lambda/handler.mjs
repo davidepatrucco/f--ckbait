@@ -1,5 +1,5 @@
 // handler.mjs - Entry point per AWS Lambda - Updated 2025-09-28 with stats
-import { summarizeWithOpenAI } from '../src/openai.mjs';
+import { summarizeWithOpenAI, getSummaryModel } from '../src/openai.mjs';
 import { validateSubscription } from '../src/subscription.mjs';
 import { checkRateLimit } from '../src/rate-limit.mjs';
 import { fetchWebContent } from '../src/web-fetcher.mjs';
@@ -302,67 +302,9 @@ export async function summarizeUrlHandler(event) {
         }
 
         const language = body.lang || 'it';
-
-        // 🚀 CONTROLLO CACHE PRIMA DEL PROCESSING
-        // Client-provided transcripts are user input; never cache them by URL,
-        // otherwise one user could poison another user's video summary.
-        if (!hasTranscript && shouldCacheUrl(body.url)) {
-            console.log('🔍 [CACHE] Checking cache for URL...');
-            const cacheStartTime = Date.now();
-            
-            const cachedSummary = await getCachedSummary(body.url, language);
-            const cacheCheckTime = Date.now() - cacheStartTime;
-            
-            if (cachedSummary) {
-                console.log('✅ [CACHE] Cache HIT! Returning cached summary');
-                console.log('⚡ [TIMING] Cache check took:', cacheCheckTime, 'ms');
-                
-                // Incrementa contatore utilizzo
-                user = await incrementUsage(user);
-                
-                const totalTime = Date.now() - startTime;
-                
-                // Log analytics per cache hit
-                try {
-                    await logSummaryEvent({
-                        userId: user.id,
-                        userEmail: user.email,
-                        userPlan: user.plan,
-                        url: body.url,
-                        title: cachedSummary.title,
-                        language: language,
-                        charsInput: 0, // Non disponibile per cache hit
-                        charsOutput: cachedSummary.summary.length,
-                        durationMs: totalTime,
-                        userAgent: event.headers?.['User-Agent'],
-                        success: true
-                    });
-                } catch (analyticsError) {
-                    console.warn('Analytics logging failed:', analyticsError.message);
-                }
-                
-                return createResponse(200, {
-                    summary: cachedSummary.summary,
-                    readingTimeMinutes: cachedSummary.readingTimeMinutes,
-                    wordsCount: cachedSummary.wordsCount,
-                    stats: cachedSummary.stats,
-                    url: body.url,
-                    title: cachedSummary.title,
-                    cached: true,
-                    cachedAt: cachedSummary.cachedAt,
-                    cacheHits: cachedSummary.cacheHits,
-                    user: {
-                        usage: user.usage,
-                        plan: user.plan
-                    }
-                });
-            } else {
-                console.log('❌ [CACHE] Cache MISS - proceeding with normal processing');
-                console.log('⚡ [TIMING] Cache check took:', cacheCheckTime, 'ms');
-            }
-        } else {
-            console.log('🚫 [CACHE] URL not cacheable - proceeding with normal processing');
-        }
+        const summaryProfile = ['ultra', 'standard', 'detailed'].includes(body.summaryProfile)
+            ? body.summaryProfile
+            : 'standard';
         
         let text;
         let title;
@@ -387,6 +329,40 @@ export async function summarizeUrlHandler(event) {
         }
         
         console.log(`📄 [TIMING] Extracted ${text.length} characters from URL`);
+
+        const sourceType = hasTranscript ? 'video' : 'web';
+        const cacheInput = {
+            url: body.url,
+            text,
+            language,
+            summaryProfile,
+            model: getSummaryModel(),
+            sourceType,
+            videoDurationSeconds: hasTranscript ? videoDurationSeconds : 0
+        };
+        if (shouldCacheUrl(body.url)) {
+            const cacheStartTime = Date.now();
+            const cachedSummary = await getCachedSummary(cacheInput);
+            if (cachedSummary) {
+                console.log('✅ [CACHE] Content hash hit:', { elapsedMs: Date.now() - cacheStartTime });
+                user = await incrementUsage(user);
+                return createResponse(200, {
+                    summary: cachedSummary.summary,
+                    readingTimeMinutes: cachedSummary.readingTimeMinutes,
+                    wordsCount: cachedSummary.wordsCount,
+                    stats: cachedSummary.stats,
+                    url: body.url,
+                    title: title || cachedSummary.title,
+                    sourceType,
+                    videoDurationSeconds: hasTranscript ? videoDurationSeconds : undefined,
+                    cached: true,
+                    cachedAt: cachedSummary.cachedAt,
+                    cacheHits: cachedSummary.cacheHits,
+                    user: { usage: user.usage, plan: user.plan }
+                });
+            }
+            console.log('❌ [CACHE] Content hash miss:', { elapsedMs: Date.now() - cacheStartTime });
+        }
         
         const openaiStartTime = Date.now();
         console.log('🤖 [TIMING] Starting OpenAI call...');
@@ -395,7 +371,9 @@ export async function summarizeUrlHandler(event) {
             title: title,
             text: text,
             language: body.lang || 'it',
-            sourceType: hasTranscript ? 'video' : 'web'
+            sourceType,
+            summaryProfile,
+            videoDurationSeconds: hasTranscript ? videoDurationSeconds : undefined
         });
         const openaiTime = Date.now() - openaiStartTime;
         console.log('⚡ [TIMING] OpenAI call took:', openaiTime, 'ms');
@@ -414,11 +392,11 @@ export async function summarizeUrlHandler(event) {
         user = await incrementUsage(user);
 
         // 💾 SALVA IN CACHE SE POSSIBILE
-        if (!hasTranscript && shouldCacheUrl(body.url)) {
+        if (shouldCacheUrl(body.url)) {
             console.log('💾 [CACHE] Saving to cache...');
             try {
                 const processingTime = Date.now() - startTime;
-                await setCachedSummary(body.url, language, {
+                await setCachedSummary(cacheInput, {
                     title: title || 'Contenuto web',
                     summary: summary.text,
                     readingTimeMinutes: summary.readingTimeMinutes,

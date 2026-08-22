@@ -1,4 +1,6 @@
 import * as cheerio from 'cheerio';
+import { JSDOM } from 'jsdom';
+import { Readability } from '@mozilla/readability';
 import { isIP } from 'node:net';
 import { lookup } from 'node:dns/promises';
 
@@ -42,15 +44,25 @@ async function assertPublicUrl(validUrl) {
  * @param {string} html - HTML da processare
  * @returns {string} - Testo pulito
  */
-function extractTextFromHtml(html) {
+export function extractTextFromHtml(html, url = 'https://example.com/') {
     try {
+        // Readability is purpose-built to isolate an article from chrome such
+        // as navigation, sidebars, related links and page footer. It is the
+        // primary extractor for newspapers and regular editorial pages.
+        const dom = new JSDOM(html, { url });
+        const article = new Readability(dom.window.document).parse();
+        const readableText = article?.textContent?.replace(/\s+/g, ' ').trim() || '';
+        if (readableText.length >= 200) {
+            return readableText;
+        }
+
+        // Not every useful page is an article (documentation, simple blogs,
+        // knowledge bases). Keep a constrained fallback instead of sending an
+        // entire body, which was the cause of footer/menu summaries.
         const $ = cheerio.load(html);
-        
-        // Rimuovi immediatamente elementi inutili
-        $('script, style, nav, footer, header, aside, noscript, iframe, svg').remove();
-        
-        // Estrai testo dal body
-        let text = $('body').text() || $('html').text() || '';
+        $('script, style, nav, footer, header, aside, noscript, iframe, svg, form, button, [role="navigation"], [role="complementary"]').remove();
+        const main = $('article, main, [role="main"], .article-body, .article__body, .story-body, .entry-content, .post-content, #mw-content-text').first();
+        let text = (main.length ? main.text() : $('body').text()) || $('html').text() || '';
         
         // Normalize whitespace
         text = text.replace(/\s+/g, ' ').trim();
@@ -161,7 +173,7 @@ export async function fetchWebContent(url) {
         // Estrai titolo e testo
         const extractStart = Date.now();
         const title = extractTitleFromHtml(html);
-        let text = extractTextFromHtml(html);
+        let text = extractTextFromHtml(html, validUrl.toString());
         const extractEnd = Date.now();
         console.log(`Extracted title and text (extraction time: ${extractEnd - extractStart} ms)`);
 

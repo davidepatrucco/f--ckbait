@@ -13,13 +13,31 @@ const docClient = DynamoDBDocumentClient.from(client);
 const CACHE_TABLE = process.env.CACHE_TABLE_NAME || 'tldr-cache';
 const CACHE_TTL_HOURS = parseInt(process.env.CACHE_TTL_HOURS || '24', 10); // 24 ore default
 
+const CACHE_VERSION = 'summary-v2';
+
 /**
- * Genera chiave cache da URL e parametri
+ * Chiave condivisa ma sicura: la cache dipende dal contenuto effettivo, non
+ * soltanto dall'URL. Non salviamo mai il testo nella chiave o nella tabella.
  */
-function generateCacheKey(url, language = 'it') {
-    // Normalizza URL rimuovendo parametri tracking comuni
-    const cleanUrl = normalizeUrl(url);
-    const keyString = `${cleanUrl}|${language}`;
+export function buildSummaryCacheKey({
+    text,
+    language = 'it',
+    summaryProfile = 'standard',
+    model = 'gpt-5-nano',
+    sourceType = 'web',
+    videoDurationSeconds = 0
+}) {
+    const normalizedText = String(text || '').replace(/\s+/g, ' ').trim();
+    const contentHash = createHash('sha256').update(normalizedText).digest('hex');
+    const keyString = [
+        CACHE_VERSION,
+        contentHash,
+        language,
+        summaryProfile,
+        model,
+        sourceType,
+        Math.round(Number(videoDurationSeconds) || 0)
+    ].join('|');
     return createHash('sha256').update(keyString).digest('hex');
 }
 
@@ -57,9 +75,11 @@ function normalizeUrl(url) {
 /**
  * Verifica se esiste un riassunto in cache
  */
-export async function getCachedSummary(url, language = 'it') {
+export async function getCachedSummary(cacheInput, language = 'it') {
     try {
-        const cacheKey = generateCacheKey(url, language);
+        const cacheKey = typeof cacheInput === 'string'
+            ? buildSummaryCacheKey({ text: cacheInput, language })
+            : buildSummaryCacheKey(cacheInput);
         
         const command = new GetCommand({
             TableName: CACHE_TABLE,
@@ -107,17 +127,22 @@ export async function getCachedSummary(url, language = 'it') {
 /**
  * Salva riassunto in cache
  */
-export async function setCachedSummary(url, language, summaryData) {
+export async function setCachedSummary(cacheInput, summaryData) {
     try {
-        const cacheKey = generateCacheKey(url, language);
+        const cacheKey = buildSummaryCacheKey(cacheInput);
         const now = new Date();
         const expiresAt = new Date(now.getTime() + (CACHE_TTL_HOURS * 60 * 60 * 1000));
         
         const cacheItem = {
             cache_key: cacheKey,
-            url: normalizeUrl(url),
-            original_url: url,
-            language: language,
+            cache_version: CACHE_VERSION,
+            url: normalizeUrl(cacheInput.url || ''),
+            language: cacheInput.language || 'it',
+            summary_profile: cacheInput.summaryProfile || 'standard',
+            model: cacheInput.model || 'gpt-5-nano',
+            source_type: cacheInput.sourceType || 'web',
+            video_duration_seconds: Number(cacheInput.videoDurationSeconds) || 0,
+            content_hash: createHash('sha256').update(String(cacheInput.text || '').replace(/\s+/g, ' ').trim()).digest('hex'),
             title: summaryData.title,
             summary: summaryData.summary,
             reading_time_minutes: summaryData.readingTimeMinutes,
@@ -138,7 +163,7 @@ export async function setCachedSummary(url, language, summaryData) {
         
         await docClient.send(command);
         
-        console.log(`✅ Cache saved for URL: ${url} (key: ${cacheKey.substring(0, 8)}...)`);
+        console.log(`✅ Cache saved (key: ${cacheKey.substring(0, 8)}...)`);
         return cacheKey;
         
     } catch (error) {

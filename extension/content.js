@@ -3,6 +3,7 @@
 
 (function() {
     'use strict';
+    let activeSummaryRequestId = null;
     
     // Funzione per calcolare la densità del testo in un elemento
     function getTextDensity(element) {
@@ -950,6 +951,9 @@
     // Funzione per aprire la modale dal popup e avviare il riassunto
     async function openSummaryModal(request) {
         console.log('[CONTENT] openSummaryModal chiamata:', request);
+        const requestId = request.requestId || crypto.randomUUID();
+        const requestedUrl = request.url;
+        activeSummaryRequestId = requestId;
         
         // Mostra loading modal
         showLoadingModal({ url: request.url });
@@ -964,7 +968,8 @@
             
             const requestBody = {
                 url: request.url,
-                lang: 'it'
+                lang: request.lang || 'it',
+                summaryProfile: request.summaryProfile || 'standard'
             };
 
             if (isYouTubeVideoUrl(request.url)) {
@@ -991,6 +996,13 @@
                     throw new Error('Limite riassunti raggiunto. Upgrade a Premium per continuare.');
                 }
                 throw new Error(apiResult?.error || 'Backend non raggiungibile');
+            }
+
+            // A navigation or a newer click can complete while the backend is
+            // working. Never render that stale answer into the current tab.
+            if (activeSummaryRequestId !== requestId || window.location.href !== requestedUrl) {
+                console.warn('[CONTENT] Risposta ignorata: richiesta non piu attiva', { requestId, requestedUrl });
+                return;
             }
 
             const dataRaw = apiResult.data;
@@ -1039,7 +1051,9 @@
             
         } catch (error) {
             console.error('[CONTENT] Errore riassunto:', error);
-            updateModalWithError({ error: error.message });
+            if (activeSummaryRequestId === requestId) {
+                updateModalWithError({ error: error.message });
+            }
         }
     }
     

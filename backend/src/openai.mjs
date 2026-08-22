@@ -33,87 +33,49 @@ async function getOpenAIClient() {
     return openai;
 }
 
-// Prompt template per le diverse lingue
-const PROMPTS = {
-    it: `Sei un esperto riassuntore. Il tuo compito è creare un riassunto ESTREMAMENTE conciso di qualsiasi contenuto web.
-
-REGOLE FONDAMENTALI:
-- Il riassunto finale deve essere MASSIMO il 20% delle parole originali (riduzione minima dell'80%)
-- Crea 3-4 bullet points chiarissimi
-- Ogni bullet deve essere massimo 40-60 parole
-- Usa un linguaggio chiaro, diretto e denso di informazioni
-- Concentrati SOLO sui punti più importanti e informativi, elimina tutto il resto
-- Evita ripetizioni, fluff, contenuti marginali, bait, promozionali o pubblicitari
-- Sii spietato: taglia tutto ciò che non è essenziale
-
-Restituisci SOLO i bullet points, uno per riga, preceduti da "• ".`,
-
-    en: `You are an expert summarizer. Your task is to create an EXTREMELY concise summary of any web content.
-
-FUNDAMENTAL RULES:
-- Final summary must be MAXIMUM 20% of original word count (minimum 80% reduction)
-- Create 3-4 crystal-clear bullet points
-- Each bullet must be maximum 40-60 words
-- Use clear, direct and information-dense language
-- Focus ONLY on the most important and informative points, eliminate everything else
-- Avoid repetitions, fluff, marginal content, bait, promotional or advertising content
-- Be ruthless: cut everything that isn't essential
-
-Return ONLY the bullet points, one per line, preceded by "• ".`,
-
-    es: `Eres un experto en resúmenes. Tu tarea es crear un resumen EXTREMADAMENTE conciso de cualquier contenido web.
-
-REGLAS FUNDAMENTALES:
-- El resumen final debe ser MÁXIMO el 20% de las palabras originales (reducción mínima del 80%)
-- Crea 3-4 puntos ultra-claros
-- Cada punto debe tener máximo 40-60 palabras
-- Usa un lenguaje claro, directo y denso de información
-- Concéntrate SOLO en los puntos más importantes e informativos, elimina todo lo demás
-- Evita repeticiones, fluff, contenido marginal, bait, promocional o publicitario
-- Sé despiadado: corta todo lo que no sea esencial
-
-Devuelve SOLO los puntos, uno por línea, precedidos por "• ".`,
-
-    fr: `Tu es un expert en résumés. Ta tâche est de créer un résumé EXTRÊMEMENT concis de tout contenu web.
-
-RÈGLES FONDAMENTALES:
-- Le résumé final doit être MAXIMUM 20% du nombre de mots originaux (réduction minimale de 80%)
-- Crée 3-4 points ultra-clairs
-- Chaque point doit faire maximum 40-60 mots
-- Utilise un langage clair, direct et dense en informations
-- Concentre-toi UNIQUEMENT sur les points les plus importants et informatifs, élimine tout le reste
-- Évite les répétitions, le fluff, le contenu marginal, le bait, le promotionnel ou publicitaire
-- Sois impitoyable: coupe tout ce qui n'est pas essentiel
-
-Retourne SEULEMENT les points, un par ligne, précédés de "• ".`,
-
-    de: `Du bist ein Experte für Zusammenfassungen. Deine Aufgabe ist es, eine EXTREM prägnante Zusammenfassung von jedem Web-Inhalt zu erstellen.
-
-GRUNDREGELN:
-- Die finale Zusammenfassung muss MAXIMAL 20% der ursprünglichen Wortanzahl sein (mindestens 80% Reduzierung)
-- Erstelle 3-4 ultra-klare Aufzählungspunkte
-- Jeder Punkt darf maximal 40-60 Wörter haben
-- Verwende klare, direkte und informationsdichte Sprache
-- Konzentriere dich NUR auf die wichtigsten und informativsten Punkte, eliminiere alles andere
-- Vermeide Wiederholungen, Füllwörter, marginale Inhalte, Bait, werbliche Details
-- Sei gnadenlos: schneide alles weg, was nicht essentiell ist
-
-Gib NUR die Punkte zurück, einen pro Zeile, mit "• " vorangestellt.`
+const OUTPUT_LANGUAGES = { it: 'italiano', en: 'English', es: 'español', fr: 'français', de: 'Deutsch' };
+const SUMMARY_PROFILES = {
+    ultra: { savingsPercent: 95 },
+    standard: { savingsPercent: 90 },
+    detailed: { savingsPercent: 80 }
 };
+const WORDS_PER_MINUTE = 220;
+const MAX_SUMMARY_WORDS = Number.parseInt(process.env.SUMMARY_MAX_WORDS || '800', 10);
+const countWords = (text) => String(text || '').trim().split(/\s+/).filter(Boolean).length;
 
-// Funzione per creare il prompt completo
-function createPrompt(content, language = 'it') {
-    const systemPrompt = PROMPTS[language] || PROMPTS.it;
+export function getSummaryModel() {
+    return process.env.SUMMARY_MODEL || 'gpt-5-nano';
+}
+
+export function buildSummaryPlan(content) {
+    const profile = SUMMARY_PROFILES[content.summaryProfile] || SUMMARY_PROFILES.standard;
+    const sourceEquivalentWords = content.sourceType === 'video' && Number(content.videoDurationSeconds) > 0
+        ? Math.round((Number(content.videoDurationSeconds) / 60) * WORDS_PER_MINUTE)
+        : countWords(content.text);
+    const targetWords = Math.max(1, Math.min(
+        MAX_SUMMARY_WORDS,
+        Math.floor(sourceEquivalentWords * ((100 - profile.savingsPercent) / 100))
+    ));
+    return {
+        profile: SUMMARY_PROFILES[content.summaryProfile] ? content.summaryProfile : 'standard',
+        savingsPercent: profile.savingsPercent,
+        sourceEquivalentWords,
+        targetWords,
+        bulletCount: Math.max(1, Math.min(8, Math.ceil(targetWords / 90)))
+    };
+}
+
+function createPrompt(content, language = 'it', plan = buildSummaryPlan(content)) {
+    const outputLanguage = OUTPUT_LANGUAGES[language] || OUTPUT_LANGUAGES.it;
     const sourceLabel = content.sourceType === 'video' ? 'Trascrizione video' : 'Contenuto pagina web';
-    
+    const systemPrompt = `Sei un riassuntore editoriale rigoroso. Rispondi esclusivamente con JSON valido secondo lo schema richiesto. Scrivi in ${outputLanguage}. Usa solo informazioni presenti nella fonte; elimina pubblicità, menu, footer, ripetizioni e dettagli marginali.`;
     const userPrompt = `Titolo: ${content.title}
 URL: ${content.url}
 
+Obiettivo: profilo ${plan.profile}; massimo ${plan.targetWords} parole totali nei bullet, per un risparmio di tempo di almeno ${plan.savingsPercent}%. Genera fino a ${plan.bulletCount} bullet, meno solo se la fonte è troppo breve.
+
 ${sourceLabel}:
-${content.text}
-
-Riassumi questo contenuto seguendo le regole specificate.`;
-
+${content.text}`;
     return { systemPrompt, userPrompt };
 }
 
@@ -175,52 +137,103 @@ export async function summarizeWithOpenAI(content) {
             throw new Error('Contenuto troppo breve per essere riassunto');
         }
         
+        const plan = buildSummaryPlan(content);
+        const model = getSummaryModel();
         const promptStartTime = Date.now();
-        const { systemPrompt, userPrompt } = createPrompt(content, content.language);
+        const { systemPrompt, userPrompt } = createPrompt(content, content.language, plan);
         console.log('⚡ [TIMING] Prompt creation took:', Date.now() - promptStartTime, 'ms');
         
         console.log('🚀 [TIMING] Calling OpenAI with:', {
-            model: 'gpt-5-nano',
+            model,
             language: content.language,
             contentLength: content.text.length,
-            url: content.url
+            targetWords: plan.targetWords,
+            profile: plan.profile
         });
         
         const apiCallStartTime = Date.now();
         // Chiamata a OpenAI
         const client = await getOpenAIClient();
-        const completion = await client.chat.completions.create({
-            model: 'gpt-5-nano',
-            messages: [
-                {
-                    role: 'system',
-                    content: systemPrompt
-                },
-                {
-                    role: 'user',
-                    content: userPrompt
+        const requestCompletion = async (messages) => client.chat.completions.create({
+            model,
+            messages,
+            max_completion_tokens: Math.max(512, Math.min(4000, plan.targetWords * 4 + 300)),
+            reasoning_effort: 'low',
+            response_format: {
+                type: 'json_schema',
+                json_schema: {
+                    name: 'lemonsqueezer_summary',
+                    strict: true,
+                    schema: {
+                        type: 'object',
+                        additionalProperties: false,
+                        required: ['bullets'],
+                        properties: {
+                            bullets: {
+                                type: 'array',
+                                minItems: 1,
+                                maxItems: plan.bulletCount,
+                                items: { type: 'string' }
+                            }
+                        }
+                    }
                 }
-            ],
-            max_completion_tokens: 3000,
-            reasoning_effort: "low"
+            }
         });
+        let completion = await requestCompletion([
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+        ]);
         const apiCallTime = Date.now() - apiCallStartTime;
         console.log('⚡ [TIMING] OpenAI API call took:', apiCallTime, 'ms');
         
-        const response = completion.choices[0]?.message?.content;
+        let response = completion.choices[0]?.message?.content;
         
         if (!response) {
             throw new Error('Risposta vuota da OpenAI');
         }
         
+        let parsed;
+        try {
+            parsed = JSON.parse(response);
+        } catch {
+            throw new Error('Risposta strutturata non valida da OpenAI');
+        }
+        let bullets = Array.isArray(parsed.bullets)
+            ? parsed.bullets.map((bullet) => String(bullet).replace(/^\s*[•-]\s*/, '').trim()).filter(Boolean)
+            : [];
+        if (!bullets.length) throw new Error('OpenAI non ha restituito bullet validi');
+
+        let summaryText = bullets.map((bullet) => `• ${bullet}`).join('\n');
+        // Un solo tentativo di compressione se il modello supera il budget.
+        if (countWords(summaryText) > plan.targetWords && plan.targetWords >= 20) {
+            completion = await requestCompletion([
+                { role: 'system', content: systemPrompt },
+                {
+                    role: 'user',
+                    content: `Riduci il seguente riassunto a massimo ${plan.targetWords} parole totali, mantenendo solo i fatti essenziali.\n\n${summaryText}`
+                }
+            ]);
+            response = completion.choices[0]?.message?.content;
+            try {
+                parsed = JSON.parse(response || '{}');
+                bullets = Array.isArray(parsed.bullets)
+                    ? parsed.bullets.map((bullet) => String(bullet).replace(/^\s*[•-]\s*/, '').trim()).filter(Boolean)
+                    : bullets;
+                summaryText = bullets.map((bullet) => `• ${bullet}`).join('\n');
+            } catch {
+                // Conserva il primo risultato valido: le statistiche mostreranno il risparmio reale.
+            }
+        }
+
         // Calcola statistiche di lettura
         const statsStartTime = Date.now();
-        const stats = calculateReadingStats(content.text, response);
+        const stats = calculateReadingStats(content.text, summaryText);
         console.log('⚡ [TIMING] Stats calculation took:', Date.now() - statsStartTime, 'ms');
         
         // Restituisce direttamente il testo di OpenAI con le statistiche
         const result = {
-            text: response,
+            text: summaryText,
             readingTimeMinutes: Math.ceil(stats.summaryReadingTime / 60),
             wordsCount: stats.summaryWords,
             stats: {
@@ -228,6 +241,9 @@ export async function summarizeWithOpenAI(content) {
                 summaryWords: stats.summaryWords,
                 timeSaved: stats.timeSaved,
                 compressionRatio: stats.compressionRatio,
+                targetWords: plan.targetWords,
+                targetSavingsPercent: plan.savingsPercent,
+                targetMet: stats.summaryWords <= plan.targetWords,
                 originalReadingTime: formatTime(stats.originalReadingTime),
                 summaryReadingTime: formatTime(stats.summaryReadingTime)
             }
@@ -242,7 +258,8 @@ export async function summarizeWithOpenAI(content) {
             title: content.title,
             language: content.language,
             textLength: content.text.length,
-            summaryBullets: result.text.split('•').length - 1
+            summaryBullets: bullets.length,
+            targetMet: result.stats.targetMet
         });
         
         return result;

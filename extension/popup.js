@@ -55,6 +55,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
     const summarizeBtn = document.getElementById('summarizeBtn');
+    const languageSelect = document.getElementById('language');
+    const summaryProfileSelect = document.getElementById('summaryProfile');
     
     // Elementi di autenticazione
     const loginCard = document.getElementById('loginCard');
@@ -73,7 +75,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentUser = null;
     
     // Carica configurazione salvata
-    const savedConfig = await chrome.storage.local.get(['user', 'authToken', 'loginInProgress']);
+    const savedConfig = await chrome.storage.local.get([
+        'user', 'authToken', 'loginInProgress', 'summaryLanguage', 'summaryProfile'
+    ]);
+
+    if (languageSelect) languageSelect.value = savedConfig.summaryLanguage || 'it';
+    if (summaryProfileSelect) summaryProfileSelect.value = savedConfig.summaryProfile || 'standard';
+    languageSelect?.addEventListener('change', () => {
+        chrome.storage.local.set({ summaryLanguage: languageSelect.value });
+    });
+    summaryProfileSelect?.addEventListener('change', () => {
+        chrome.storage.local.set({ summaryProfile: summaryProfileSelect.value });
+    });
     
     // Gestisci stato di login in corso
     if (savedConfig.loginInProgress && !savedConfig.authToken) {
@@ -557,7 +570,13 @@ if (!email || !password) {
             
             console.log('[POPUP] Aprendo modale nel tab:', tab.url);
 
-            const request = { action: 'openSummaryModal', url: tab.url };
+            const request = {
+                action: 'openSummaryModal',
+                requestId: crypto.randomUUID(),
+                url: tab.url,
+                lang: languageSelect?.value || 'it',
+                summaryProfile: summaryProfileSelect?.value || 'standard'
+            };
             try {
                 await chrome.tabs.sendMessage(tab.id, request);
             } catch (messageError) {

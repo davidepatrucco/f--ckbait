@@ -1,9 +1,30 @@
 // test/openai.test.mjs - Test per il modulo OpenAI
 import { strict as assert } from 'assert';
 import { test, describe } from 'node:test';
-import { summarizeWithOpenAI, testOpenAIConnection } from '../src/openai.mjs';
+import { summarizeWithOpenAI, testOpenAIConnection, buildSummaryPlan, getSummaryModel } from '../src/openai.mjs';
 
 describe('OpenAI Module Tests', () => {
+    test('should size summaries from source length and selected target', () => {
+        const webPlan = buildSummaryPlan({
+            text: Array(1001).fill('word').join(' '),
+            sourceType: 'web',
+            summaryProfile: 'standard'
+        });
+        assert.equal(webPlan.targetWords, 100);
+        assert.equal(webPlan.savingsPercent, 90);
+
+        const videoPlan = buildSummaryPlan({
+            text: 'short transcript is irrelevant when duration is supplied',
+            sourceType: 'video',
+            videoDurationSeconds: 20 * 60,
+            summaryProfile: 'ultra'
+        });
+        assert.equal(videoPlan.sourceEquivalentWords, 4400);
+        assert.equal(videoPlan.targetWords, 220);
+        assert.equal(videoPlan.savingsPercent, 95);
+        assert.equal(buildSummaryPlan({ text: 'one two three' }).profile, 'standard');
+        assert.equal(typeof getSummaryModel(), 'string');
+    });
     test('should validate input parameters', async () => {
         const content = {
             url: 'https://example.com',
