@@ -41,8 +41,6 @@ Globals:
         RATE_LIMIT_TABLE_NAME: !Ref RateLimitTable
         ANALYTICS_TABLE_NAME: !Ref AnalyticsTable
         ALLOWED_ORIGINS: !Ref AllowedOrigins
-        SUMMARY_MODEL: !Ref SummaryModel
-        SUMMARY_MAX_WORDS: !Ref SummaryMaxWords
 
 Resources:
   # API Gateway
@@ -59,6 +57,10 @@ Resources:
       CodeUri: ../backend/
       Handler: lambda/handler.handler
       Description: 'Main Lambda function for page summarization'
+      Environment:
+        Variables:
+          SUMMARY_MODEL: !Ref SummaryModel
+          SUMMARY_MAX_WORDS: !Ref SummaryMaxWords
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref UsersTable
