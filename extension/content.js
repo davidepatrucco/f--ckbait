@@ -165,7 +165,9 @@
         if (!success || !Array.isArray(tracks) || tracks.length === 0) return null;
 
         const preferredLanguages = [navigator.language?.slice(0, 2), 'it', 'en'].filter(Boolean);
-        const track = tracks.find((item) => preferredLanguages.includes(item.languageCode)) || tracks[0];
+        const track = tracks.find((item) => preferredLanguages.some((language) =>
+            item.languageCode === language || item.languageCode?.startsWith(`${language}-`)
+        )) || tracks[0];
         const captionUrl = new URL(track.baseUrl);
         if (!captionUrl.hostname.endsWith('youtube.com')) return null;
         captionUrl.searchParams.set('fmt', 'json3');

@@ -62,9 +62,10 @@ async function getYouTubeCaptionTracks(sender, sendResponse) {
         const [{ result: tracks = [] } = {}] = await chrome.scripting.executeScript({
             target: { tabId: sender.tab.id },
             world: 'MAIN',
-            func: () => {
+            func: async () => {
                 const extractTracks = (response) => response?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
                 let captionTracks = extractTracks(window.ytInitialPlayerResponse);
+                let durationSeconds = Number(window.ytInitialPlayerResponse?.videoDetails?.lengthSeconds || 0);
 
                 if (!captionTracks.length) {
                     try {
@@ -100,13 +101,46 @@ async function getYouTubeCaptionTracks(sender, sendResponse) {
                         }
                     }
                 }
+
+                // YouTube may omit the player response from page globals even
+                // when captions exist. Query the same structured player API
+                // used by the page, in its own authenticated origin context.
+                if (!captionTracks.length) {
+                    try {
+                        const videoId = new URL(location.href).searchParams.get('v') ||
+                            location.pathname.match(/^\/(?:shorts|live)\/([^/?]+)/)?.[1];
+                        const apiKey = window.ytcfg?.get?.('INNERTUBE_API_KEY');
+                        const clientVersion = window.ytcfg?.get?.('INNERTUBE_CLIENT_VERSION');
+                        if (videoId && apiKey && clientVersion) {
+                            const playerResponse = await fetch(`/youtubei/v1/player?prettyPrint=false&key=${encodeURIComponent(apiKey)}`, {
+                                method: 'POST',
+                                headers: {
+                                    'content-type': 'application/json',
+                                    'x-youtube-client-name': '1',
+                                    'x-youtube-client-version': clientVersion
+                                },
+                                body: JSON.stringify({
+                                    videoId,
+                                    context: { client: { clientName: 'WEB', clientVersion } }
+                                })
+                            });
+                            if (playerResponse.ok) {
+                                const player = await playerResponse.json();
+                                captionTracks = extractTracks(player);
+                                durationSeconds = Number(player?.videoDetails?.lengthSeconds || durationSeconds);
+                            }
+                        }
+                    } catch {
+                        // The primary player payload remains the preferred path.
+                    }
+                }
                 return {
                     tracks: captionTracks.map(({ baseUrl, languageCode, name }) => ({
                         baseUrl,
                         languageCode,
-                        name: name?.simpleText || ''
+                        name: name?.simpleText || name?.runs?.map((run) => run.text).join('') || ''
                     })),
-                    durationSeconds: Number(window.ytInitialPlayerResponse?.videoDetails?.lengthSeconds || 0)
+                    durationSeconds
                 };
             }
         });
