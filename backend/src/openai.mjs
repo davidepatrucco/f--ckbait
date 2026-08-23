@@ -189,8 +189,10 @@ export async function summarizeWithOpenAI(content) {
             messages,
             max_completion_tokens: 3000
         });
-        let completion = await requestCompletion([
-            { role: 'system', content: systemPrompt },
+        // Keep the proven plain-text path as the primary request. Structured
+        // output is only a recovery path; it must never block a summary.
+        let completion = await requestPlainCompletion([
+            { role: 'system', content: `${systemPrompt} Restituisci solo i bullet, uno per riga, preceduti da •.` },
             { role: 'user', content: userPrompt }
         ]);
         const apiCallTime = Date.now() - apiCallStartTime;
@@ -209,7 +211,7 @@ export async function summarizeWithOpenAI(content) {
         // Retry once with the less restrictive JSON mode. This covers transient
         // empty structured-output responses without ever falling back to page metadata.
         if (!response) {
-            console.warn('[OPENAI] Empty structured response; retrying JSON mode', {
+            console.warn('[OPENAI] Empty plain response; retrying JSON mode', {
                 finishReason: completion?.choices?.[0]?.finish_reason,
                 refusal: completion?.choices?.[0]?.message?.refusal || null
             });
