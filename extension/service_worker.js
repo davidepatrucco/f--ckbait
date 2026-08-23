@@ -1,36 +1,8 @@
 // service_worker.js - Service Worker per l'estensione LemonSqueezer
 
-async function repairToolbarPopupForOpenTabs() {
-    const tabs = await chrome.tabs.query({});
-    await Promise.allSettled(tabs
-        .filter((tab) => Number.isInteger(tab.id))
-        .map((tab) => chrome.action.setPopup({ tabId: tab.id, popup: 'popup.html' })));
-}
-
-function restoreToolbarPopup(tabId) {
-    if (!Number.isInteger(tabId)) return;
-    chrome.action.setPopup({ tabId, popup: 'popup.html' }).catch((error) => {
-        console.error('[ACTION] Ripristino popup tab fallito:', error);
-    });
-}
-
-// A per-tab popup override survives longer than the service worker. Restore the
-// declarative popup whenever Chrome changes the active/navigated tab.
-chrome.tabs.onActivated.addListener(({ tabId }) => restoreToolbarPopup(tabId));
-chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-    if (changeInfo.status === 'loading') restoreToolbarPopup(tabId);
-});
-
-repairToolbarPopupForOpenTabs().catch((error) => {
-    console.error('[ACTION] Ripristino iniziale popup fallito:', error);
-});
-
 // Event listener per l'installazione
 chrome.runtime.onInstalled.addListener((details) => {
     console.log('LemonSqueezer installato:', details.reason);
-    repairToolbarPopupForOpenTabs().catch((error) => {
-        console.error('[ACTION] Ripristino popup sui tab aperti fallito:', error);
-    });
     
     // Inizializza la configurazione di default
     chrome.storage.local.set({
@@ -50,9 +22,6 @@ chrome.runtime.onInstalled.addListener((details) => {
 // Event listener per l'avvio
 chrome.runtime.onStartup.addListener(() => {
     console.log('LemonSqueezer avviato');
-    repairToolbarPopupForOpenTabs().catch((error) => {
-        console.error('[ACTION] Ripristino popup sui tab aperti fallito:', error);
-    });
 });
 
 // Event listener per i messaggi dal popup o content script
