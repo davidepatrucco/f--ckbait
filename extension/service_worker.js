@@ -7,6 +7,24 @@ async function repairToolbarPopupForOpenTabs() {
         .map((tab) => chrome.action.setPopup({ tabId: tab.id, popup: 'popup.html' })));
 }
 
+function restoreToolbarPopup(tabId) {
+    if (!Number.isInteger(tabId)) return;
+    chrome.action.setPopup({ tabId, popup: 'popup.html' }).catch((error) => {
+        console.error('[ACTION] Ripristino popup tab fallito:', error);
+    });
+}
+
+// A per-tab popup override survives longer than the service worker. Restore the
+// declarative popup whenever Chrome changes the active/navigated tab.
+chrome.tabs.onActivated.addListener(({ tabId }) => restoreToolbarPopup(tabId));
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+    if (changeInfo.status === 'loading') restoreToolbarPopup(tabId);
+});
+
+repairToolbarPopupForOpenTabs().catch((error) => {
+    console.error('[ACTION] Ripristino iniziale popup fallito:', error);
+});
+
 // Event listener per l'installazione
 chrome.runtime.onInstalled.addListener((details) => {
     console.log('LemonSqueezer installato:', details.reason);
