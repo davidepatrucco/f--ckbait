@@ -170,9 +170,8 @@ console.log('   ☐ Check chrome.storage for token\n');
 console.log('3. Test Summarization');
 console.log('   ☐ Navigate to a webpage (e.g., news article)');
 console.log('   ☐ Click extension icon');
-console.log('   ☐ Verify content extracted');
-console.log('   ☐ Click "Summarize" button');
-console.log('   ☐ Verify summary displayed');
+console.log('   ☐ Verify the summary starts automatically');
+console.log('   ☐ If the page is not ready, use the single "Riprova" action');
 console.log('   ☐ Check stats (time saved, word count)\n');
 
 console.log('4. Test Error Scenarios');
@@ -183,10 +182,9 @@ console.log('   ☐ Test with no internet → should show error\n');
 
 console.log('5. Test UI/UX');
 console.log('   ☐ Popup opens quickly (<500ms)');
-console.log('   ☐ Loading state shown during API call');
-console.log('   ☐ Summary formatted correctly (bullets)');
-console.log('   ☐ Stats displayed clearly');
-console.log('   ☐ Copy to clipboard works\n');
+console.log('   ☐ Options are collapsed by default');
+console.log('   ☐ Account, plan, language, length and model are under Options');
+console.log('   ☐ No click is required for a normal summary\n');
 
 console.log('6. Test Different Page Types');
 console.log('   ☐ News article');

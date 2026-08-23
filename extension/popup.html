@@ -135,6 +135,53 @@
             margin: 6px 0 0;
         }
 
+        .squeeze-card {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .squeeze-card h2 {
+            color: #111827;
+            font-family: var(--font-display);
+            font-size: 22px;
+            margin: 0 0 8px;
+        }
+
+        .squeeze-card p {
+            color: #64748b;
+            font-size: var(--text-sm);
+            margin: 0 0 18px;
+        }
+
+        .options-panel {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            overflow: hidden;
+        }
+
+        .options-panel summary {
+            align-items: center;
+            color: #475569;
+            cursor: pointer;
+            display: flex;
+            font-size: var(--text-sm);
+            font-weight: 700;
+            justify-content: space-between;
+            list-style: none;
+            padding: 14px 16px;
+        }
+
+        .options-panel summary::-webkit-details-marker { display: none; }
+        .options-panel summary::after { content: '⌄'; font-size: 18px; transition: transform .2s ease; }
+        .options-panel[open] summary::after { transform: rotate(180deg); }
+        .options-content { border-top: 1px solid #e5e7eb; padding: 14px 16px 16px; }
+        .options-content .config-card, .options-content .history-card { border: 0; border-radius: 0; padding: 0; }
+        .options-content .history-card { border-top: 1px solid #e5e7eb; margin-top: 16px; padding-top: 16px; }
+
         .history-card {
             background: white;
             border: 1px solid #e5e7eb;
@@ -544,7 +591,7 @@
             background: #ffffff;
             border-radius: 12px;
             padding: 14px 16px;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
             display: none;
             align-items: center;
             gap: 14px;
@@ -648,71 +695,72 @@
                 </div>
             </div>
             
-            <!-- User Info (when logged in) -->
-            <div id="userInfo" class="user-info">
-                <img id="userAvatar" class="user-avatar" src="" alt="User">
-                <div class="user-details">
-                    <div id="userName" class="user-name"></div>
-                    <div id="userPlan" class="user-plan">Piano Free • 3/10 riassunti</div>
-                </div>
-                <button id="logoutBtn" class="logout-btn">Esci</button>
-            </div>
-            
-            <div class="config-card">
-                <h3>
-                    <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <circle cx="12" cy="12" r="9"></circle>
-                        <path d="M3 12h18"></path>
-                        <path d="M12 3a14 14 0 0 1 0 18"></path>
-                        <path d="M12 3a14 14 0 0 0 0 18"></path>
-                    </svg>
-                    Lingua riassunto
-                </h3>
-                <div class="input-group">
-                    <label for="language">Output</label>
-                    <select id="language">
-                        <option value="it">Italiano</option>
-                        <option value="en">English</option>
-                        <option value="es">Español</option>
-                        <option value="fr">Français</option>
-                        <option value="de">Deutsch</option>
-                    </select>
-                </div>
-                <div class="input-group">
-                    <label for="summaryProfile">Sintesi</label>
-                    <select id="summaryProfile">
-                        <option value="ultra">Ultra breve — obiettivo 95% di tempo risparmiato</option>
-                        <option value="standard" selected>Standard — obiettivo 90% di tempo risparmiato</option>
-                        <option value="detailed">Dettagliata — obiettivo 80% di tempo risparmiato</option>
-                    </select>
-                </div>
-                <div class="input-group">
-                    <label for="summaryModel">Modello</label>
-                    <select id="summaryModel">
-                        <option value="gpt-5-nano">Rapido — GPT-5 nano</option>
-                        <option value="gpt-5.6-luna">Qualità — GPT-5.6 Luna</option>
-                    </select>
-                    <p class="setting-hint">Qualità privilegia la resa editoriale; Rapido è l’impostazione più economica.</p>
-                </div>
-            </div>
-
-            <section class="history-card" aria-label="Cronologia riassunti">
-                <div class="history-card-header">
-                    <h3>Cronologia</h3>
-                    <button id="clearHistoryBtn" class="history-clear-btn" type="button" hidden>Svuota</button>
-                </div>
-                <div id="historyList"></div>
-            </section>
-            
-            <button id="summarizeBtn" class="button-primary" disabled>
+            <section id="squeezeCard" class="squeeze-card" aria-live="polite">
+                <h2>Pronto a spremere questa pagina</h2>
+                <p>Il riassunto parte automaticamente.</p>
+                <button id="summarizeBtn" class="button-primary" disabled>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M4 5h10"></path>
                     <path d="M4 10h16"></path>
                     <path d="M4 15h12"></path>
                     <path d="M4 20h8"></path>
                 </svg>
-                Riassumi questa pagina
-            </button>
+                    Riassumi ora
+                </button>
+            </section>
+
+            <details id="optionsPanel" class="options-panel">
+                <summary>Opzioni</summary>
+                <div class="options-content">
+                    <!-- Account, piano e pagamenti -->
+                    <div id="userInfo" class="user-info">
+                        <img id="userAvatar" class="user-avatar" src="" alt="User">
+                        <div class="user-details">
+                            <div id="userName" class="user-name"></div>
+                            <div id="userPlan" class="user-plan">Piano Free • 3/10 riassunti</div>
+                        </div>
+                        <button id="logoutBtn" class="logout-btn">Esci</button>
+                    </div>
+
+                    <div class="config-card">
+                        <h3>Preferenze di riassunto</h3>
+                        <div class="input-group">
+                            <label for="language">Lingua output</label>
+                            <select id="language">
+                                <option value="it">Italiano</option>
+                                <option value="en">English</option>
+                                <option value="es">Español</option>
+                                <option value="fr">Français</option>
+                                <option value="de">Deutsch</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label for="summaryProfile">Lunghezza</label>
+                            <select id="summaryProfile">
+                                <option value="ultra">Ultra breve — risparmio 95%</option>
+                                <option value="standard" selected>Standard — risparmio 90%</option>
+                                <option value="detailed">Dettagliata — risparmio 80%</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label for="summaryModel">Modello</label>
+                            <select id="summaryModel">
+                                <option value="gpt-5-nano">Rapido — GPT-5 nano</option>
+                                <option value="gpt-5.6-luna">Qualità — GPT-5.6 Luna</option>
+                            </select>
+                            <p class="setting-hint">La scelta resta salvata per i prossimi riassunti.</p>
+                        </div>
+                    </div>
+
+                    <section class="history-card" aria-label="Cronologia riassunti">
+                        <div class="history-card-header">
+                            <h3>Cronologia</h3>
+                            <button id="clearHistoryBtn" class="history-clear-btn" type="button" hidden>Svuota</button>
+                        </div>
+                        <div id="historyList"></div>
+                    </section>
+                </div>
+            </details>
             
             <div id="loading" class="loading-card">
                 <div class="loading-spinner"></div>

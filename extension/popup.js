@@ -76,6 +76,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const logoutBtn = document.getElementById('logoutBtn');
     
     let currentUser = null;
+    let summaryLaunching = false;
+    let autoSummaryScheduled = false;
     
     // Carica configurazione salvata
     const savedConfig = await chrome.storage.local.get([
@@ -320,12 +322,26 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             // Aggiunge bottone Premium per utenti free
             addPremiumButtonIfNeeded(plan);
+
+            // The extension is an action, not a configuration screen: start
+            // the squeeze as soon as the authenticated popup is ready.
+            scheduleAutomaticSummary();
         } else {
             // Utente non loggato
             loginCard.style.display = 'block';
             userInfo.style.display = 'none';
             summarizeBtn.disabled = true;
         }
+    }
+
+    function scheduleAutomaticSummary() {
+        if (autoSummaryScheduled || summaryLaunching || summarizeBtn.disabled) return;
+        autoSummaryScheduled = true;
+        setTimeout(() => {
+            if (currentUser && !summaryLaunching && !summarizeBtn.disabled) {
+                startSummary({ automatic: true });
+            }
+        }, 150);
     }
 
     function setEmailLoginError(message) {
@@ -593,12 +609,19 @@ if (!email || !password) {
     
     logoutBtn.addEventListener('click', logout);
     
-    // Riassumi pagina - apre la modale nel tab attivo
-    summarizeBtn.addEventListener('click', async () => {
+    // Riassumi pagina - apre la modale nel tab attivo.
+    // It is called automatically when the popup opens, and remains available
+    // as a one-click retry if the page or content script was not ready.
+    async function startSummary({ automatic = false } = {}) {
         if (!currentUser) {
             console.error('[POPUP] Utente non loggato');
             return;
         }
+
+        if (summaryLaunching) return;
+        summaryLaunching = true;
+        summarizeBtn.disabled = true;
+        summarizeBtn.textContent = automatic ? 'Sto preparando il riassunto…' : 'Sto preparando il riassunto…';
         
         try {
             // Ottieni il tab attivo
@@ -636,11 +659,15 @@ if (!email || !password) {
             
         } catch (error) {
             console.error('[POPUP] Errore apertura modale:', error);
-            summarizeBtn.textContent = 'Impossibile avviare il riassunto';
+            summaryLaunching = false;
+            summarizeBtn.disabled = false;
+            summarizeBtn.textContent = 'Riprova il riassunto';
             setTimeout(() => {
-                summarizeBtn.textContent = 'Riassumi questa pagina';
+                if (!summaryLaunching) summarizeBtn.textContent = 'Riassumi ora';
             }, 3000);
         }
-    });
+    }
+
+    summarizeBtn.addEventListener('click', () => startSummary());
     
 });
