@@ -184,6 +184,11 @@ export async function summarizeWithOpenAI(content) {
                 }
             } : { type: 'json_object' }
         });
+        const requestPlainCompletion = async (messages) => client.chat.completions.create({
+            model,
+            messages,
+            max_completion_tokens: 3000
+        });
         let completion = await requestCompletion([
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
@@ -214,13 +219,22 @@ export async function summarizeWithOpenAI(content) {
             ], false);
             response = readResponseText(completion);
         }
+        if (!response) {
+            console.warn('[OPENAI] JSON response still empty; retrying legacy plain-text mode', {
+                finishReason: completion?.choices?.[0]?.finish_reason
+            });
+            completion = await requestPlainCompletion([
+                { role: 'system', content: `${systemPrompt} Restituisci solo i bullet, uno per riga, preceduti da •.` },
+                { role: 'user', content: userPrompt }
+            ]);
+            response = readResponseText(completion);
+        }
         if (!response) throw new Error('Risposta vuota da OpenAI');
         
         let parsed;
-        try {
-            parsed = JSON.parse(response);
-        } catch {
-            throw new Error('Risposta strutturata non valida da OpenAI');
+        try { parsed = JSON.parse(response); } catch {
+            const plainBullets = response.split(/\n+/).map((line) => line.replace(/^\s*(?:[•*-]|\d+[.)])\s*/, '').trim()).filter(Boolean);
+            parsed = { bullets: plainBullets };
         }
         let bullets = Array.isArray(parsed.bullets)
             ? parsed.bullets.map((bullet) => String(bullet).replace(/^\s*[•-]\s*/, '').trim()).filter(Boolean)
