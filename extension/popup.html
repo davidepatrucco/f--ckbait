@@ -684,6 +684,17 @@
                 Riassumi questa pagina
             </button>
 
+            <!-- User plan -->
+            <div id="userInfo" class="user-info">
+                <img id="userAvatar" class="user-avatar" alt="User">
+                <div class="user-details">
+                    <div class="user-label">User</div>
+                    <div id="userName" class="user-name"></div>
+                    <div id="userPlan" class="user-plan">Piano Free • 3/10 riassunti</div>
+                </div>
+                <button id="logoutBtn" class="logout-btn">Esci</button>
+            </div>
+
             <details class="options-panel">
                 <summary>Opzioni</summary>
 
@@ -707,23 +718,8 @@
                         <option value="de">Deutsch</option>
                     </select>
                 </div>
-                <div class="input-group">
-                    <label for="summaryProfile">Sintesi</label>
-                    <select id="summaryProfile">
-                        <option value="ultra">Ultra breve — obiettivo 95% di tempo risparmiato</option>
-                        <option value="standard" selected>Standard — obiettivo 90% di tempo risparmiato</option>
-                        <option value="detailed">Dettagliata — obiettivo 80% di tempo risparmiato</option>
-                    </select>
-                </div>
-                <div class="input-group">
-                    <label for="summaryModel">Modello</label>
-                    <select id="summaryModel">
-                        <option value="gpt-5-nano">Rapido — GPT-5 nano</option>
-                        <option value="gpt-5.6-luna">Qualità — GPT-5.6 Luna</option>
-                    </select>
-                    <p class="setting-hint">Qualità privilegia la resa editoriale; Rapido è l’impostazione più economica.</p>
-                </div>
             </div>
+            </details>
 
             <section class="history-card" aria-label="Cronologia riassunti">
                 <div class="history-card-header">
@@ -732,18 +728,6 @@
                 </div>
                 <div id="historyList"></div>
             </section>
-            </details>
-
-            <!-- User plan (kept at the end of the controls) -->
-            <div id="userInfo" class="user-info">
-                <img id="userAvatar" class="user-avatar" alt="User">
-                <div class="user-details">
-                    <div class="user-label">User</div>
-                    <div id="userName" class="user-name"></div>
-                    <div id="userPlan" class="user-plan">Piano Free • 3/10 riassunti</div>
-                </div>
-                <button id="logoutBtn" class="logout-btn">Esci</button>
-            </div>
             
             <div id="loading" class="loading-card">
                 <div class="loading-spinner"></div>

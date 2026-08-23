@@ -56,8 +56,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     const summarizeBtn = document.getElementById('summarizeBtn');
     const languageSelect = document.getElementById('language');
-    const summaryProfileSelect = document.getElementById('summaryProfile');
-    const summaryModelSelect = document.getElementById('summaryModel');
     const historyList = document.getElementById('historyList');
     const clearHistoryBtn = document.getElementById('clearHistoryBtn');
     
@@ -78,22 +76,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentUser = null;
 
     // Carica configurazione salvata
-    const savedConfig = await chrome.storage.local.get([
-        'user', 'authToken', 'loginInProgress', 'summaryLanguage', 'summaryProfile', 'summaryModel'
-    ]);
+    const savedConfig = await chrome.storage.local.get(['user', 'authToken', 'loginInProgress']);
 
-    if (languageSelect) languageSelect.value = savedConfig.summaryLanguage || 'it';
-    if (summaryProfileSelect) summaryProfileSelect.value = savedConfig.summaryProfile || 'standard';
-    if (summaryModelSelect) summaryModelSelect.value = savedConfig.summaryModel || 'gpt-5-nano';
-    languageSelect?.addEventListener('change', () => {
-        chrome.storage.local.set({ summaryLanguage: languageSelect.value });
-    });
-    summaryProfileSelect?.addEventListener('change', () => {
-        chrome.storage.local.set({ summaryProfile: summaryProfileSelect.value });
-    });
-    summaryModelSelect?.addEventListener('change', () => {
-        chrome.storage.local.set({ summaryModel: summaryModelSelect.value });
-    });
+    // Use the browser UI language automatically; no per-extension language setting.
+    const browserLanguage = (chrome.i18n?.getUILanguage?.() || navigator.language || 'it')
+        .toLowerCase().split('-')[0];
+    const supportedLanguage = ['it', 'en', 'es', 'fr', 'de', 'zh', 'ja', 'pt', 'ko'].includes(browserLanguage)
+        ? browserLanguage : 'en';
+    const uiText = {
+        it: { summary: 'Riassumi questa pagina', options: 'Opzioni', history: 'Cronologia', user: 'User', premium: 'Piano Premium', free: 'Piano Free', unlimited: 'Riassunti illimitati', summaries: 'riassunti', month: 'Questo mese', total: 'Totale', saved: 'risparmiati', output: 'Output', language: 'Lingua riassunto' },
+        en: { summary: 'Summarize this page', options: 'Options', history: 'History', user: 'User', premium: 'Premium plan', free: 'Free plan', unlimited: 'Unlimited summaries', summaries: 'summaries', month: 'This month', total: 'Total', saved: 'saved', output: 'Output', language: 'Summary language' }
+    }[supportedLanguage] || null;
+    const text = uiText || { summary: 'Summarize this page', options: 'Options', history: 'History', user: 'User', premium: 'Premium plan', free: 'Free plan', unlimited: 'Unlimited summaries', summaries: 'summaries', month: 'This month', total: 'Total', saved: 'saved', output: 'Output', language: 'Summary language' };
+    document.documentElement.lang = supportedLanguage;
+    document.getElementById('summarizeBtn').lastChild.textContent = `\n                ${text.summary}\n            `;
+    document.querySelector('.options-panel > summary').textContent = text.options;
+    document.querySelector('.history-card h3').textContent = text.history;
+    document.querySelector('.user-label').textContent = text.user;
+    document.querySelector('label[for="language"]').textContent = text.output;
+    document.querySelector('.config-card h3').lastChild.textContent = `\n                    ${text.language}\n                `;
+    if (languageSelect) {
+        languageSelect.value = supportedLanguage;
+        languageSelect.closest('.input-group')?.classList.add('browser-language-setting');
+        languageSelect.disabled = true;
+    }
 
     async function renderHistory() {
         if (!historyList) return;
@@ -304,10 +310,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Aggiorna piano e limiti con statistiche
             const plan = currentUser.plan || 'free';
             const usage = currentUser.usage || { used: 0, limit: 10 };
-            const planText = plan === 'premium' ? 'Piano Premium' : 'Piano Free';
+            const planText = plan === 'premium' ? text.premium : text.free;
             const usageText = plan === 'premium' 
-                ? 'Riassunti illimitati' 
-                : `${usage.used}/${usage.limit} riassunti`;
+                ? text.unlimited
+                : `${usage.used}/${usage.limit} ${text.summaries}`;
             
             // Aggiorna con statistiche di tempo (async)
             updateUserPlanWithStats(planText, usageText);
@@ -397,11 +403,11 @@ if (!email || !password) {
             let statsText = '';
             if (stats.thisMonth.summaries > 0 || stats.lifetime.summaries > 0) {
                 if (stats.thisMonth.timeSaved > 0) {
-                    statsText += `Questo mese: ${formatTime(stats.thisMonth.timeSaved)} risparmiati`;
+                    statsText += `${text.month}: ${formatTime(stats.thisMonth.timeSaved)} ${text.saved}`;
                 }
                 if (stats.lifetime.timeSaved > 0) {
                     if (statsText) statsText += ' • ';
-                    statsText += `Totale: ${formatTime(stats.lifetime.timeSaved)} risparmiati`;
+                    statsText += `${text.total}: ${formatTime(stats.lifetime.timeSaved)} ${text.saved}`;
                 }
             }
             
@@ -616,8 +622,8 @@ if (!email || !password) {
                 requestId: crypto.randomUUID(),
                 url: tab.url,
                 lang: languageSelect?.value || 'it',
-                summaryProfile: summaryProfileSelect?.value || 'standard',
-                summaryModel: summaryModelSelect?.value || 'gpt-5-nano'
+                summaryProfile: 'standard',
+                summaryModel: 'gpt-5-nano'
             };
             try {
                 await chrome.tabs.sendMessage(tab.id, request);
@@ -636,9 +642,9 @@ if (!email || !password) {
             
         } catch (error) {
             console.error('[POPUP] Errore apertura modale:', error);
-            summarizeBtn.textContent = 'Impossibile avviare il riassunto';
-            setTimeout(() => {
-                summarizeBtn.textContent = 'Riassumi questa pagina';
+                summarizeBtn.textContent = 'Impossibile avviare il riassunto';
+                setTimeout(() => {
+                summarizeBtn.textContent = text.summary;
             }, 3000);
         }
     });
