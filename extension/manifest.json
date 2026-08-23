@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "LemonSqueezer - TL;DR",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Riassumi qualsiasi pagina web in 3-4 bullet points secchi",
   "permissions": [
     "activeTab",
@@ -16,6 +16,7 @@
     "https://*/*"
   ],
   "action": {
+    "default_popup": "popup.html",
     "default_title": "LemonSqueezer - TL;DR",
     "default_icon": {
       "16": "assets/icon-16.png",

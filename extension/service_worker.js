@@ -24,17 +24,6 @@ chrome.runtime.onStartup.addListener(() => {
     console.log('LemonSqueezer avviato');
 });
 
-// Open the same standard popup from the toolbar click. Keeping this in the
-// user-gesture handler avoids Chrome's flaky default_popup state for unpacked
-// extensions while preserving the normal action popup UX.
-chrome.action.onClicked.addListener(async () => {
-    try {
-        await chrome.action.openPopup();
-    } catch (error) {
-        console.error('[ACTION] Impossibile aprire il popup:', error);
-    }
-});
-
 // Event listener per i messaggi dal popup o content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'getPageContent') {
