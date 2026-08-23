@@ -1,20 +1,8 @@
 // service_worker.js - Service Worker per l'estensione LemonSqueezer
 
-// Keep the toolbar action explicit as well as declarative. Chrome can retain
-// stale per-extension action state across unpacked-extension reloads.
-async function configureToolbarAction() {
-    await chrome.action.setPopup({ popup: 'popup.html' });
-    await chrome.action.setTitle({ title: 'LemonSqueezer - TL;DR' });
-}
-
-configureToolbarAction().catch((error) => {
-    console.error('[ACTION] Impossibile configurare il popup toolbar:', error);
-});
-
 // Event listener per l'installazione
 chrome.runtime.onInstalled.addListener((details) => {
     console.log('LemonSqueezer installato:', details.reason);
-    configureToolbarAction().catch((error) => console.error('[ACTION] Configurazione fallita:', error));
     
     // Inizializza la configurazione di default
     chrome.storage.local.set({
@@ -34,7 +22,6 @@ chrome.runtime.onInstalled.addListener((details) => {
 // Event listener per l'avvio
 chrome.runtime.onStartup.addListener(() => {
     console.log('LemonSqueezer avviato');
-    configureToolbarAction().catch((error) => console.error('[ACTION] Configurazione fallita:', error));
 });
 
 // Event listener per i messaggi dal popup o content script
