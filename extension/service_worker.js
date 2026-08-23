@@ -10,12 +10,16 @@ chrome.runtime.onInstalled.addListener((details) => {
         // apiKey e apiUrl saranno inseriti dall'utente
     });
     
-    // Crea il context menu per i link
-    chrome.contextMenus.create({
-        id: 'summarize-link',
-        title: 'Riassumi questo link',
-        contexts: ['link'],
-        documentUrlPatterns: ['http://*/*', 'https://*/*']
+    // Crea il context menu per i link. removeAll prima di create rende l'handler
+    // idempotente: onInstalled scatta anche sugli update/reload, dove l'id esiste
+    // già (altrimenti: "Cannot create item with duplicate id summarize-link").
+    chrome.contextMenus.removeAll(() => {
+        chrome.contextMenus.create({
+            id: 'summarize-link',
+            title: 'Riassumi questo link',
+            contexts: ['link'],
+            documentUrlPatterns: ['http://*/*', 'https://*/*']
+        });
     });
 });
 
