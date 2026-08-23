@@ -83,7 +83,10 @@ function createPrompt(content, language = 'it', plan = buildSummaryPlan(content)
         ? content.comments.filter((c) => typeof c === 'string' && c.trim()).slice(0, 40) : [];
     const hasComments = comments.length > 0;
 
-    const systemPrompt = `Sei un riassuntore editoriale rigoroso. Rispondi esclusivamente con JSON valido secondo lo schema richiesto. Scrivi in ${outputLanguage}. Usa solo informazioni presenti nella fonte; elimina pubblicità, menu, footer, ripetizioni e dettagli marginali.`;
+    // Nessuna istruzione di formato qui: il formato è deciso da ciascun path
+    // (testo semplice vs response_format JSON). Dire "rispondi solo in JSON" nel
+    // path testuale faceva restituire al modello un oggetto JSON grezzo come testo.
+    const systemPrompt = `Sei un riassuntore editoriale rigoroso. Scrivi in ${outputLanguage}. Usa solo informazioni presenti nella fonte; elimina pubblicità, menu, footer, ripetizioni e dettagli marginali.`;
 
     let userPrompt = `Titolo: ${content.title}
 URL: ${content.url}
@@ -162,6 +165,35 @@ function formatTime(seconds) {
 // oggetto con chiave singolare ({"bullet": "..."}), oggetto {"summary": "..."},
 // array, oppure testo semplice. Nessuna di queste deve produrre zero bullet se
 // c'è del testo utilizzabile: l'unico caso di fallimento è risposta vuota.
+// Estrae la prima struttura JSON bilanciata ({...} o [...]) presente nel testo,
+// ignorando eventuale testo che la precede o la segue (es. una riga commenti dopo
+// il "}"). Rispetta stringhe ed escape per non contare graffe dentro le stringhe.
+function extractFirstJson(text) {
+    const start = text.search(/[{[]/);
+    if (start < 0) return null;
+    const open = text[start];
+    const close = open === '{' ? '}' : ']';
+    let depth = 0;
+    let inStr = false;
+    let esc = false;
+    for (let i = start; i < text.length; i += 1) {
+        const ch = text[i];
+        if (inStr) {
+            if (esc) esc = false;
+            else if (ch === '\\') esc = true;
+            else if (ch === '"') inStr = false;
+        } else if (ch === '"') {
+            inStr = true;
+        } else if (ch === open) {
+            depth += 1;
+        } else if (ch === close) {
+            depth -= 1;
+            if (depth === 0) return text.slice(start, i + 1);
+        }
+    }
+    return null;
+}
+
 export function coerceBullets(response) {
     const clean = (s) => String(s).replace(/^\s*(?:[•*–-]|\d+[.)])\s*/, '').trim();
     const fromArray = (arr) => arr
@@ -174,40 +206,43 @@ export function coerceBullets(response) {
         return String(s).split(/(?<=[.!?])\s+/).map((x) => x.trim()).filter(Boolean);
     };
 
-    let parsed = null;
-    try { parsed = JSON.parse(response); } catch { /* not JSON: handled below */ }
-
-    if (parsed && typeof parsed === 'object') {
-        if (Array.isArray(parsed)) {
-            const b = fromArray(parsed);
-            if (b.length) return b;
-        }
-        if (Array.isArray(parsed.bullets)) {
-            const b = fromArray(parsed.bullets);
-            if (b.length) return b;
-        }
-        if (typeof parsed.bullet === 'string') {
-            const b = fromArray([parsed.bullet]);
-            if (b.length) return b;
-        }
-        if (typeof parsed.summary === 'string') {
-            const b = splitProse(parsed.summary);
-            if (b.length) return b;
-        }
-        for (const v of Object.values(parsed)) {
-            if (Array.isArray(v) && v.some((x) => typeof x === 'string' || (x && typeof x === 'object'))) {
-                const b = fromArray(v);
-                if (b.length) return b;
+    const bulletsFromParsed = (parsed) => {
+        if (Array.isArray(parsed)) return fromArray(parsed);
+        if (parsed && typeof parsed === 'object') {
+            if (Array.isArray(parsed.bullets)) return fromArray(parsed.bullets);
+            if (typeof parsed.bullet === 'string') return fromArray([parsed.bullet]);
+            if (typeof parsed.summary === 'string') return splitProse(parsed.summary);
+            for (const v of Object.values(parsed)) {
+                if (Array.isArray(v)) { const b = fromArray(v); if (b.length) return b; }
             }
+            const strings = Object.values(parsed).filter((v) => typeof v === 'string' && v.trim());
+            if (strings.length) return strings.flatMap(splitProse);
         }
-        const strings = Object.values(parsed).filter((v) => typeof v === 'string' && v.trim());
-        if (strings.length) {
-            const b = strings.flatMap(splitProse);
-            if (b.length) return b;
+        return [];
+    };
+
+    const text = String(response || '');
+
+    let bullets = [];
+    try { bullets = bulletsFromParsed(JSON.parse(text)); } catch { /* try substring below */ }
+    if (!bullets.length) {
+        const embedded = extractFirstJson(text);
+        if (embedded) {
+            try { bullets = bulletsFromParsed(JSON.parse(embedded)); } catch { /* fall through */ }
         }
     }
+    if (!bullets.length) {
+        bullets = splitProse(text);
+    }
 
-    return splitProse(response);
+    // Il bullet commenti può arrivare come riga di testo FUORI dal JSON del nucleo.
+    // Recuperalo esplicitamente e appendilo se non già presente.
+    for (const line of text.split(/\r?\n/)) {
+        const trimmed = line.trim();
+        if (/^💬/.test(trimmed) && !bullets.includes(trimmed)) bullets.push(trimmed);
+    }
+
+    return bullets.filter(Boolean);
 }
 
 // Funzione principale per il riassunto con OpenAI
