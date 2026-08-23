@@ -77,7 +77,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     let currentUser = null;
     let summaryLaunching = false;
-    let autoSummaryScheduled = false;
     
     // Carica configurazione salvata
     const savedConfig = await chrome.storage.local.get([
@@ -323,25 +322,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Aggiunge bottone Premium per utenti free
             addPremiumButtonIfNeeded(plan);
 
-            // The extension is an action, not a configuration screen: start
-            // the squeeze as soon as the authenticated popup is ready.
-            scheduleAutomaticSummary();
         } else {
             // Utente non loggato
             loginCard.style.display = 'block';
             userInfo.style.display = 'none';
             summarizeBtn.disabled = true;
         }
-    }
-
-    function scheduleAutomaticSummary() {
-        if (autoSummaryScheduled || summaryLaunching || summarizeBtn.disabled) return;
-        autoSummaryScheduled = true;
-        setTimeout(() => {
-            if (currentUser && !summaryLaunching && !summarizeBtn.disabled) {
-                startSummary({ automatic: true });
-            }
-        }, 150);
     }
 
     function setEmailLoginError(message) {
@@ -610,9 +596,9 @@ if (!email || !password) {
     logoutBtn.addEventListener('click', logout);
     
     // Riassumi pagina - apre la modale nel tab attivo.
-    // It is called automatically when the popup opens, and remains available
-    // as a one-click retry if the page or content script was not ready.
-    async function startSummary({ automatic = false } = {}) {
+    // A deliberate click avoids generating a summary when the user only wants
+    // to inspect or change their preferences.
+    async function startSummary() {
         if (!currentUser) {
             console.error('[POPUP] Utente non loggato');
             return;
@@ -621,7 +607,7 @@ if (!email || !password) {
         if (summaryLaunching) return;
         summaryLaunching = true;
         summarizeBtn.disabled = true;
-        summarizeBtn.textContent = automatic ? 'Sto preparando il riassunto…' : 'Sto preparando il riassunto…';
+        summarizeBtn.textContent = 'Sto preparando il riassunto…';
         
         try {
             // Ottieni il tab attivo

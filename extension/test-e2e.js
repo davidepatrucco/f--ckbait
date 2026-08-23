@@ -170,7 +170,7 @@ console.log('   ☐ Check chrome.storage for token\n');
 console.log('3. Test Summarization');
 console.log('   ☐ Navigate to a webpage (e.g., news article)');
 console.log('   ☐ Click extension icon');
-console.log('   ☐ Verify the summary starts automatically');
+console.log('   ☐ Click "Riassumi ora"');
 console.log('   ☐ If the page is not ready, use the single "Riprova" action');
 console.log('   ☐ Check stats (time saved, word count)\n');
 
@@ -184,7 +184,7 @@ console.log('5. Test UI/UX');
 console.log('   ☐ Popup opens quickly (<500ms)');
 console.log('   ☐ Options are collapsed by default');
 console.log('   ☐ Account, plan, language, length and model are under Options');
-console.log('   ☐ No click is required for a normal summary\n');
+console.log('   ☐ A summary starts only after the explicit primary action\n');
 
 console.log('6. Test Different Page Types');
 console.log('   ☐ News article');
