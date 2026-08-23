@@ -60,6 +60,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const summaryModelSelect = document.getElementById('summaryModel');
     const historyList = document.getElementById('historyList');
     const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+    const optionsToggle = document.getElementById('optionsToggle');
     
     // Elementi di autenticazione
     const loginCard = document.getElementById('loginCard');
@@ -76,6 +77,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const logoutBtn = document.getElementById('logoutBtn');
     
     let currentUser = null;
+
+    optionsToggle?.addEventListener('click', () => {
+        const contentArea = document.querySelector('.content-area');
+        const isOpen = contentArea?.classList.toggle('options-open') || false;
+        optionsToggle.setAttribute('aria-expanded', String(isOpen));
+    });
     
     // Carica configurazione salvata
     const savedConfig = await chrome.storage.local.get([

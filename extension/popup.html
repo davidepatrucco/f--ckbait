@@ -135,6 +135,27 @@
             margin: 6px 0 0;
         }
 
+        .options-toggle {
+            align-items: center;
+            background: transparent;
+            border: 0;
+            color: #64748b;
+            cursor: pointer;
+            display: flex;
+            font-size: var(--text-sm);
+            font-weight: 700;
+            justify-content: space-between;
+            padding: 4px 2px;
+            text-align: left;
+            width: 100%;
+        }
+
+        .options-toggle:hover { color: #1e293b; }
+        .options-toggle::after { content: '⌄'; font-size: 18px; transition: transform .2s ease; }
+        .content-area.options-open .options-toggle::after { transform: rotate(180deg); }
+        .content-area:not(.options-open) .options-item { display: none !important; }
+        .content-area.options-open .user-info { display: flex !important; }
+
         .history-card {
             background: white;
             border: 1px solid #e5e7eb;
@@ -649,7 +670,11 @@
             </div>
             
             <!-- User Info (when logged in) -->
-            <div id="userInfo" class="user-info">
+            <button id="optionsToggle" class="options-toggle" type="button" aria-expanded="false">
+                Opzioni
+            </button>
+
+            <div id="userInfo" class="user-info options-item">
                 <img id="userAvatar" class="user-avatar" src="" alt="User">
                 <div class="user-details">
                     <div id="userName" class="user-name"></div>
@@ -658,7 +683,7 @@
                 <button id="logoutBtn" class="logout-btn">Esci</button>
             </div>
 
-            <div class="config-card">
+            <div class="config-card options-item">
                 <h3>
                     <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <circle cx="12" cy="12" r="9"></circle>
@@ -696,7 +721,7 @@
                 </div>
             </div>
 
-            <section class="history-card" aria-label="Cronologia riassunti">
+            <section class="history-card options-item" aria-label="Cronologia riassunti">
                 <div class="history-card-header">
                     <h3>Cronologia</h3>
                     <button id="clearHistoryBtn" class="history-clear-btn" type="button" hidden>Svuota</button>
