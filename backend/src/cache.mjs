@@ -13,7 +13,9 @@ const docClient = DynamoDBDocumentClient.from(client);
 const CACHE_TABLE = process.env.CACHE_TABLE_NAME || 'tldr-cache';
 const CACHE_TTL_HOURS = parseInt(process.env.CACHE_TTL_HOURS || '24', 10); // 24 ore default
 
-const CACHE_VERSION = 'summary-v2';
+// v3: invalida i riassunti generati prima dei fix su estrazione client, parsing
+// bullet robusto e prompt (le voci v2 potevano contenere JSON grezzo o testo troncato).
+const CACHE_VERSION = 'summary-v3';
 
 /**
  * Chiave condivisa ma sicura: la cache dipende dal contenuto effettivo, non
