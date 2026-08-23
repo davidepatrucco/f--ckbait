@@ -84,11 +84,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     const supportedLanguage = ['it', 'en', 'es', 'fr', 'de', 'zh', 'ja', 'pt', 'ko'].includes(browserLanguage)
         ? browserLanguage : 'en';
     const uiText = {
-        it: { summary: 'Riassumi questa pagina', options: 'Opzioni', history: 'Cronologia', user: 'User', premium: 'Piano Premium', free: 'Piano Free', unlimited: 'Riassunti illimitati', summaries: 'riassunti', month: 'Questo mese', total: 'Totale', saved: 'risparmiati', output: 'Output', language: 'Lingua riassunto' },
-        en: { summary: 'Summarize this page', options: 'Options', history: 'History', user: 'User', premium: 'Premium plan', free: 'Free plan', unlimited: 'Unlimited summaries', summaries: 'summaries', month: 'This month', total: 'Total', saved: 'saved', output: 'Output', language: 'Summary language' }
+        it: { summary: 'Riassumi questa pagina', tagline: 'Riassunti rapidi e puliti', options: 'Opzioni', history: 'Cronologia', user: 'User', premium: 'Piano Premium', free: 'Piano Free', unlimited: 'Riassunti illimitati', summaries: 'riassunti', month: 'Questo mese', total: 'Totale', saved: 'risparmiati', output: 'Output', language: 'Lingua riassunto', logout: 'Esci', emptyHistory: 'I tuoi ultimi riassunti appariranno qui.', login: 'Accedi per continuare', or: 'oppure', create: 'Crea account', clear: 'Svuota' },
+        en: { summary: 'Summarize this page', tagline: 'Fast, clean summaries', options: 'Options', history: 'History', user: 'User', premium: 'Premium plan', free: 'Free plan', unlimited: 'Unlimited summaries', summaries: 'summaries', month: 'This month', total: 'Total', saved: 'saved', output: 'Output', language: 'Summary language', logout: 'Log out', emptyHistory: 'Your latest summaries will appear here.', login: 'Sign in to continue', or: 'or', create: 'Create account', clear: 'Clear' }
     }[supportedLanguage] || null;
-    const text = uiText || { summary: 'Summarize this page', options: 'Options', history: 'History', user: 'User', premium: 'Premium plan', free: 'Free plan', unlimited: 'Unlimited summaries', summaries: 'summaries', month: 'This month', total: 'Total', saved: 'saved', output: 'Output', language: 'Summary language' };
+    const text = uiText || { summary: 'Summarize this page', tagline: 'Fast, clean summaries', options: 'Options', history: 'History', user: 'User', premium: 'Premium plan', free: 'Free plan', unlimited: 'Unlimited summaries', summaries: 'summaries', month: 'This month', total: 'Total', saved: 'saved', output: 'Output', language: 'Summary language', logout: 'Log out', emptyHistory: 'Your latest summaries will appear here.', login: 'Sign in to continue', or: 'or', create: 'Create account', clear: 'Clear' };
     document.documentElement.lang = supportedLanguage;
+    document.querySelector('.header p').textContent = text.tagline;
+    document.querySelector('.login-title').textContent = text.login;
+    document.querySelector('.login-divider').textContent = text.or;
+    document.getElementById('emailLoginBtn').textContent = supportedLanguage === 'it' ? 'Accedi' : 'Sign in';
+    document.getElementById('emailRegisterBtn').textContent = text.create;
+    document.getElementById('logoutBtn').textContent = text.logout;
+    document.getElementById('clearHistoryBtn').textContent = text.clear;
+    document.querySelector('.loading-text').textContent = supportedLanguage === 'it' ? 'Sto analizzando...' : 'Analyzing...';
+    document.querySelector('.loading-subtext').textContent = supportedLanguage === 'it' ? 'Sto analizzando la pagina' : 'Analyzing the page';
+    document.getElementById('resultTitle').textContent = supportedLanguage === 'it' ? 'Riassunto' : 'Summary';
+    document.querySelector('.error-title').textContent = supportedLanguage === 'it' ? 'Errore' : 'Error';
     document.getElementById('summarizeBtn').lastChild.textContent = `\n                ${text.summary}\n            `;
     document.querySelector('.options-panel > summary').textContent = text.options;
     document.querySelector('.history-card h3').textContent = text.history;
@@ -107,7 +118,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const entries = summaryHistory.slice(0, 5);
         clearHistoryBtn.hidden = entries.length === 0;
         if (!entries.length) {
-            historyList.innerHTML = '<p class="history-empty">I tuoi ultimi riassunti appariranno qui.</p>';
+            historyList.innerHTML = `<p class="history-empty">${text.emptyHistory}</p>`;
             return;
         }
         historyList.innerHTML = `<div class="history-list">${entries.map((entry, index) => {
