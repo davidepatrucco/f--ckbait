@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LemonSqueezer - TL;DR</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;700&family=Manrope:wght@400;600;700;800&display=swap');
-
         :root {
             --font-display: "Fraunces", "Times New Roman", serif;
             --font-sans: "Manrope", "Helvetica Neue", Arial, sans-serif;
@@ -102,6 +100,29 @@
             border: 1px solid #e5e7eb;
         }
 
+        .options-panel {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            overflow: hidden;
+        }
+        .options-panel > summary {
+            align-items: center;
+            color: #475569;
+            cursor: pointer;
+            display: flex;
+            font-size: var(--text-md);
+            font-weight: 700;
+            justify-content: space-between;
+            list-style: none;
+            padding: 14px 16px;
+        }
+        .options-panel > summary::-webkit-details-marker { display: none; }
+        .options-panel > summary::after { content: '⌄'; font-size: 20px; color: #64748b; }
+        .options-panel[open] > summary::after { transform: rotate(180deg); }
+        .options-panel .config-card,
+        .options-panel .history-card { border: 0; border-top: 1px solid #e5e7eb; border-radius: 0; }
+
         .config-card h3 {
             margin: 0 0 10px 0;
             font-size: var(--text-sm);
@@ -134,46 +155,6 @@
             line-height: 1.45;
             margin: 6px 0 0;
         }
-
-        .primary-intro {
-            background: #ffffff;
-            border: 1px solid #e5e7eb;
-            border-radius: 14px;
-            color: #64748b;
-            font-size: var(--text-sm);
-            line-height: 1.5;
-            padding: 16px;
-            text-align: center;
-        }
-
-        .primary-intro strong {
-            color: #111827;
-            display: block;
-            font-family: var(--font-display);
-            font-size: var(--text-lg);
-            margin-bottom: 4px;
-        }
-
-        .options-toggle {
-            align-items: center;
-            background: transparent;
-            border: 0;
-            color: #64748b;
-            cursor: pointer;
-            display: flex;
-            font-size: var(--text-sm);
-            font-weight: 700;
-            justify-content: space-between;
-            padding: 4px 2px;
-            text-align: left;
-            width: 100%;
-        }
-
-        .options-toggle:hover { color: #1e293b; }
-        .options-toggle::after { content: '⌄'; font-size: 18px; transition: transform .2s ease; }
-        .content-area.options-open .options-toggle::after { transform: rotate(180deg); }
-        .content-area:not(.options-open) .options-item { display: none !important; }
-        .content-area.options-open .user-info { display: flex !important; }
 
         .history-card {
             background: white;
@@ -341,7 +322,7 @@
         }
         
         .result-header {
-            margin-bottom: 20px;
+            margin: 0;
             padding-bottom: 18px;
             border-bottom: 2px solid #f1f5f9;
         }
@@ -610,6 +591,14 @@
             color: #111827;
             margin: 0;
         }
+
+        .user-label {
+            color: #94a3b8;
+            font-size: var(--text-xs);
+            font-weight: 700;
+            letter-spacing: .3px;
+            text-transform: uppercase;
+        }
         
         .user-plan {
             font-size: var(--text-sm);
@@ -653,11 +642,6 @@
         </div>
         
         <div class="content-area">
-            <div class="primary-intro">
-                <strong>Pronto a spremere questa pagina?</strong>
-                Un clic e ti porto direttamente al riassunto.
-            </div>
-
             <!-- Login Card -->
             <div id="loginCard" class="login-card">
                 <div class="login-icon" aria-hidden="true">
@@ -693,21 +677,17 @@
                 </div>
             </div>
             
-            <!-- User Info (when logged in) -->
-            <button id="optionsToggle" class="options-toggle" type="button" aria-expanded="false">
-                Opzioni
+            <button id="summarizeBtn" class="button-primary" disabled>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M4 5h10"></path><path d="M4 10h16"></path><path d="M4 15h12"></path><path d="M4 20h8"></path>
+                </svg>
+                Riassumi questa pagina
             </button>
 
-            <div id="userInfo" class="user-info options-item">
-                <img id="userAvatar" class="user-avatar" src="" alt="User">
-                <div class="user-details">
-                    <div id="userName" class="user-name"></div>
-                    <div id="userPlan" class="user-plan">Piano Free • 3/10 riassunti</div>
-                </div>
-                <button id="logoutBtn" class="logout-btn">Esci</button>
-            </div>
+            <details class="options-panel">
+                <summary>Opzioni</summary>
 
-            <div class="config-card options-item">
+            <div class="config-card">
                 <h3>
                     <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <circle cx="12" cy="12" r="9"></circle>
@@ -745,23 +725,25 @@
                 </div>
             </div>
 
-            <section class="history-card options-item" aria-label="Cronologia riassunti">
+            <section class="history-card" aria-label="Cronologia riassunti">
                 <div class="history-card-header">
                     <h3>Cronologia</h3>
                     <button id="clearHistoryBtn" class="history-clear-btn" type="button" hidden>Svuota</button>
                 </div>
                 <div id="historyList"></div>
             </section>
+            </details>
 
-            <button id="summarizeBtn" class="button-primary" disabled>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M4 5h10"></path>
-                    <path d="M4 10h16"></path>
-                    <path d="M4 15h12"></path>
-                    <path d="M4 20h8"></path>
-                </svg>
-                Riassumi questa pagina
-            </button>
+            <!-- User plan (kept at the end of the controls) -->
+            <div id="userInfo" class="user-info">
+                <img id="userAvatar" class="user-avatar" alt="User">
+                <div class="user-details">
+                    <div class="user-label">User</div>
+                    <div id="userName" class="user-name"></div>
+                    <div id="userPlan" class="user-plan">Piano Free • 3/10 riassunti</div>
+                </div>
+                <button id="logoutBtn" class="logout-btn">Esci</button>
+            </div>
             
             <div id="loading" class="loading-card">
                 <div class="loading-spinner"></div>

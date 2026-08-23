@@ -1,8 +1,18 @@
 // service_worker.js - Service Worker per l'estensione LemonSqueezer
 
+async function repairToolbarPopupForOpenTabs() {
+    const tabs = await chrome.tabs.query({});
+    await Promise.allSettled(tabs
+        .filter((tab) => Number.isInteger(tab.id))
+        .map((tab) => chrome.action.setPopup({ tabId: tab.id, popup: 'popup.html' })));
+}
+
 // Event listener per l'installazione
 chrome.runtime.onInstalled.addListener((details) => {
     console.log('LemonSqueezer installato:', details.reason);
+    repairToolbarPopupForOpenTabs().catch((error) => {
+        console.error('[ACTION] Ripristino popup sui tab aperti fallito:', error);
+    });
     
     // Inizializza la configurazione di default
     chrome.storage.local.set({
@@ -22,6 +32,9 @@ chrome.runtime.onInstalled.addListener((details) => {
 // Event listener per l'avvio
 chrome.runtime.onStartup.addListener(() => {
     console.log('LemonSqueezer avviato');
+    repairToolbarPopupForOpenTabs().catch((error) => {
+        console.error('[ACTION] Ripristino popup sui tab aperti fallito:', error);
+    });
 });
 
 // Event listener per i messaggi dal popup o content script
