@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LemonSqueezer — Privacy Policy</title>
+<style>
+  :root { --yellow:#FFD400; --black:#0D1117; --gray:#F2F4F7; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif; color:#1f2937; line-height:1.6; margin:0; background:var(--gray); }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 40px 24px 80px; }
+  header { display:flex; align-items:center; gap:12px; margin-bottom: 8px; }
+  .mark { width:40px; height:40px; border-radius:10px; background:var(--black); display:flex; align-items:center; justify-content:center; }
+  h1 { font-size: 28px; margin: 24px 0 4px; }
+  h2 { font-size: 19px; margin: 28px 0 8px; }
+  .muted { color:#6b7280; font-size: 14px; }
+  table { border-collapse: collapse; width:100%; margin: 8px 0; font-size: 14px; }
+  th, td { border:1px solid #e2e8f0; padding:8px 10px; text-align:left; vertical-align:top; }
+  th { background:#fff; }
+  code { background:#fff; border:1px solid #e2e8f0; padding:1px 5px; border-radius:4px; }
+  a { color:#b45309; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="mark">
+      <svg width="26" height="26" viewBox="0 0 48 48"><circle cx="24" cy="24" r="14" fill="#FFD400" stroke="#0D1117" stroke-width="2.5"/><g stroke="#0D1117" stroke-width="1.5" stroke-linecap="round"><line x1="24" y1="24" x2="24" y2="11"/><line x1="24" y1="24" x2="37" y2="24"/><line x1="24" y1="24" x2="24" y2="37"/><line x1="24" y1="24" x2="11" y2="24"/><line x1="24" y1="24" x2="33" y2="15"/><line x1="24" y1="24" x2="33" y2="33"/><line x1="24" y1="24" x2="15" y2="33"/><line x1="24" y1="24" x2="15" y2="15"/></g></svg>
+    </div>
+    <strong>LemonSqueezer — TL;DR</strong>
+  </header>
+
+  <h1>Privacy Policy</h1>
+  <p class="muted">Ultimo aggiornamento: 23 agosto 2026 · Titolare: [ENTITÀ / NOME] · Contatto: [EMAIL_CONTATTO]</p>
+
+  <p>Questa informativa descrive quali dati tratta l'estensione Chrome "LemonSqueezer — TL;DR" (di seguito "l'Estensione"), per quali finalità e con quali soggetti sono condivisi. L'Estensione genera riassunti di pagine web e video YouTube.</p>
+
+  <h2>1. Dati trattati</h2>
+  <table>
+    <tr><th>Categoria</th><th>Dati</th><th>Finalità</th></tr>
+    <tr><td>Account</td><td>Indirizzo email, nome e ID account Google (via OAuth), oppure email e password in caso di registrazione con email</td><td>Autenticazione e associazione dei riassunti all'utente</td></tr>
+    <tr><td>Contenuto da riassumere</td><td>URL della pagina, testo estratto dalla pagina; per YouTube: trascrizione, descrizione e un campione di commenti pubblici</td><td>Generazione del riassunto richiesto dall'utente</td></tr>
+    <tr><td>Utilizzo</td><td>Numero di riassunti nel periodo, piano (free/premium), lingua, dimensione input/output, durata elaborazione, user agent</td><td>Applicazione dei limiti di piano, statistiche di servizio, diagnostica</td></tr>
+    <tr><td>Pagamenti</td><td>Gestiti da Stripe; l'Estensione non memorizza dati della carta</td><td>Sottoscrizione del piano Premium</td></tr>
+    <tr><td>Dati locali</td><td>Token di sessione, profilo utente, cronologia riassunti, preferenze (lingua, compressione)</td><td>Funzionamento dell'Estensione sul dispositivo</td></tr>
+  </table>
+
+  <h2>2. Dove sono trattati i dati</h2>
+  <p>I dati locali sono salvati sul dispositivo tramite <code>chrome.storage.local</code>. I dati di account, utilizzo, cache e pagamenti sono trattati su infrastruttura AWS (regione UE, eu-west-1).</p>
+
+  <h2>3. Soggetti terzi (responsabili/sub-fornitori)</h2>
+  <table>
+    <tr><th>Fornitore</th><th>Dati condivisi</th><th>Scopo</th></tr>
+    <tr><td>OpenAI</td><td>Testo/trascrizione/descrizione/commenti da riassumere</td><td>Generazione del riassunto</td></tr>
+    <tr><td>Google</td><td>Dati OAuth (email, profilo)</td><td>Autenticazione</td></tr>
+    <tr><td>Stripe</td><td>Dati di pagamento inseriti dall'utente</td><td>Elaborazione pagamenti Premium</td></tr>
+    <tr><td>Amazon Web Services</td><td>Tutti i dati di backend elencati sopra</td><td>Hosting e persistenza</td></tr>
+  </table>
+
+  <h2>4. Cosa NON facciamo</h2>
+  <ul>
+    <li>Non vendiamo i dati personali a terzi.</li>
+    <li>Non usiamo il contenuto delle pagine per scopi diversi dalla generazione del riassunto richiesto.</li>
+    <li>Non tracciamo la cronologia di navigazione: l'Estensione elabora una pagina solo quando l'utente avvia esplicitamente un riassunto.</li>
+    <li>Non raccogliamo dati da pagine su cui l'utente non richiede un riassunto.</li>
+  </ul>
+
+  <h2>5. Conservazione</h2>
+  <p>I riassunti possono essere memorizzati in cache lato server per ridurre tempi e costi. I dati di account e utilizzo sono conservati finché l'account resta attivo. L'utente può richiedere la cancellazione (vedi §7). La cronologia locale può essere svuotata dall'Estensione.</p>
+
+  <h2>6. Permessi dell'Estensione</h2>
+  <table>
+    <tr><th>Permesso</th><th>Motivo</th></tr>
+    <tr><td><code>activeTab</code>, <code>scripting</code>, host <code>*://*/*</code></td><td>Leggere il contenuto della pagina corrente quando l'utente avvia un riassunto</td></tr>
+    <tr><td><code>identity</code></td><td>Login Google via OAuth</td></tr>
+    <tr><td><code>storage</code></td><td>Salvare sessione, preferenze e cronologia sul dispositivo</td></tr>
+    <tr><td><code>contextMenus</code></td><td>Voce "Riassumi questo link" nel menu contestuale</td></tr>
+    <tr><td><code>notifications</code></td><td>Avvisi (es. login richiesto)</td></tr>
+  </table>
+
+  <h2>7. Diritti dell'utente</h2>
+  <p>L'utente può richiedere accesso, rettifica o cancellazione dei propri dati scrivendo a [EMAIL_CONTATTO]. In base al GDPR ha inoltre diritto di opposizione e portabilità.</p>
+
+  <h2>8. Modifiche</h2>
+  <p>Eventuali modifiche a questa informativa saranno pubblicate a questa pagina con aggiornamento della data in alto.</p>
+
+  <h2>9. Contatti</h2>
+  <p>Per qualsiasi richiesta: [EMAIL_CONTATTO].</p>
+</div>
+</body>
+</html>
