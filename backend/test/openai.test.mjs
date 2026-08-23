@@ -13,6 +13,8 @@ describe('OpenAI Module Tests', () => {
         assert.equal(webPlan.targetWords, 100);
         assert.equal(webPlan.savingsPercent, 90);
 
+        // I video sono intenzionalmente meno sintetici: il risparmio è limitato al
+        // 75% max e il target parole è più alto (poi limitato da MAX_SUMMARY_WORDS).
         const videoPlan = buildSummaryPlan({
             text: 'short transcript is irrelevant when duration is supplied',
             sourceType: 'video',
@@ -20,8 +22,8 @@ describe('OpenAI Module Tests', () => {
             summaryProfile: 'ultra'
         });
         assert.equal(videoPlan.sourceEquivalentWords, 4400);
-        assert.equal(videoPlan.targetWords, 220);
-        assert.equal(videoPlan.savingsPercent, 95);
+        assert.equal(videoPlan.targetWords, 800); // 4400 * 0.25 = 1100, limitato a MAX_SUMMARY_WORDS
+        assert.equal(videoPlan.savingsPercent, 75);
         assert.equal(buildSummaryPlan({ text: 'one two three' }).profile, 'standard');
         assert.equal(typeof getSummaryModel(), 'string');
         assert.equal(getSummaryModel('gpt-5.6-luna'), 'gpt-5.6-luna');

@@ -65,6 +65,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     }
 
+    if (request.action === 'getYouTubeVideoExtras') {
+        getYouTubeVideoExtras(sender, sendResponse);
+        return true;
+    }
+
     if (request.action === 'summarizePageData') {
         summarizePageData(request, sendResponse);
         return true;
@@ -209,6 +214,90 @@ async function getYouTubeCaptionTracks(sender, sendResponse) {
     } catch (error) {
         console.error('[YT CAPTIONS] Errore lettura tracce:', error);
         sendResponse({ success: false, tracks: [], error: error.message });
+    }
+}
+
+// Estrae, dal contesto MAIN della pagina YouTube, la descrizione del video e una
+// campionatura dei commenti. Best-effort: qualsiasi fallimento restituisce vuoto,
+// senza mai bloccare il riassunto (transcript resta la fonte primaria).
+async function getYouTubeVideoExtras(sender, sendResponse) {
+    try {
+        if (!sender.tab?.id) throw new Error('Richiesta extra senza tab');
+        const [{ result } = {}] = await chrome.scripting.executeScript({
+            target: { tabId: sender.tab.id },
+            world: 'MAIN',
+            func: async () => {
+                const out = { description: '', comments: [] };
+                try {
+                    out.description = window.ytInitialPlayerResponse?.videoDetails?.shortDescription || '';
+                } catch { /* descrizione non disponibile */ }
+
+                try {
+                    const apiKey = window.ytcfg?.get?.('INNERTUBE_API_KEY');
+                    const clientVersion = window.ytcfg?.get?.('INNERTUBE_CLIENT_VERSION');
+
+                    // Trova il token di continuation della sezione commenti in ytInitialData.
+                    const findCommentsToken = (root) => {
+                        const stack = [root];
+                        while (stack.length) {
+                            const node = stack.pop();
+                            if (!node || typeof node !== 'object') continue;
+                            const isr = node.itemSectionRenderer;
+                            if (isr && isr.sectionIdentifier === 'comment-item-section') {
+                                const token = isr.contents?.[0]?.continuationItemRenderer
+                                    ?.continuationEndpoint?.continuationCommand?.token;
+                                if (token) return token;
+                            }
+                            for (const key in node) {
+                                const value = node[key];
+                                if (value && typeof value === 'object') stack.push(value);
+                            }
+                        }
+                        return null;
+                    };
+
+                    const token = findCommentsToken(window.ytInitialData);
+                    if (apiKey && clientVersion && token) {
+                        const res = await fetch(`/youtubei/v1/next?prettyPrint=false&key=${encodeURIComponent(apiKey)}`, {
+                            method: 'POST',
+                            headers: {
+                                'content-type': 'application/json',
+                                'x-youtube-client-name': '1',
+                                'x-youtube-client-version': clientVersion
+                            },
+                            body: JSON.stringify({
+                                context: { client: { clientName: 'WEB', clientVersion } },
+                                continuation: token
+                            })
+                        });
+                        if (res.ok) {
+                            const data = await res.json();
+                            const texts = [];
+                            const walk = (node) => {
+                                if (!node || typeof node !== 'object' || texts.length >= 50) return;
+                                const modern = node.commentEntityPayload?.properties?.content?.content;
+                                const legacy = node.commentRenderer?.contentText?.runs
+                                    ?.map((run) => run.text).join('');
+                                const value = modern || legacy;
+                                if (value && typeof value === 'string') texts.push(value.trim());
+                                for (const key in node) {
+                                    const child = node[key];
+                                    if (child && typeof child === 'object') walk(child);
+                                }
+                            };
+                            walk(data);
+                            out.comments = texts.filter(Boolean).slice(0, 50);
+                        }
+                    }
+                } catch { /* commenti non disponibili o disabilitati */ }
+
+                return out;
+            }
+        });
+        sendResponse({ success: true, description: result?.description || '', comments: result?.comments || [] });
+    } catch (error) {
+        console.warn('[YT EXTRAS] Estrazione descrizione/commenti fallita:', error?.message);
+        sendResponse({ success: false, description: '', comments: [], error: error?.message });
     }
 }
 

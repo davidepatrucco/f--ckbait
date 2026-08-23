@@ -284,6 +284,11 @@ export async function summarizeUrlHandler(event) {
         }
 
         const hasTranscript = typeof body.transcript === 'string';
+        // Client-extracted page text: the extension reads the already-rendered DOM
+        // in the user's browser and sends the article text. Preferred over the
+        // server re-fetch because JSDOM+Readability on large pages exceeded API
+        // Gateway's hard 29s limit (HTTP 504) and the re-fetch saw a different page.
+        const hasPageText = !hasTranscript && typeof body.text === 'string' && body.text.trim().length >= 50;
         const videoDurationSeconds = Number(body.videoDurationSeconds);
         if (isYouTubeUrl(body.url) && !hasTranscript) {
             return createResponse(422, {
@@ -310,10 +315,21 @@ export async function summarizeUrlHandler(event) {
         let text;
         let title;
         let fetchTime = 0;
+        let videoDescription = '';
+        let videoComments = [];
         if (hasTranscript) {
             text = body.transcript.trim();
             title = typeof body.title === 'string' && body.title.trim() ? body.title.trim() : 'Video';
-            console.log('Using client-provided video transcript:', { textLength: text.length });
+            videoDescription = typeof body.description === 'string' ? body.description.trim().slice(0, 5000) : '';
+            videoComments = Array.isArray(body.comments)
+                ? body.comments.filter((c) => typeof c === 'string' && c.trim()).map((c) => c.trim().slice(0, 500)).slice(0, 50)
+                : [];
+            console.log('Using client-provided video transcript:', { textLength: text.length, descriptionLength: videoDescription.length, comments: videoComments.length });
+        } else if (hasPageText) {
+            const MAX_CLIENT_TEXT = 20000;
+            text = body.text.trim().slice(0, MAX_CLIENT_TEXT);
+            title = typeof body.title === 'string' && body.title.trim() ? body.title.trim() : 'Contenuto web';
+            console.log('Using client-extracted page text:', { textLength: text.length });
         } else {
             console.log('🌐 [TIMING] Starting fetch for URL:', body.url);
             const fetchStartTime = Date.now();
@@ -375,7 +391,9 @@ export async function summarizeUrlHandler(event) {
             sourceType,
             summaryProfile,
             model: summaryModel,
-            videoDurationSeconds: hasTranscript ? videoDurationSeconds : undefined
+            videoDurationSeconds: hasTranscript ? videoDurationSeconds : undefined,
+            description: hasTranscript ? videoDescription : undefined,
+            comments: hasTranscript ? videoComments : undefined
         });
         const openaiTime = Date.now() - openaiStartTime;
         console.log('⚡ [TIMING] OpenAI call took:', openaiTime, 'ms');

@@ -52,33 +52,61 @@ export function getSummaryModel(requestedModel) {
 
 export function buildSummaryPlan(content) {
     const profile = SUMMARY_PROFILES[content.summaryProfile] || SUMMARY_PROFILES.standard;
-    const sourceEquivalentWords = content.sourceType === 'video' && Number(content.videoDurationSeconds) > 0
+    const isVideo = content.sourceType === 'video';
+    const sourceEquivalentWords = isVideo && Number(content.videoDurationSeconds) > 0
         ? Math.round((Number(content.videoDurationSeconds) / 60) * WORDS_PER_MINUTE)
         : countWords(content.text);
+    // I riassunti video risultavano troppo sintetici. Per i video si abbassa il
+    // risparmio (più contenuto) e si alza il tetto dei bullet.
+    const savingsPercent = isVideo ? Math.min(profile.savingsPercent, 75) : profile.savingsPercent;
+    const bulletCap = isVideo ? 12 : 8;
     const targetWords = Math.max(1, Math.min(
         MAX_SUMMARY_WORDS,
-        Math.floor(sourceEquivalentWords * ((100 - profile.savingsPercent) / 100))
+        Math.floor(sourceEquivalentWords * ((100 - savingsPercent) / 100))
     ));
     return {
         profile: SUMMARY_PROFILES[content.summaryProfile] ? content.summaryProfile : 'standard',
-        savingsPercent: profile.savingsPercent,
+        savingsPercent,
         sourceEquivalentWords,
         targetWords,
-        bulletCount: Math.max(1, Math.min(8, Math.ceil(targetWords / 90)))
+        bulletCount: Math.max(1, Math.min(bulletCap, Math.ceil(targetWords / 90)))
     };
 }
 
 function createPrompt(content, language = 'it', plan = buildSummaryPlan(content)) {
     const outputLanguage = OUTPUT_LANGUAGES[language] || OUTPUT_LANGUAGES.it;
-    const sourceLabel = content.sourceType === 'video' ? 'Trascrizione video' : 'Contenuto pagina web';
+    const isVideo = content.sourceType === 'video';
+    const sourceLabel = isVideo ? 'Trascrizione video' : 'Contenuto pagina web';
+    const description = isVideo && typeof content.description === 'string'
+        ? content.description.trim().slice(0, 3000) : '';
+    const comments = Array.isArray(content.comments)
+        ? content.comments.filter((c) => typeof c === 'string' && c.trim()).slice(0, 40) : [];
+    const hasComments = comments.length > 0;
+
     const systemPrompt = `Sei un riassuntore editoriale rigoroso. Rispondi esclusivamente con JSON valido secondo lo schema richiesto. Scrivi in ${outputLanguage}. Usa solo informazioni presenti nella fonte; elimina pubblicità, menu, footer, ripetizioni e dettagli marginali.`;
-    const userPrompt = `Titolo: ${content.title}
+
+    let userPrompt = `Titolo: ${content.title}
 URL: ${content.url}
 
 Obiettivo: profilo ${plan.profile}; massimo ${plan.targetWords} parole totali nei bullet, per un risparmio di tempo di almeno ${plan.savingsPercent}%. Genera fino a ${plan.bulletCount} bullet, meno solo se la fonte è troppo breve.
 
 ${sourceLabel}:
 ${content.text}`;
+
+    if (description) {
+        userPrompt += `
+
+Descrizione del video (fa parte del NUCLEO del riassunto, insieme alla trascrizione):
+${description}`;
+    }
+
+    if (hasComments) {
+        userPrompt += `
+
+Commenti degli utenti (NON usarli per il nucleo). Sintetizzali in UN SOLO bullet finale, aggiuntivo rispetto ai ${plan.bulletCount} del nucleo, che inizi ESATTAMENTE con "💬 Commenti:" e indichi in breve di cosa si discute e il sentiment prevalente:
+${comments.join('\n')}`;
+    }
+
     return { systemPrompt, userPrompt };
 }
 
@@ -127,6 +155,59 @@ function formatTime(seconds) {
         const minutes = Math.floor((seconds % 3600) / 60);
         return `${hours}h ${minutes}m`;
     }
+}
+
+// Deriva una lista di bullet da una risposta del modello, qualunque sia la forma.
+// gpt-5-nano restituisce in modo non deterministico: bullet in JSON schema,
+// oggetto con chiave singolare ({"bullet": "..."}), oggetto {"summary": "..."},
+// array, oppure testo semplice. Nessuna di queste deve produrre zero bullet se
+// c'è del testo utilizzabile: l'unico caso di fallimento è risposta vuota.
+export function coerceBullets(response) {
+    const clean = (s) => String(s).replace(/^\s*(?:[•*–-]|\d+[.)])\s*/, '').trim();
+    const fromArray = (arr) => arr
+        .map((x) => (typeof x === 'string' ? x : (x?.text || x?.bullet || '')))
+        .map(clean)
+        .filter(Boolean);
+    const splitProse = (s) => {
+        const byLine = String(s).split(/\r?\n+/).map(clean).filter(Boolean);
+        if (byLine.length > 1) return byLine;
+        return String(s).split(/(?<=[.!?])\s+/).map((x) => x.trim()).filter(Boolean);
+    };
+
+    let parsed = null;
+    try { parsed = JSON.parse(response); } catch { /* not JSON: handled below */ }
+
+    if (parsed && typeof parsed === 'object') {
+        if (Array.isArray(parsed)) {
+            const b = fromArray(parsed);
+            if (b.length) return b;
+        }
+        if (Array.isArray(parsed.bullets)) {
+            const b = fromArray(parsed.bullets);
+            if (b.length) return b;
+        }
+        if (typeof parsed.bullet === 'string') {
+            const b = fromArray([parsed.bullet]);
+            if (b.length) return b;
+        }
+        if (typeof parsed.summary === 'string') {
+            const b = splitProse(parsed.summary);
+            if (b.length) return b;
+        }
+        for (const v of Object.values(parsed)) {
+            if (Array.isArray(v) && v.some((x) => typeof x === 'string' || (x && typeof x === 'object'))) {
+                const b = fromArray(v);
+                if (b.length) return b;
+            }
+        }
+        const strings = Object.values(parsed).filter((v) => typeof v === 'string' && v.trim());
+        if (strings.length) {
+            const b = strings.flatMap(splitProse);
+            if (b.length) return b;
+        }
+    }
+
+    return splitProse(response);
 }
 
 // Funzione principale per il riassunto con OpenAI
@@ -230,16 +311,9 @@ export async function summarizeWithOpenAI(content) {
             response = readResponseText(completion);
         }
         if (!response) throw new Error('Risposta vuota da OpenAI');
-        
-        let parsed;
-        try { parsed = JSON.parse(response); } catch {
-            const plainBullets = response.split(/\n+/).map((line) => line.replace(/^\s*(?:[•*-]|\d+[.)])\s*/, '').trim()).filter(Boolean);
-            parsed = { bullets: plainBullets };
-        }
-        let bullets = Array.isArray(parsed.bullets)
-            ? parsed.bullets.map((bullet) => String(bullet).replace(/^\s*[•-]\s*/, '').trim()).filter(Boolean)
-            : [];
-        if (!bullets.length) throw new Error('OpenAI non ha restituito bullet validi');
+
+        let bullets = coerceBullets(response);
+        if (!bullets.length) throw new Error('Risposta OpenAI non utilizzabile');
 
         let summaryText = bullets.map((bullet) => `• ${bullet}`).join('\n');
         // Un solo tentativo di compressione se il modello supera il budget.
@@ -251,16 +325,12 @@ export async function summarizeWithOpenAI(content) {
                     content: `Riduci il seguente riassunto a massimo ${plan.targetWords} parole totali, mantenendo solo i fatti essenziali.\n\n${summaryText}`
                 }
             ]);
-            response = readResponseText(completion);
-            try {
-                parsed = JSON.parse(response || '{}');
-                bullets = Array.isArray(parsed.bullets)
-                    ? parsed.bullets.map((bullet) => String(bullet).replace(/^\s*[•-]\s*/, '').trim()).filter(Boolean)
-                    : bullets;
+            const compressed = coerceBullets(readResponseText(completion));
+            if (compressed.length) {
+                bullets = compressed;
                 summaryText = bullets.map((bullet) => `• ${bullet}`).join('\n');
-            } catch {
-                // Conserva il primo risultato valido: le statistiche mostreranno il risparmio reale.
             }
+            // Se la compressione non produce nulla, conserva il primo risultato valido.
         }
 
         // Calcola statistiche di lettura

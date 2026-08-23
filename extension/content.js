@@ -571,10 +571,12 @@
                     </svg>
                 </div>
                 <div class="lemonsqueezer-error-title">Errore</div>
-                <div class="lemonsqueezer-error-message">${data.error}</div>
+                <div class="lemonsqueezer-error-message"></div>
                 <button class="lemonsqueezer-btn-secondary" onclick="document.getElementById('lemonsqueezer-modal').remove()">Chiudi</button>
             </div>
         `;
+        const messageEl = modalBody.querySelector('.lemonsqueezer-error-message');
+        if (messageEl) messageEl.textContent = toUserFacingError(data && data.error);
     }
 
     // Funzione helper per ottenere gli stili del modal
@@ -949,6 +951,56 @@
         }, 100);
     }
     
+    // Seleziona il contenitore principale dell'articolo nella pagina renderizzata.
+    // Usa innerText sul DOM live: restituisce il testo VISIBILE (rispetta display:none,
+    // JS già eseguito, consent/paywall gestiti dalla sessione utente), senza clonare
+    // (innerText su nodi staccati non è affidabile perché dipende dal layout).
+    function pickMainElement() {
+        const selectors = [
+            'article', 'main', '[role="main"]',
+            '.article-body', '.article__body', '.story-body',
+            '.entry-content', '.post-content', '#mw-content-text'
+        ];
+        for (const sel of selectors) {
+            const el = document.querySelector(sel);
+            if (el && (el.innerText || '').trim().length > 200) return el;
+        }
+        return document.body;
+    }
+
+    // Estrae testo e titolo dalla pagina corrente per inviarli al backend.
+    // Sposta l'estrazione dal Lambda (dove JSDOM+Readability su pagine grandi
+    // superava i 29s di API Gateway -> HTTP 504) al browser, dov'è nativa e veloce.
+    function extractReadablePageContent() {
+        try {
+            const MAX_TEXT = 8000;
+            const el = pickMainElement();
+            let text = (el && el.innerText ? el.innerText : '').replace(/\s+/g, ' ').trim();
+            if (text.length > MAX_TEXT) text = text.slice(0, MAX_TEXT);
+
+            const ogTitle = document.querySelector('meta[property="og:title"]')?.content;
+            const h1 = document.querySelector('h1')?.innerText;
+            let title = (ogTitle || document.title || h1 || '').replace(/\s+/g, ' ').trim();
+
+            return { text, title };
+        } catch (error) {
+            console.warn('[CONTENT] Estrazione testo pagina fallita, fallback al fetch server:', error);
+            return { text: '', title: '' };
+        }
+    }
+
+    // Converte messaggi di errore tecnici in messaggi comprensibili all'utente.
+    // Gli errori interni (OpenAI, bullet, HTTP, stack trace) non devono arrivare in UI.
+    function toUserFacingError(raw) {
+        const msg = String(raw || '');
+        if (/limite|premium|upgrade/i.test(msg)) return msg;
+        if (/autenticat|login|AUTH_REQUIRED/i.test(msg)) return 'Devi effettuare il login per usare LemonSqueezer.';
+        if (/troppo breve|sufficiente|INSUFFICIENT|INVALID_TRANSCRIPT/i.test(msg)) return 'Questa pagina non contiene abbastanza testo da riassumere.';
+        if (/504|timeout|tempo|scadut/i.test(msg)) return 'Il riassunto ha impiegato troppo tempo. Riprova.';
+        if (/non raggiungibile|Failed to fetch|network|URL_NOT_ACCESSIBLE/i.test(msg)) return 'Impossibile contattare il servizio. Controlla la connessione e riprova.';
+        return 'Non è stato possibile generare il riassunto. Riprova tra poco.';
+    }
+
     // Funzione per aprire la modale dal popup e avviare il riassunto
     async function openSummaryModal(request) {
         console.log('[CONTENT] openSummaryModal chiamata:', request);
@@ -983,6 +1035,26 @@
                 requestBody.title = transcript.title;
                 requestBody.transcriptLanguage = transcript.language;
                 requestBody.videoDurationSeconds = transcript.durationSeconds;
+                // Descrizione + commenti: nucleo (transcript+descrizione) e 1 bullet
+                // di sintesi commenti. Opzionali: un fallimento non blocca il riassunto.
+                try {
+                    const extras = await chrome.runtime.sendMessage({ action: 'getYouTubeVideoExtras' });
+                    if (extras?.description) requestBody.description = extras.description;
+                    if (Array.isArray(extras?.comments) && extras.comments.length) {
+                        requestBody.comments = extras.comments;
+                    }
+                } catch (extrasError) {
+                    console.warn('[CONTENT] Extra YouTube non disponibili:', extrasError);
+                }
+            } else if (request.url === window.location.href) {
+                // Riassunto della pagina corrente: estrai il testo dal DOM renderizzato.
+                // Per un link diverso (menu contestuale) il DOM di questa pagina non
+                // corrisponde all'URL, quindi si lascia che il backend faccia il fetch.
+                const page = extractReadablePageContent();
+                if (page.text && page.text.length >= 50) {
+                    requestBody.text = page.text;
+                    if (page.title) requestBody.title = page.title;
+                }
             }
 
             // La chiamata parte dal service worker: un fetch eseguito dal
