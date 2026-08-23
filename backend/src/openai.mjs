@@ -157,12 +157,13 @@ export async function summarizeWithOpenAI(content) {
         const apiCallStartTime = Date.now();
         // Chiamata a OpenAI
         const client = await getOpenAIClient();
-        const requestCompletion = async (messages) => client.chat.completions.create({
+        const requestCompletion = async (messages, strictSchema = true) => client.chat.completions.create({
             model,
             messages,
-            max_completion_tokens: Math.max(512, Math.min(4000, plan.targetWords * 4 + 300)),
-            reasoning_effort: 'low',
-            response_format: {
+            // Reasoning models can consume completion tokens before emitting JSON.
+            // Keep enough headroom even for very short summaries.
+            max_completion_tokens: Math.max(1200, Math.min(4000, plan.targetWords * 6 + 400)),
+            response_format: strictSchema ? {
                 type: 'json_schema',
                 json_schema: {
                     name: 'lemonsqueezer_summary',
@@ -181,7 +182,7 @@ export async function summarizeWithOpenAI(content) {
                         }
                     }
                 }
-            }
+            } : { type: 'json_object' }
         });
         let completion = await requestCompletion([
             { role: 'system', content: systemPrompt },
@@ -190,11 +191,30 @@ export async function summarizeWithOpenAI(content) {
         const apiCallTime = Date.now() - apiCallStartTime;
         console.log('⚡ [TIMING] OpenAI API call took:', apiCallTime, 'ms');
         
-        let response = completion.choices[0]?.message?.content;
-        
+        const readResponseText = (result) => {
+            const message = result?.choices?.[0]?.message;
+            if (typeof message?.content === 'string') return message.content.trim();
+            if (Array.isArray(message?.content)) {
+                return message.content.map((part) => part?.text || '').join('').trim();
+            }
+            return '';
+        };
+        let response = readResponseText(completion);
+
+        // Retry once with the less restrictive JSON mode. This covers transient
+        // empty structured-output responses without ever falling back to page metadata.
         if (!response) {
-            throw new Error('Risposta vuota da OpenAI');
+            console.warn('[OPENAI] Empty structured response; retrying JSON mode', {
+                finishReason: completion?.choices?.[0]?.finish_reason,
+                refusal: completion?.choices?.[0]?.message?.refusal || null
+            });
+            completion = await requestCompletion([
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt }
+            ], false);
+            response = readResponseText(completion);
         }
+        if (!response) throw new Error('Risposta vuota da OpenAI');
         
         let parsed;
         try {
@@ -217,7 +237,7 @@ export async function summarizeWithOpenAI(content) {
                     content: `Riduci il seguente riassunto a massimo ${plan.targetWords} parole totali, mantenendo solo i fatti essenziali.\n\n${summaryText}`
                 }
             ]);
-            response = completion.choices[0]?.message?.content;
+            response = readResponseText(completion);
             try {
                 parsed = JSON.parse(response || '{}');
                 bullets = Array.isArray(parsed.bullets)
