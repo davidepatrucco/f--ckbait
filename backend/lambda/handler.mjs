@@ -355,7 +355,9 @@ export async function summarizeUrlHandler(event) {
             summaryProfile,
             model: summaryModel,
             sourceType,
-            videoDurationSeconds: hasTranscript ? videoDurationSeconds : 0
+            videoDurationSeconds: hasTranscript ? videoDurationSeconds : 0,
+            description: hasTranscript ? videoDescription : '',
+            comments: hasTranscript ? videoComments : []
         };
         if (shouldCacheUrl(body.url)) {
             const cacheStartTime = Date.now();

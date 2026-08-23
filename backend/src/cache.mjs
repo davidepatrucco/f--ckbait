@@ -25,11 +25,13 @@ export function buildSummaryCacheKey({
     summaryProfile = 'standard',
     model = 'gpt-5-nano',
     sourceType = 'web',
-    videoDurationSeconds = 0
+    videoDurationSeconds = 0,
+    description = '',
+    comments = []
 }) {
     const normalizedText = String(text || '').replace(/\s+/g, ' ').trim();
     const contentHash = createHash('sha256').update(normalizedText).digest('hex');
-    const keyString = [
+    const keyParts = [
         CACHE_VERSION,
         contentHash,
         language,
@@ -37,8 +39,16 @@ export function buildSummaryCacheKey({
         model,
         sourceType,
         Math.round(Number(videoDurationSeconds) || 0)
-    ].join('|');
-    return createHash('sha256').update(keyString).digest('hex');
+    ];
+    // Gli extra (descrizione video + commenti) cambiano il riassunto, quindi la
+    // chiave. Aggiunti solo se presenti: così le voci di cache senza extra (web e
+    // video senza commenti) restano valide e non vengono invalidate a tappeto.
+    const hasComments = Array.isArray(comments) && comments.length > 0;
+    if (description || hasComments) {
+        const extras = String(description || '') + '' + (hasComments ? comments.join('') : '');
+        keyParts.push('extras:' + createHash('sha256').update(extras).digest('hex'));
+    }
+    return createHash('sha256').update(keyParts.join('|')).digest('hex');
 }
 
 /**
