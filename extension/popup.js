@@ -76,7 +76,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const logoutBtn = document.getElementById('logoutBtn');
     
     let currentUser = null;
-    let summaryLaunching = false;
     
     // Carica configurazione salvata
     const savedConfig = await chrome.storage.local.get([
@@ -321,7 +320,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             // Aggiunge bottone Premium per utenti free
             addPremiumButtonIfNeeded(plan);
-
         } else {
             // Utente non loggato
             loginCard.style.display = 'block';
@@ -595,19 +593,12 @@ if (!email || !password) {
     
     logoutBtn.addEventListener('click', logout);
     
-    // Riassumi pagina - apre la modale nel tab attivo.
-    // A deliberate click avoids generating a summary when the user only wants
-    // to inspect or change their preferences.
-    async function startSummary() {
+    // Riassumi pagina - apre la modale nel tab attivo
+    summarizeBtn.addEventListener('click', async () => {
         if (!currentUser) {
             console.error('[POPUP] Utente non loggato');
             return;
         }
-
-        if (summaryLaunching) return;
-        summaryLaunching = true;
-        summarizeBtn.disabled = true;
-        summarizeBtn.textContent = 'Sto preparando il riassunto…';
         
         try {
             // Ottieni il tab attivo
@@ -645,15 +636,11 @@ if (!email || !password) {
             
         } catch (error) {
             console.error('[POPUP] Errore apertura modale:', error);
-            summaryLaunching = false;
-            summarizeBtn.disabled = false;
-            summarizeBtn.textContent = 'Riprova il riassunto';
+            summarizeBtn.textContent = 'Impossibile avviare il riassunto';
             setTimeout(() => {
-                if (!summaryLaunching) summarizeBtn.textContent = 'Riassumi ora';
+                summarizeBtn.textContent = 'Riassumi questa pagina';
             }, 3000);
         }
-    }
-
-    summarizeBtn.addEventListener('click', () => startSummary());
+    });
     
 });
