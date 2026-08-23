@@ -25,6 +25,7 @@ export function buildSummaryCacheKey({
     text,
     language = 'it',
     summaryProfile = 'standard',
+    squeeze = 20,
     model = 'gpt-5-nano',
     sourceType = 'web',
     videoDurationSeconds = 0,
@@ -38,6 +39,7 @@ export function buildSummaryCacheKey({
         contentHash,
         language,
         summaryProfile,
+        `sq${Number(squeeze) || 20}`,
         model,
         sourceType,
         Math.round(Number(videoDurationSeconds) || 0)

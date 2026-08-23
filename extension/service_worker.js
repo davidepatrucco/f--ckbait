@@ -722,7 +722,14 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
             const apiUrl = 'https://4jo5gamel9.execute-api.eu-west-1.amazonaws.com/dev';
             console.log('Chiamando API:', apiUrl);
             
-            const result = await summarizeUrlDirectly(linkUrl, apiUrl, authToken, 'it');
+            // Rispetta le preferenze utente (lingua di output + compressione) anche
+            // per il riassunto da menu contestuale.
+            const prefs = await chrome.storage.local.get(['summaryLanguage', 'squeezePercent']);
+            const result = await summarizeUrlDirectly(
+                linkUrl, apiUrl, authToken,
+                prefs.summaryLanguage || 'it',
+                Number(prefs.squeezePercent) || 20
+            );
             console.log('Risultato API:', result);
             
             // 4. AGGIORNA LA MODALE CON IL RISULTATO
@@ -749,8 +756,8 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 });
 
 // Funzione per riassumere un URL direttamente
-async function summarizeUrlDirectly(url, apiUrl, authToken, language) {
-    console.log('summarizeUrlDirectly chiamata con:', { url, apiUrl, language });
+async function summarizeUrlDirectly(url, apiUrl, authToken, language, squeeze) {
+    console.log('summarizeUrlDirectly chiamata con:', { url, apiUrl, language, squeeze });
     try {
         const headers = {
             'Content-Type': 'application/json'
@@ -767,7 +774,8 @@ async function summarizeUrlDirectly(url, apiUrl, authToken, language) {
             headers: headers,
             body: JSON.stringify({
                 url: url,
-                lang: language || 'it'
+                lang: language || 'it',
+                ...([10, 20, 50].includes(Number(squeeze)) ? { squeeze: Number(squeeze) } : {})
             })
         });
         

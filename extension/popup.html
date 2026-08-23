@@ -6,8 +6,19 @@
     <title>LemonSqueezer - TL;DR</title>
     <style>
         :root {
-            --font-display: "Fraunces", "Times New Roman", serif;
-            --font-sans: "Manrope", "Helvetica Neue", Arial, sans-serif;
+            /* LemonSqueezer brand pack */
+            --ls-yellow: #FFD400;
+            --ls-yellow-700: #FFB800;
+            --ls-black: #0D1117;
+            --ls-white: #FFFFFF;
+            --ls-gray-100: #F2F4F7;
+            --ls-mint: #22C55E;
+            --ls-red: #EF4444;
+            --ls-radius: 12px;
+            --ls-shadow-sm: 0 2px 6px rgba(0,0,0,0.08);
+            --ls-shadow-md: 0 8px 24px rgba(0,0,0,0.12);
+            --font-display: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             --text-xs: 12px;
             --text-sm: 13px;
             --text-md: 15px;
@@ -30,7 +41,7 @@
             font-family: var(--font-sans);
             font-size: var(--text-md);
             line-height: var(--line-base);
-            background: #f6f7f3;
+            background: var(--ls-gray-100);
             color: #1f2937;
             padding: 0;
             overflow: hidden;
@@ -48,24 +59,25 @@
             gap: 12px;
             padding: 18px 20px;
             border-bottom: 1px solid #e2e8f0;
-            background: #fdfcf7;
+            background: var(--ls-white);
         }
 
         .brand-icon {
-            width: 36px;
-            height: 36px;
+            width: 40px;
+            height: 40px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            border-radius: 12px;
-            background: #f1f5f9;
-            border: 1px solid #e2e8f0;
+            border-radius: var(--ls-radius);
+            background: var(--ls-black);
+            border: none;
         }
 
+        .brand-accent { color: var(--ls-yellow-700); }
+
         .brand-icon svg {
-            width: 20px;
-            height: 20px;
-            color: #111827;
+            width: 28px;
+            height: 28px;
         }
 
         .header h1 {
@@ -227,13 +239,13 @@
             width: 100%;
             padding: 14px 16px;
             border: none;
-            border-radius: 12px;
-            background: #111827;
-            color: #f9fafb;
+            border-radius: var(--ls-radius);
+            background: var(--ls-yellow);
+            color: var(--ls-black);
             font-size: var(--text-md);
             font-weight: 700;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.2s ease;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -241,8 +253,9 @@
         }
 
         .button-primary:hover:not(:disabled) {
+            background: var(--ls-yellow-700);
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(15, 23, 42, 0.12);
+            box-shadow: var(--ls-shadow-md);
         }
 
         .button-primary:disabled {
@@ -630,14 +643,25 @@
     <div class="popup-container">
         <div class="header">
             <div class="brand-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M16 4c-3 1-5.5 3.5-6.5 6.5S8 18 4 20c2-4 4.5-8 7.5-10.5S19 6 20 6c-1 1-2.5 2.5-4 4"/>
-                    <path d="M7 16c1.5 1 3 1 4.5.5"/>
+                <svg viewBox="0 0 48 48" fill="none">
+                    <circle cx="24" cy="25" r="14" fill="#FFD400" stroke="#0D1117" stroke-width="2.5"/>
+                    <g stroke="#0D1117" stroke-width="1.5" stroke-linecap="round">
+                        <line x1="24" y1="25" x2="24" y2="12"/>
+                        <line x1="24" y1="25" x2="33" y2="16"/>
+                        <line x1="24" y1="25" x2="37" y2="25"/>
+                        <line x1="24" y1="25" x2="33" y2="34"/>
+                        <line x1="24" y1="25" x2="24" y2="38"/>
+                        <line x1="24" y1="25" x2="15" y2="34"/>
+                        <line x1="24" y1="25" x2="11" y2="25"/>
+                        <line x1="24" y1="25" x2="15" y2="16"/>
+                    </g>
+                    <circle cx="24" cy="25" r="2.2" fill="#0D1117"/>
+                    <path d="M12 37 L9 41" stroke="#FFB800" stroke-width="3" stroke-linecap="round"/>
                 </svg>
             </div>
             <div>
-                <h1>LemonSqueezer</h1>
-                <p>Riassunti rapidi e puliti</p>
+                <h1>Lemon<span class="brand-accent">Squeezer</span></h1>
+                <p>Skip the noise. Get the point.</p>
             </div>
         </div>
         
@@ -716,6 +740,25 @@
                         <option value="es">Español</option>
                         <option value="fr">Français</option>
                         <option value="de">Deutsch</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="config-card">
+                <h3>
+                    <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M4 7h16"></path>
+                        <path d="M7 12h10"></path>
+                        <path d="M10 17h4"></path>
+                    </svg>
+                    Compressione
+                </h3>
+                <div class="input-group">
+                    <label for="squeeze">Lunghezza sintesi (% del testo)</label>
+                    <select id="squeeze">
+                        <option value="10">10% — molto sintetico</option>
+                        <option value="20" selected>20% — consigliato</option>
+                        <option value="50">50% — esteso</option>
                     </select>
                 </div>
             </div>

@@ -626,7 +626,7 @@
                 width: 40px;
                 height: 40px;
                 border: 4px solid #f3f3f3;
-                border-top: 4px solid #007AFF;
+                border-top: 4px solid #FFD400;
                 border-radius: 50%;
                 animation: spin 1s linear infinite;
                 margin-bottom: 20px;
@@ -842,12 +842,12 @@
             }
             
             .lemonsqueezer-btn-primary {
-                background: #007AFF;
-                color: white;
+                background: #FFD400;
+                color: #0D1117;
             }
-            
+
             .lemonsqueezer-btn-primary:hover {
-                background: #005ce6;
+                background: #FFB800;
             }
             
             .lemonsqueezer-btn-secondary {
@@ -1025,6 +1025,9 @@
                 summaryProfile: request.summaryProfile || 'standard',
                 summaryModel: request.summaryModel || 'gpt-5-nano'
             };
+            if ([10, 20, 50].includes(Number(request.squeeze))) {
+                requestBody.squeeze = Number(request.squeeze);
+            }
 
             if (isYouTubeVideoUrl(request.url)) {
                 const transcript = await getYouTubeTranscript();

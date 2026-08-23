@@ -56,6 +56,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     const summarizeBtn = document.getElementById('summarizeBtn');
     const languageSelect = document.getElementById('language');
+    const squeezeSelect = document.getElementById('squeeze');
     const historyList = document.getElementById('historyList');
     const clearHistoryBtn = document.getElementById('clearHistoryBtn');
     
@@ -84,10 +85,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const supportedLanguage = ['it', 'en', 'es', 'fr', 'de', 'zh', 'ja', 'pt', 'ko'].includes(browserLanguage)
         ? browserLanguage : 'en';
     const uiText = {
-        it: { summary: 'Riassumi questa pagina', tagline: 'Riassunti rapidi e puliti', options: 'Opzioni', history: 'Cronologia', user: 'User', premium: 'Piano Premium', free: 'Piano Free', unlimited: 'Riassunti illimitati', summaries: 'riassunti', month: 'Questo mese', total: 'Totale', saved: 'risparmiati', output: 'Output', language: 'Lingua riassunto', logout: 'Esci', emptyHistory: 'I tuoi ultimi riassunti appariranno qui.', login: 'Accedi per continuare', or: 'oppure', create: 'Crea account', clear: 'Svuota' },
-        en: { summary: 'Summarize this page', tagline: 'Fast, clean summaries', options: 'Options', history: 'History', user: 'User', premium: 'Premium plan', free: 'Free plan', unlimited: 'Unlimited summaries', summaries: 'summaries', month: 'This month', total: 'Total', saved: 'saved', output: 'Output', language: 'Summary language', logout: 'Log out', emptyHistory: 'Your latest summaries will appear here.', login: 'Sign in to continue', or: 'or', create: 'Create account', clear: 'Clear' }
+        it: { summary: 'Riassumi questa pagina', tagline: 'Skip the noise. Get the point.', options: 'Opzioni', history: 'Cronologia', user: 'User', premium: 'Piano Premium', free: 'Piano Free', unlimited: 'Riassunti illimitati', summaries: 'riassunti', month: 'Questo mese', total: 'Totale', saved: 'risparmiati', output: 'Output', language: 'Lingua riassunto', logout: 'Esci', emptyHistory: 'I tuoi ultimi riassunti appariranno qui.', login: 'Accedi per continuare', or: 'oppure', create: 'Crea account', clear: 'Svuota' },
+        en: { summary: 'Summarize this page', tagline: 'Skip the noise. Get the point.', options: 'Options', history: 'History', user: 'User', premium: 'Premium plan', free: 'Free plan', unlimited: 'Unlimited summaries', summaries: 'summaries', month: 'This month', total: 'Total', saved: 'saved', output: 'Output', language: 'Summary language', logout: 'Log out', emptyHistory: 'Your latest summaries will appear here.', login: 'Sign in to continue', or: 'or', create: 'Create account', clear: 'Clear' }
     }[supportedLanguage] || null;
-    const text = uiText || { summary: 'Summarize this page', tagline: 'Fast, clean summaries', options: 'Options', history: 'History', user: 'User', premium: 'Premium plan', free: 'Free plan', unlimited: 'Unlimited summaries', summaries: 'summaries', month: 'This month', total: 'Total', saved: 'saved', output: 'Output', language: 'Summary language', logout: 'Log out', emptyHistory: 'Your latest summaries will appear here.', login: 'Sign in to continue', or: 'or', create: 'Create account', clear: 'Clear' };
+    const text = uiText || { summary: 'Summarize this page', tagline: 'Skip the noise. Get the point.', options: 'Options', history: 'History', user: 'User', premium: 'Premium plan', free: 'Free plan', unlimited: 'Unlimited summaries', summaries: 'summaries', month: 'This month', total: 'Total', saved: 'saved', output: 'Output', language: 'Summary language', logout: 'Log out', emptyHistory: 'Your latest summaries will appear here.', login: 'Sign in to continue', or: 'or', create: 'Create account', clear: 'Clear' };
     document.documentElement.lang = supportedLanguage;
     document.querySelector('.header p').textContent = text.tagline;
     document.querySelector('.login-title').textContent = text.login;
@@ -107,9 +108,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.querySelector('label[for="language"]').textContent = text.output;
     document.querySelector('.config-card h3').lastChild.textContent = `\n                    ${text.language}\n                `;
     if (languageSelect) {
-        languageSelect.value = supportedLanguage;
-        languageSelect.closest('.input-group')?.classList.add('browser-language-setting');
-        languageSelect.disabled = true;
+        // La lingua di output è scelta dall'utente e persistita. Default: preferenza
+        // salvata, altrimenti lingua del browser se supportata, altrimenti italiano.
+        const { summaryLanguage } = await chrome.storage.local.get(['summaryLanguage']);
+        const available = Array.from(languageSelect.options).map((o) => o.value);
+        languageSelect.value = (summaryLanguage && available.includes(summaryLanguage))
+            ? summaryLanguage
+            : (available.includes(supportedLanguage) ? supportedLanguage : 'it');
+        languageSelect.disabled = false;
+        languageSelect.addEventListener('change', () => {
+            chrome.storage.local.set({ summaryLanguage: languageSelect.value });
+        });
+    }
+
+    if (squeezeSelect) {
+        // % di testo originale da mantenere nella sintesi (10/20/50). Default 20%.
+        const { squeezePercent } = await chrome.storage.local.get(['squeezePercent']);
+        const opts = Array.from(squeezeSelect.options).map((o) => o.value);
+        squeezeSelect.value = (squeezePercent && opts.includes(String(squeezePercent)))
+            ? String(squeezePercent) : '20';
+        squeezeSelect.addEventListener('change', () => {
+            chrome.storage.local.set({ squeezePercent: squeezeSelect.value });
+        });
     }
 
     async function renderHistory() {
@@ -633,6 +653,7 @@ if (!email || !password) {
                 requestId: crypto.randomUUID(),
                 url: tab.url,
                 lang: languageSelect?.value || 'it',
+                squeeze: Number(squeezeSelect?.value) || 20,
                 summaryProfile: 'standard',
                 summaryModel: 'gpt-5-nano'
             };

@@ -6,6 +6,9 @@ import { lookup } from 'node:dns/promises';
 
 // Config
 const MAX_TEXT_CHARS = parseInt(process.env.MAX_TEXT_CHARS || '6000', 10);
+// Sopra questa dimensione HTML si salta JSDOM+Readability (troppo lento su Lambda)
+// e si usa il path cheerio veloce. ~350KB ≈ ≤12s su Lambda, dentro i 29s.
+const MAX_HTML_FOR_READABILITY = parseInt(process.env.MAX_HTML_FOR_READABILITY || '350000', 10);
 
 function isPrivateAddress(address) {
     if (isIP(address) === 4) {
@@ -44,8 +47,28 @@ async function assertPublicUrl(validUrl) {
  * @param {string} html - HTML da processare
  * @returns {string} - Testo pulito
  */
+// Estrazione veloce con cheerio (htmlparser2): millisecondi anche su ~1MB.
+// Usata come fallback per pagine non-articolo e per le pagine troppo grandi.
+function extractWithCheerio(html) {
+    const $ = cheerio.load(html);
+    $('script, style, nav, footer, header, aside, noscript, iframe, svg, form, button, [role="navigation"], [role="complementary"]').remove();
+    const main = $('article, main, [role="main"], .article-body, .article__body, .story-body, .entry-content, .post-content, #mw-content-text').first();
+    const text = (main.length ? main.text() : $('body').text()) || $('html').text() || '';
+    return text.replace(/\s+/g, ' ').trim();
+}
+
 export function extractTextFromHtml(html, url = 'https://example.com/') {
     try {
+        // JSDOM+Readability è super-lineare nella dimensione del DOM e gira su un
+        // Lambda con CPU limitata: una homepage di news da ~958KB ha misurato 47s,
+        // oltre il limite di 29s di API Gateway (HTTP 504). Sopra la soglia si usa
+        // il path cheerio veloce (~1s anche a ~1MB). Le pagine-articolo normali
+        // (sotto soglia) restano su Readability, che dà qualità migliore.
+        if (html.length > MAX_HTML_FOR_READABILITY) {
+            console.log(`HTML ${html.length} > ${MAX_HTML_FOR_READABILITY}: fast cheerio extraction`);
+            return extractWithCheerio(html);
+        }
+
         // Readability is purpose-built to isolate an article from chrome such
         // as navigation, sidebars, related links and page footer. It is the
         // primary extractor for newspapers and regular editorial pages.
@@ -59,18 +82,17 @@ export function extractTextFromHtml(html, url = 'https://example.com/') {
         // Not every useful page is an article (documentation, simple blogs,
         // knowledge bases). Keep a constrained fallback instead of sending an
         // entire body, which was the cause of footer/menu summaries.
-        const $ = cheerio.load(html);
-        $('script, style, nav, footer, header, aside, noscript, iframe, svg, form, button, [role="navigation"], [role="complementary"]').remove();
-        const main = $('article, main, [role="main"], .article-body, .article__body, .story-body, .entry-content, .post-content, #mw-content-text').first();
-        let text = (main.length ? main.text() : $('body').text()) || $('html').text() || '';
-        
-        // Normalize whitespace
-        text = text.replace(/\s+/g, ' ').trim();
-        return text;
-        
+        return extractWithCheerio(html);
+
     } catch (error) {
         console.error('Error extracting text from HTML:', error);
-        throw new Error('Failed to extract text from HTML');
+        // Readability può lanciare su DOM anomali: non rinunciare al riassunto,
+        // prova comunque il path cheerio prima di fallire.
+        try {
+            return extractWithCheerio(html);
+        } catch {
+            throw new Error('Failed to extract text from HTML');
+        }
     }
 }
 

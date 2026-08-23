@@ -311,7 +311,9 @@ export async function summarizeUrlHandler(event) {
             ? body.summaryProfile
             : 'standard';
         const summaryModel = getSummaryModel(body.summaryModel);
-        
+        // squeeze = % del testo originale da mantenere nella sintesi (10/20/50). Default 20.
+        const squeeze = [10, 20, 50].includes(Number(body.squeeze)) ? Number(body.squeeze) : 20;
+
         let text;
         let title;
         let fetchTime = 0;
@@ -353,6 +355,7 @@ export async function summarizeUrlHandler(event) {
             text,
             language,
             summaryProfile,
+            squeeze,
             model: summaryModel,
             sourceType,
             videoDurationSeconds: hasTranscript ? videoDurationSeconds : 0,
@@ -392,6 +395,7 @@ export async function summarizeUrlHandler(event) {
             language: body.lang || 'it',
             sourceType,
             summaryProfile,
+            squeeze,
             model: summaryModel,
             videoDurationSeconds: hasTranscript ? videoDurationSeconds : undefined,
             description: hasTranscript ? videoDescription : undefined,

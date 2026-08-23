@@ -56,9 +56,13 @@ export function buildSummaryPlan(content) {
     const sourceEquivalentWords = isVideo && Number(content.videoDurationSeconds) > 0
         ? Math.round((Number(content.videoDurationSeconds) / 60) * WORDS_PER_MINUTE)
         : countWords(content.text);
-    // I riassunti video risultavano troppo sintetici. Per i video si abbassa il
-    // risparmio (più contenuto) e si alza il tetto dei bullet.
-    const savingsPercent = isVideo ? Math.min(profile.savingsPercent, 75) : profile.savingsPercent;
+    // squeeze = % del testo originale da mantenere nella sintesi (10/20/50).
+    // Se presente ha la priorità: savings = 100 - squeeze. Altrimenti si usa il
+    // profilo, con i video meno sintetici (risparmio massimo 75%).
+    const squeeze = [10, 20, 50].includes(Number(content.squeeze)) ? Number(content.squeeze) : null;
+    const savingsPercent = squeeze !== null
+        ? (100 - squeeze)
+        : (isVideo ? Math.min(profile.savingsPercent, 75) : profile.savingsPercent);
     const bulletCap = isVideo ? 12 : 8;
     const targetWords = Math.max(1, Math.min(
         MAX_SUMMARY_WORDS,
@@ -104,9 +108,11 @@ ${description}`;
     }
 
     if (hasComments) {
+        const COMMENTS_LABEL = { it: 'Commenti', en: 'Comments', es: 'Comentarios', fr: 'Commentaires', de: 'Kommentare' };
+        const commentsLabel = COMMENTS_LABEL[language] || COMMENTS_LABEL.it;
         userPrompt += `
 
-Commenti degli utenti (NON usarli per il nucleo). Sintetizzali in UN SOLO bullet finale, aggiuntivo rispetto ai ${plan.bulletCount} del nucleo, che inizi ESATTAMENTE con "💬 Commenti:" e indichi in breve di cosa si discute e il sentiment prevalente:
+Commenti degli utenti (NON usarli per il nucleo). Sintetizzali in UN SOLO bullet finale, aggiuntivo rispetto ai ${plan.bulletCount} del nucleo, scritto in ${outputLanguage}, che inizi ESATTAMENTE con "💬 ${commentsLabel}:" e indichi in breve di cosa si discute e il sentiment prevalente:
 ${comments.join('\n')}`;
     }
 
