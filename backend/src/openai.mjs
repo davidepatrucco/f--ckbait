@@ -161,9 +161,6 @@ export async function summarizeWithOpenAI(content) {
             model,
             messages,
             reasoning_effort: 'minimal',
-            // Reasoning models can consume completion tokens before emitting JSON.
-            // Keep enough headroom even for very short summaries.
-            max_completion_tokens: Math.max(1200, Math.min(4000, plan.targetWords * 6 + 400)),
             response_format: strictSchema ? {
                 type: 'json_schema',
                 json_schema: {
@@ -188,8 +185,7 @@ export async function summarizeWithOpenAI(content) {
         const requestPlainCompletion = async (messages) => client.chat.completions.create({
             model,
             messages,
-            reasoning_effort: 'minimal',
-            max_completion_tokens: 3000
+            reasoning_effort: 'minimal'
         });
         // Keep the proven plain-text path as the primary request. Structured
         // output is only a recovery path; it must never block a summary.
