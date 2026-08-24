@@ -36,7 +36,7 @@ const ALLOWED_ORIGINS = new Set(
 function getCorsHeaders(event) {
     const origin = event.headers?.origin || event.headers?.Origin || '';
     const headers = {
-        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+        'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Brand,X-Client,X-Client-Version',
         'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
     };
     if (ALLOWED_ORIGINS.has(origin)) {

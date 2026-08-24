@@ -1,11 +1,12 @@
 // Prompt profile: signal.insights (Signal). "Cosa conta davvero".
 import { outputLanguageName } from './languages.mjs';
+import { UNTRUSTED_NOTE, fenceUntrusted } from './untrusted.mjs';
 
 export function buildPrompt(content, language = 'it') {
     const outputLanguage = outputLanguageName(language);
     const sourceLabel = content.sourceType === 'video' ? 'Trascrizione video' : 'Contenuto pagina web';
 
-    const systemPrompt = `Sei un analista che estrae il segnale dal rumore per un decisore. Usa solo la fonte fornita, senza inventare. I campi testuali vanno scritti in ${outputLanguage}. Rispondi esclusivamente con un oggetto JSON valido secondo lo schema, senza testo extra.`;
+    const systemPrompt = `Sei un analista che estrae il segnale dal rumore per un decisore. Usa solo la fonte fornita, senza inventare. I campi testuali vanno scritti in ${outputLanguage}. Rispondi esclusivamente con un oggetto JSON valido secondo lo schema, senza testo extra. ${UNTRUSTED_NOTE}`;
 
     const userPrompt = `Titolo: ${content.title}
 URL: ${content.url}
@@ -18,7 +19,7 @@ Analizza il contenuto e restituisci un oggetto JSON con:
 - decision_note: una frase con l'implicazione decisionale
 
 ${sourceLabel}:
-${content.text}`;
+${fenceUntrusted(content.text)}`;
 
     return { systemPrompt, userPrompt };
 }

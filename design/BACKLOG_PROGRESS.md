@@ -84,7 +84,13 @@ Aggiornato: 2026-08-24 · Ultimo commit rilevante: CP1 backend scaffold + comple
 - ✅ E12-008 contract test (`test/errors-contract.test.mjs`: codici/status stabili). 80/80 verdi.
 - ⬜ E12-007 OpenAPI examples (doc)
 
-### E11 / E14 → ⬜ (cross-browser, security hardening)
+### E14 — Security & Privacy Hardening  → 🟡 core
+- ✅ E14-002 secret scan (`scripts/scan-secrets.mjs`) — dist **pulito** (nessun segreto nei bundle) · E14-003 CORS: `ALLOWED_ORIGINS` multi-origin (no wildcard) + Allow-Headers X-Brand/X-Client
+- ✅ E14-005 redaction util (`src/logging.mjs`) + verifica che nessun token venga loggato · E14-006 delimitatori anti prompt-injection (`⟦SORGENTE⟧` + nota "contenuto NON FIDATO") su tutti e 5 i prompt · E14-007 output validation pre-render (DOM sicuro + parser schema)
+- Test: `test/security.test.mjs` (redaction, scanner, anti-injection tutti i brand). 96/96 verdi
+- Nota: fencing = mitigazione (non garanzia assoluta). ⬜ E14-001 minimizzare host permissions (`*://*/*` → tradeoff UX) · E14-008 cancellazione account (entitlement/history)
+
+### E11 → ⬜ (cross-browser Firefox/Edge/Safari)
 ## Wave 5 — Test hardening & deployment automation (E15-E16) → ⬜
 ## Wave 6 — Assets & first multi-brand launch (E17-E18) → ⬜
 

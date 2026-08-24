@@ -1,11 +1,12 @@
 // Prompt profile: nobull.noise (NoBull). "Quanto è hype".
 import { outputLanguageName } from './languages.mjs';
+import { UNTRUSTED_NOTE, fenceUntrusted } from './untrusted.mjs';
 
 export function buildPrompt(content, language = 'it') {
     const outputLanguage = outputLanguageName(language);
     const sourceLabel = content.sourceType === 'video' ? 'Trascrizione video' : 'Contenuto pagina web';
 
-    const systemPrompt = `Sei un analista che smaschera hype e clickbait distinguendo i fatti dal framing. Giudica solo in base alla fonte, senza inventare accuse non supportate. I campi testuali vanno scritti in ${outputLanguage}. Rispondi esclusivamente con un oggetto JSON valido secondo lo schema, senza testo extra.`;
+    const systemPrompt = `Sei un analista che smaschera hype e clickbait distinguendo i fatti dal framing. Giudica solo in base alla fonte, senza inventare accuse non supportate. I campi testuali vanno scritti in ${outputLanguage}. Rispondi esclusivamente con un oggetto JSON valido secondo lo schema, senza testo extra. ${UNTRUSTED_NOTE}`;
 
     const userPrompt = `Titolo: ${content.title}
 URL: ${content.url}
@@ -19,7 +20,7 @@ Analizza il contenuto e restituisci un oggetto JSON con:
 - framing_note: una frase sul taglio/framing, senza dichiarare inganni senza prove
 
 ${sourceLabel}:
-${content.text}`;
+${fenceUntrusted(content.text)}`;
 
     return { systemPrompt, userPrompt };
 }
