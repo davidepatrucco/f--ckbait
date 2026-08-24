@@ -2,14 +2,27 @@
   "Version": "2012-10-17",
   "Statement": [
     {
+      "Sid": "ManageLambdaExecutionRolesPerEnv",
       "Effect": "Allow",
-      "Action": ["iam:GetRole", "iam:PutRolePolicy", "iam:DeleteRolePolicy", "iam:PassRole"],
-      "Resource": "arn:aws:iam::707688585651:role/lemonsqueezer-*-SummarizeFunctionRole-*"
-    },
-    {
-      "Effect": "Allow",
-      "Action": ["iam:GetRole", "iam:PassRole"],
-      "Resource": "arn:aws:iam::707688585651:role/lemonsqueezer-*-StripeWebhookFunctionRole-*"
+      "Action": [
+        "iam:CreateRole",
+        "iam:DeleteRole",
+        "iam:GetRole",
+        "iam:PassRole",
+        "iam:PutRolePolicy",
+        "iam:DeleteRolePolicy",
+        "iam:GetRolePolicy",
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy",
+        "iam:ListRolePolicies",
+        "iam:ListAttachedRolePolicies",
+        "iam:TagRole",
+        "iam:UntagRole"
+      ],
+      "Resource": [
+        "arn:aws:iam::707688585651:role/lemonsqueezer-*-SummarizeFunctionRole-*",
+        "arn:aws:iam::707688585651:role/lemonsqueezer-*-StripeWebhookFunctionRole-*"
+      ]
     }
   ]
 }
