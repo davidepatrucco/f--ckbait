@@ -2,15 +2,15 @@
 
 import jwt from 'jsonwebtoken';
 import crypto from 'node:crypto';
-import { 
-    getUserById, 
+import {
+    getUserById,
     getUserByEmail,
-    createUser, 
-    updateLastLogin, 
-    incrementUserUsage, 
-    resetUserUsage,
-    formatUserFromDynamoDB 
+    createUser,
+    updateLastLogin,
+    incrementBrandUsage,
+    formatUserFromDynamoDB
 } from './dynamodb.mjs';
+import { getFreeLimit, DEFAULT_BRAND } from './brands.mjs';
 import { SecretsManager } from './secrets.mjs';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -71,23 +71,14 @@ export async function loginWithGoogle(googleToken) {
             // Utente esistente - aggiorna ultimo login
             await updateLastLogin(userId);
             user = formatUserFromDynamoDB(dynamoUser);
-            
-            // Reset usage se è passato il mese
-            if (new Date() > new Date(user.usage.resetDate)) {
-                const newResetDate = getNextResetDate();
-                const updatedUser = await resetUserUsage(userId, newResetDate);
-                user = formatUserFromDynamoDB(updatedUser);
-            }
+            // Il reset mensile è per-brand ed è gestito lazy al momento del riassunto.
         }
-        
-        // Genera JWT token
+
+        // Genera JWT token. Nessun `plan` globale: il piano è per-brand e va letto
+        // sempre dal record fresco (regola "no global plan in JWT").
         const jwtSecret = await secretsManager.getSecret('JWT_SECRET');
         const authToken = jwt.sign(
-            { 
-                userId: user.id, 
-                email: user.email,
-                plan: user.plan 
-            },
+            { userId: user.id, email: user.email },
             jwtSecret,
             { expiresIn: '30d' }
         );
@@ -145,11 +136,7 @@ export async function registerWithEmail(email, password, name) {
 
         const jwtSecret = await secretsManager.getSecret('JWT_SECRET');
         const authToken = jwt.sign(
-            { 
-                userId: newUser.id, 
-                email: newUser.email,
-                plan: newUser.plan 
-            },
+            { userId: newUser.id, email: newUser.email },
             jwtSecret,
             { expiresIn: '30d' }
         );
@@ -188,21 +175,12 @@ export async function loginWithEmail(email, password) {
         }
 
         await updateLastLogin(dynamoUser.id);
-        let user = formatUserFromDynamoDB(dynamoUser);
-
-        if (new Date() > new Date(user.usage.resetDate)) {
-            const newResetDate = getNextResetDate();
-            const updatedUser = await resetUserUsage(user.id, newResetDate);
-            user = formatUserFromDynamoDB(updatedUser);
-        }
+        const user = formatUserFromDynamoDB(dynamoUser);
+        // Reset mensile per-brand: gestito lazy al momento del riassunto.
 
         const jwtSecret = await secretsManager.getSecret('JWT_SECRET');
         const authToken = jwt.sign(
-            { 
-                userId: user.id, 
-                email: user.email,
-                plan: user.plan 
-            },
+            { userId: user.id, email: user.email },
             jwtSecret,
             { expiresIn: '30d' }
         );
@@ -234,50 +212,82 @@ export async function verifyAuthToken(token) {
             throw new Error('Utente non trovato');
         }
         
-        let user = formatUserFromDynamoDB(dynamoUser);
-        
-        // Reset usage se è passato il mese
-        if (new Date() > new Date(user.usage.resetDate)) {
-            const newResetDate = getNextResetDate();
-            const updatedUser = await resetUserUsage(decoded.userId, newResetDate);
-            user = formatUserFromDynamoDB(updatedUser);
-        }
-        
-        return user;
+        // Il reset mensile è per-brand ed è gestito lazy in canUserSummarize/incrementUsage.
+        return formatUserFromDynamoDB(dynamoUser);
     } catch (error) {
         throw new Error('Token non valido: ' + error.message);
     }
 }
 
 /**
- * Verifica se l'utente può fare un riassunto
+ * Restituisce l'entitlement per uno specifico brand (o un default free se assente).
  */
-export function canUserSummarize(user) {
-    if (user.plan === 'premium') {
+export function getEntitlement(user, brandId) {
+    const freeLimit = getFreeLimit(brandId);
+    const raw = user?.entitlements?.[brandId];
+    if (!raw) {
+        return { plan: 'free', usage: { used: 0, limit: freeLimit, resetDate: null }, subscriptionStatus: 'none', exists: false };
+    }
+    return {
+        plan: raw.plan || 'free',
+        usage: {
+            used: raw.usage_used || 0,
+            limit: raw.usage_limit || freeLimit,
+            resetDate: raw.usage_reset_date || null
+        },
+        subscriptionStatus: raw.subscription_status || 'none',
+        stripeCustomerId: raw.stripe_customer_id || null,
+        stripeSubscriptionId: raw.stripe_subscription_id || null,
+        exists: true
+    };
+}
+
+/**
+ * Verifica se l'utente può fare un riassunto per uno specifico brand.
+ * Quota indipendente per brand. Reset mensile valutato lazy.
+ */
+export function canUserSummarize(user, brandId = DEFAULT_BRAND) {
+    const ent = getEntitlement(user, brandId);
+    if (ent.plan === 'premium') {
         return { canSummarize: true };
     }
-    
-    // Piano free - controlla limiti
-    if (user.usage.used >= user.usage.limit) {
+    // Se il periodo è scaduto, l'utilizzo effettivo riparte da 0.
+    const expired = ent.usage.resetDate && new Date() > new Date(ent.usage.resetDate);
+    const effectiveUsed = expired ? 0 : ent.usage.used;
+    if (effectiveUsed >= ent.usage.limit) {
         return {
             canSummarize: false,
             reason: 'Limite mensile raggiunto',
-            resetDate: user.usage.resetDate
+            resetDate: ent.usage.resetDate
         };
     }
-    
     return { canSummarize: true };
 }
 
 /**
- * Incrementa il contatore di utilizzo
+ * Incrementa il contatore di utilizzo per uno specifico brand.
  */
-export async function incrementUsage(user) {
-    if (user.plan === 'free') {
-        const updatedUser = await incrementUserUsage(user.id);
-        return formatUserFromDynamoDB(updatedUser);
+export async function incrementUsage(user, brandId = DEFAULT_BRAND) {
+    const ent = getEntitlement(user, brandId);
+    if (ent.plan === 'premium') {
+        return user;
     }
-    return user;
+    const expired = ent.usage.resetDate && new Date() > new Date(ent.usage.resetDate);
+    // Semina l'entitlement con i valori correnti (continuità per utenti legacy).
+    const updated = await incrementBrandUsage(user.id, brandId, {
+        seed: {
+            plan: ent.plan,
+            usage_used: ent.usage.used,
+            usage_limit: ent.usage.limit,
+            usage_reset_date: ent.usage.resetDate || getNextResetDate(),
+            subscription_status: ent.subscriptionStatus,
+            stripe_customer_id: ent.stripeCustomerId,
+            stripe_subscription_id: ent.stripeSubscriptionId
+        },
+        resetIfExpired: expired,
+        resetDate: getNextResetDate()
+    });
+    return formatUserFromDynamoDB(updated);
 }
 
 /**

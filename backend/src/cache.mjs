@@ -22,6 +22,7 @@ const CACHE_VERSION = 'summary-v3';
  * soltanto dall'URL. Non salviamo mai il testo nella chiave o nella tabella.
  */
 export function buildSummaryCacheKey({
+    brandId = 'lemonsqueezer',
     text,
     language = 'it',
     summaryProfile = 'standard',
@@ -36,6 +37,7 @@ export function buildSummaryCacheKey({
     const contentHash = createHash('sha256').update(normalizedText).digest('hex');
     const keyParts = [
         CACHE_VERSION,
+        `b:${brandId}`,
         contentHash,
         language,
         summaryProfile,

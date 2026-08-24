@@ -2,6 +2,7 @@
 
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { DEFAULT_BRAND } from './brands.mjs';
 
 // Configurazione DynamoDB
 const client = new DynamoDBClient({
@@ -59,6 +60,10 @@ export async function getUserByEmail(email) {
  */
 export async function createUser(userdata) {
     try {
+        // Identità condivisa; l'entitlement commerciale è per-brand.
+        // Al signup si inizializza l'entitlement del brand di provenienza
+        // (default LemonSqueezer). Gli altri brand vengono creati lazy al primo uso.
+        const initBrand = userdata.brand || DEFAULT_BRAND;
         const command = new PutCommand({
             TableName: TABLE_NAME,
             Item: {
@@ -66,15 +71,22 @@ export async function createUser(userdata) {
                 email: userdata.email,
                 name: userdata.name,
                 picture: userdata.picture,
-                plan: userdata.plan || 'free',
                 auth_provider: userdata.authProvider,
                 password_hash: userdata.passwordHash,
                 password_salt: userdata.passwordSalt,
-                usage_used: userdata.usage?.used || 0,
-                usage_limit: userdata.usage?.limit || 10,
-                usage_reset_date: userdata.usage?.resetDate,
                 created_at: userdata.createdAt,
-                last_login: userdata.lastLogin
+                last_login: userdata.lastLogin,
+                entitlements: {
+                    [initBrand]: {
+                        plan: userdata.plan || 'free',
+                        usage_used: userdata.usage?.used || 0,
+                        usage_limit: userdata.usage?.limit || 10,
+                        usage_reset_date: userdata.usage?.resetDate || null,
+                        subscription_status: 'none',
+                        stripe_customer_id: null,
+                        stripe_subscription_id: null
+                    }
+                }
             },
             // Non sovrascrivere se l'utente esiste già
             ConditionExpression: 'attribute_not_exists(id)'
@@ -116,75 +128,111 @@ export async function updateLastLogin(userId) {
 }
 
 /**
- * Incrementa contatore utilizzo
+ * Garantisce che esista l'entitlement per-brand (mappa entitlements + brand).
+ * Idempotente via if_not_exists. Necessario prima di aggiornare percorsi annidati.
  */
-export async function incrementUserUsage(userId) {
+async function ensureBrandEntitlement(userId, brandId, init) {
+    await docClient.send(new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: { id: userId },
+        UpdateExpression: 'SET entitlements = if_not_exists(entitlements, :empty)',
+        ExpressionAttributeValues: { ':empty': {} }
+    }));
+    await docClient.send(new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: { id: userId },
+        UpdateExpression: 'SET entitlements.#b = if_not_exists(entitlements.#b, :init)',
+        ExpressionAttributeNames: { '#b': brandId },
+        ExpressionAttributeValues: { ':init': init }
+    }));
+}
+
+/**
+ * Incrementa il contatore di utilizzo per uno specifico brand.
+ * Gestisce inizializzazione lazy dell'entitlement e reset mensile.
+ */
+export async function incrementBrandUsage(userId, brandId, { seed, resetIfExpired, resetDate }) {
     try {
-        const command = new UpdateCommand({
+        // `seed` = entitlement corrente (per utenti legacy proviene dagli attributi
+        // piatti via shim, così il conteggio non riparte da zero). Se l'entitlement
+        // esiste già, l'ensure è un no-op (if_not_exists).
+        await ensureBrandEntitlement(userId, brandId, {
+            plan: seed?.plan || 'free',
+            usage_used: seed?.usage_used || 0,
+            usage_limit: seed?.usage_limit || 10,
+            usage_reset_date: seed?.usage_reset_date || resetDate,
+            subscription_status: seed?.subscription_status || 'none',
+            stripe_customer_id: seed?.stripe_customer_id || null,
+            stripe_subscription_id: seed?.stripe_subscription_id || null
+        });
+
+        let UpdateExpression;
+        const ExpressionAttributeValues = { ':one': 1 };
+        if (resetIfExpired) {
+            // Nuovo periodo: azzera e conta questo utilizzo come 1.
+            UpdateExpression = 'SET entitlements.#b.usage_used = :one, entitlements.#b.usage_reset_date = :reset';
+            ExpressionAttributeValues[':reset'] = resetDate;
+        } else {
+            UpdateExpression = 'SET entitlements.#b.usage_used = if_not_exists(entitlements.#b.usage_used, :zero) + :one';
+            ExpressionAttributeValues[':zero'] = 0;
+        }
+
+        const response = await docClient.send(new UpdateCommand({
             TableName: TABLE_NAME,
             Key: { id: userId },
-            UpdateExpression: 'ADD usage_used :increment',
-            ExpressionAttributeValues: {
-                ':increment': 1
-            },
+            UpdateExpression,
+            ExpressionAttributeNames: { '#b': brandId },
+            ExpressionAttributeValues,
             ReturnValues: 'ALL_NEW'
-        });
-        
-        const response = await docClient.send(command);
+        }));
         return response.Attributes;
-        
     } catch (error) {
-        console.error('Error incrementing usage:', error);
+        console.error('Error incrementing brand usage:', error);
         throw new Error('Errore aggiornamento utilizzo');
     }
 }
 
 /**
- * Reset contatore utilizzo mensile
+ * Aggiorna piano/subscription di uno specifico brand (free <-> premium).
+ * extra: { subscriptionStatus, stripeCustomerId, stripeSubscriptionId }.
  */
-export async function resetUserUsage(userId, newResetDate) {
+export async function updateUserPlan(userId, brandId, newPlan, extra = {}) {
     try {
-        const command = new UpdateCommand({
-            TableName: TABLE_NAME,
-            Key: { id: userId },
-            UpdateExpression: 'SET usage_used = :zero, usage_reset_date = :resetDate',
-            ExpressionAttributeValues: {
-                ':zero': 0,
-                ':resetDate': newResetDate
-            },
-            ReturnValues: 'ALL_NEW'
+        await ensureBrandEntitlement(userId, brandId, {
+            plan: 'free',
+            usage_used: 0,
+            usage_limit: 10,
+            usage_reset_date: null,
+            subscription_status: 'none',
+            stripe_customer_id: null,
+            stripe_subscription_id: null
         });
-        
-        const response = await docClient.send(command);
-        return response.Attributes;
-        
-    } catch (error) {
-        console.error('Error resetting usage:', error);
-        throw new Error('Errore reset utilizzo');
-    }
-}
 
-/**
- * Aggiorna piano utente (free -> premium)
- */
-export async function updateUserPlan(userId, newPlan) {
-    try {
-        const command = new UpdateCommand({
+        let UpdateExpression = 'SET entitlements.#b.#plan = :plan';
+        const ExpressionAttributeNames = { '#b': brandId, '#plan': 'plan' };
+        const ExpressionAttributeValues = { ':plan': newPlan };
+        if (extra.subscriptionStatus !== undefined) {
+            UpdateExpression += ', entitlements.#b.subscription_status = :ss';
+            ExpressionAttributeValues[':ss'] = extra.subscriptionStatus;
+        }
+        if (extra.stripeCustomerId !== undefined) {
+            UpdateExpression += ', entitlements.#b.stripe_customer_id = :sc';
+            ExpressionAttributeValues[':sc'] = extra.stripeCustomerId;
+        }
+        if (extra.stripeSubscriptionId !== undefined) {
+            UpdateExpression += ', entitlements.#b.stripe_subscription_id = :sid';
+            ExpressionAttributeValues[':sid'] = extra.stripeSubscriptionId;
+        }
+
+        const response = await docClient.send(new UpdateCommand({
             TableName: TABLE_NAME,
             Key: { id: userId },
-            UpdateExpression: 'SET #plan = :plan',
-            ExpressionAttributeNames: {
-                '#plan': 'plan'
-            },
-            ExpressionAttributeValues: {
-                ':plan': newPlan
-            },
+            UpdateExpression,
+            ExpressionAttributeNames,
+            ExpressionAttributeValues,
             ReturnValues: 'ALL_NEW'
-        });
-        
-        const response = await docClient.send(command);
+        }));
         return response.Attributes;
-        
     } catch (error) {
         console.error('Error updating user plan:', error);
         throw new Error('Errore aggiornamento piano');
@@ -192,23 +240,45 @@ export async function updateUserPlan(userId, newPlan) {
 }
 
 /**
- * Converte formato DynamoDB in formato applicazione
+ * Converte formato DynamoDB in formato applicazione.
+ * Espone `entitlements` (per-brand). Include una proiezione retrocompatibile
+ * top-level (plan/usage) sul brand di default, così i consumer legacy che leggono
+ * user.plan/user.usage continuano a funzionare (LemonSqueezer invariato).
  */
 export function formatUserFromDynamoDB(dynamoUser) {
     if (!dynamoUser) return null;
-    
+
+    let entitlements = dynamoUser.entitlements;
+    if (!entitlements || typeof entitlements !== 'object' || Object.keys(entitlements).length === 0) {
+        // Shim legacy: utenti pre-multibrand con attributi piatti -> LemonSqueezer.
+        entitlements = {
+            [DEFAULT_BRAND]: {
+                plan: dynamoUser.plan || 'free',
+                usage_used: dynamoUser.usage_used || 0,
+                usage_limit: dynamoUser.usage_limit || 10,
+                usage_reset_date: dynamoUser.usage_reset_date || null,
+                subscription_status: dynamoUser.subscription_status || 'none',
+                stripe_customer_id: dynamoUser.stripe_customer_id || null,
+                stripe_subscription_id: dynamoUser.stripe_subscription_id || null
+            }
+        };
+    }
+
+    const def = entitlements[DEFAULT_BRAND] || {};
     return {
         id: dynamoUser.id,
         email: dynamoUser.email,
         name: dynamoUser.name,
         picture: dynamoUser.picture,
-        plan: dynamoUser.plan,
-        usage: {
-            used: dynamoUser.usage_used || 0,
-            limit: dynamoUser.usage_limit || 10,
-            resetDate: dynamoUser.usage_reset_date
-        },
         createdAt: dynamoUser.created_at,
-        lastLogin: dynamoUser.last_login
+        lastLogin: dynamoUser.last_login,
+        entitlements,
+        // Proiezione retrocompatibile (brand di default).
+        plan: def.plan || 'free',
+        usage: {
+            used: def.usage_used || 0,
+            limit: def.usage_limit || 10,
+            resetDate: def.usage_reset_date || null
+        }
     };
 }

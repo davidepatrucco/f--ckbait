@@ -3,7 +3,8 @@ import { summarizeWithOpenAI, getSummaryModel } from '../src/openai.mjs';
 import { validateSubscription } from '../src/subscription.mjs';
 import { checkRateLimit } from '../src/rate-limit.mjs';
 import { fetchWebContent } from '../src/web-fetcher.mjs';
-import { loginWithGoogle, loginWithEmail, registerWithEmail, verifyAuthToken, requireAuth, canUserSummarize, incrementUsage } from '../src/auth.mjs';
+import { loginWithGoogle, loginWithEmail, registerWithEmail, verifyAuthToken, requireAuth, canUserSummarize, incrementUsage, getEntitlement } from '../src/auth.mjs';
+import { resolveBrandId } from '../src/brands.mjs';
 import { handleGoogleAuth } from '../src/auth-google.mjs';
 import { logSummaryEvent, getUserStats, getGlobalStats, getTrendingDomains } from '../src/analytics.mjs';
 import { getCachedSummary, setCachedSummary, shouldCacheUrl, getCacheStats, cleanExpiredCache } from '../src/cache.mjs';
@@ -254,8 +255,11 @@ export async function summarizeUrlHandler(event) {
             return createResponse(401, { error: authError.message, code: 'AUTH_REQUIRED' });
         }
 
-        // Verifica limiti piano
-        const usageCheck = canUserSummarize(user);
+        // Brand corrente (header X-Brand). Quota e piano sono indipendenti per brand.
+        const brandId = resolveBrandId(event.headers?.['x-brand'] || event.headers?.['X-Brand']);
+
+        // Verifica limiti piano (per-brand)
+        const usageCheck = canUserSummarize(user, brandId);
         if (!usageCheck.canSummarize) {
             return createResponse(429, { 
                 error: usageCheck.reason, 
@@ -351,6 +355,7 @@ export async function summarizeUrlHandler(event) {
 
         const sourceType = hasTranscript ? 'video' : 'web';
         const cacheInput = {
+            brandId,
             url: body.url,
             text,
             language,
@@ -367,7 +372,8 @@ export async function summarizeUrlHandler(event) {
             const cachedSummary = await getCachedSummary(cacheInput);
             if (cachedSummary) {
                 console.log('✅ [CACHE] Content hash hit:', { elapsedMs: Date.now() - cacheStartTime });
-                user = await incrementUsage(user);
+                user = await incrementUsage(user, brandId);
+                const entHit = getEntitlement(user, brandId);
                 return createResponse(200, {
                     summary: cachedSummary.summary,
                     readingTimeMinutes: cachedSummary.readingTimeMinutes,
@@ -380,7 +386,7 @@ export async function summarizeUrlHandler(event) {
                     cached: true,
                     cachedAt: cachedSummary.cachedAt,
                     cacheHits: cachedSummary.cacheHits,
-                    user: { usage: user.usage, plan: user.plan }
+                    user: { usage: entHit.usage, plan: entHit.plan }
                 });
             }
             console.log('❌ [CACHE] Content hash miss:', { elapsedMs: Date.now() - cacheStartTime });
@@ -393,6 +399,7 @@ export async function summarizeUrlHandler(event) {
             title: title,
             text: text,
             language: body.lang || 'it',
+            brand: brandId,
             sourceType,
             summaryProfile,
             squeeze,
@@ -414,8 +421,9 @@ export async function summarizeUrlHandler(event) {
             });
         }
         
-        // Incrementa contatore utilizzo
-        user = await incrementUsage(user);
+        // Incrementa contatore utilizzo (per-brand)
+        user = await incrementUsage(user, brandId);
+        const entitlement = getEntitlement(user, brandId);
 
         // 💾 SALVA IN CACHE SE POSSIBILE
         if (shouldCacheUrl(body.url)) {
@@ -444,7 +452,8 @@ export async function summarizeUrlHandler(event) {
             await logSummaryEvent({
                 userId: user.id,
                 userEmail: user.email,
-                userPlan: user.plan,
+                userPlan: entitlement.plan,
+                brandId,
                 url: body.url,
                 title: title || 'Contenuto web',
                 language: language,
@@ -472,9 +481,10 @@ export async function summarizeUrlHandler(event) {
             title: title || 'Contenuto web',
             sourceType: hasTranscript ? 'video' : 'web',
             videoDurationSeconds: hasTranscript && Number.isFinite(videoDurationSeconds) ? videoDurationSeconds : undefined,
+            brand: brandId,
             user: {
-                usage: user.usage,
-                plan: user.plan
+                usage: entitlement.usage,
+                plan: entitlement.plan
             }
         });
         

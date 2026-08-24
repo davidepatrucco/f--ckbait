@@ -19,6 +19,7 @@ export async function logSummaryEvent(eventData) {
     try {
         const event = {
             id: uuidv4(),
+            brand_id: eventData.brandId || 'lemonsqueezer',
             user_id: eventData.userId,
             email: eventData.userEmail,
             plan: eventData.userPlan,

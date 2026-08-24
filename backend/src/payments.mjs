@@ -152,7 +152,7 @@ export async function verifyCheckoutSession(sessionId) {
         });
 
         // Aggiorna piano utente a premium
-        await updateUserPlan(userId, 'premium');
+        await updateUserPlan(userId, 'lemonsqueezer', 'premium');
 
         return {
             success: true,
@@ -404,7 +404,7 @@ async function handleCheckoutCompleted(session) {
     
     try {
         console.log('Calling updateUserPlan...');
-        await updateUserPlan(userId, 'premium');
+        await updateUserPlan(userId, 'lemonsqueezer', 'premium');
         console.log('updateUserPlan completed successfully');
         
         // Salva record subscription
@@ -445,7 +445,7 @@ async function handleSubscriptionUpdated(subscription) {
         
         // Se subscription scaduta, downgrade a free
         if (subscription.status === 'canceled' || subscription.status === 'incomplete_expired') {
-            await updateUserPlan(userId, 'free');
+            await updateUserPlan(userId, 'lemonsqueezer', 'free');
         }
     }
 }
@@ -455,7 +455,7 @@ async function handleSubscriptionDeleted(subscription) {
     const userId = subscription.metadata?.user_id;
     
     if (userId) {
-        await updateUserPlan(userId, 'free');
+        await updateUserPlan(userId, 'lemonsqueezer', 'free');
         await updateSubscriptionStatus(userId, 'deleted');
     }
 }
