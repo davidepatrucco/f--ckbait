@@ -50,7 +50,7 @@ Aggiornato: 2026-08-24 · Ultimo commit rilevante: CP1 backend scaffold + comple
 - ✅ E07-014 `summarizeWithOpenAI` instrada profilo/schema da brand config (no if/else brand) · E07-015 retry su output non valido
 - ✅ E07-008/009 Signal (`signal.insights` + schema `insights`) · E07-010/011 NoBull (`nobull.noise` + `noise`) · E07-012/013 Briefly (`briefly.brief` + `brief`) — parser difensivi + responseFormat strict
 - ✅ E07-016 golden/adversarial tests per tutti i profili (`test/prompts-schemas.test.mjs`, `test/brand-schemas.test.mjs`). 91/91 verdi
-- Nota: il renderer estensione (`updateModalWithBrandOutput`) copre `attention`; insights/noise/brief hanno il backend pronto ma il rendering UI dedicato è E09-013/014 per-brand (non client-wired ora)
+- ✅ Renderer estensione (`updateModalWithBrandOutput`) generico: copre **attention/insights/noise/brief** via view-model per schema + DOM sicuro (textContent). Tutti e 5 i brand rendono end-to-end (Lemon summary + 4 schemi strutturati)
 - Handler: gestisce shape generico `output` (Scout → 200 envelope), cache gata a schema summary. 55/55 test verdi.
 
 ### E08 — Payments & Commercial Isolation  → ✅ core (codice)
@@ -65,7 +65,7 @@ Aggiornato: 2026-08-24 · Ultimo commit rilevante: CP1 backend scaffold + comple
 - ✅ E09-002 `brands/<brand>/brand.json` con **design token** (Doc 17/18): `lemonsqueezer` + `scout` · E09-003 asset convention (icon.svg+16/48/128; Scout icone generate)
 - ✅ E09-004 `brand-config.js` generato (`globalThis.__BRAND__`) consumato da popup/content/SW
 - ✅ E09-005..008 rimossi gli hardcode: nome/tagline/wordmark/colori (CSS var da token) e logo (icon-48) brand-driven
-- ✅ E09-009/010 `X-Brand` su summarize (SW) · E09-013/014 renderer brand-specifico (`updateModalWithBrandOutput`, Scout "attention")
+- ✅ E09-009/010 `X-Brand` su summarize (SW) · E09-012 X-Brand su billing · E09-013/014 renderer brand-specifico generico (attention/insights/noise/brief)
 - ✅ validator `scripts/validate-brands.mjs`
 - ✅ E10-001 `build-brand.mjs` (dist/<brand> deterministico + integrity) · E10-004 `package-brand.mjs` (zip) · E10-006 integrity check · E10-008 Lemon dal pipeline con **parità verificata** · E10-009 build Scout
 - 🟡 E09-001 sorgente resta in `extension/` (non spostata in `extension/src`: scelta per non rompere il dev unpacked; build copia da `extension/`) · E09-011/012 X-Brand su auth/billing (SW summarize fatto; auth/billing da completare in E08)

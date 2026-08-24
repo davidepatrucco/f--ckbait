@@ -596,50 +596,131 @@
         return map[rec] || map.skim;
     }
 
-    // Renderer per output brand-specifici (schema != summary). Attualmente Scout "attention".
+    // View-model per schema (mappa l'output strutturato del backend a hero/badge/
+    // metrics/sections/notes). Difensivo verso campi mancanti.
+    function brandOutputViewModel(schema, out) {
+        const list = (v) => (Array.isArray(v) ? v.map((x) => String(x)).filter(Boolean) : []);
+        const num = (v) => String(Number.isFinite(Number(v)) ? Number(v) : 0);
+        if (schema === 'attention') {
+            const rec = attentionRecommendationLabel(out.recommendation);
+            return {
+                hero: { value: num(out.attention_score), label: 'Attention score' },
+                badge: { text: rec.label, color: rec.color },
+                metrics: [
+                    { value: num(out.novelty), label: 'Novità' },
+                    { value: num(out.importance), label: 'Rilevanza' },
+                    { value: num(out.credibility), label: 'Affidabilità' }
+                ],
+                sections: [{ title: 'Perché', items: list(out.reasons) }],
+                notes: []
+            };
+        }
+        if (schema === 'insights') {
+            return {
+                hero: { value: num(out.signal_score), label: 'Signal' },
+                metrics: [],
+                sections: [
+                    { title: 'Punti chiave', items: list(out.key_takeaways) },
+                    { title: 'Rischi', items: list(out.risks) },
+                    { title: 'Opportunità', items: list(out.opportunities) }
+                ],
+                notes: [{ label: 'Decisione', text: out.decision_note || '' }]
+            };
+        }
+        if (schema === 'noise') {
+            return {
+                metrics: [
+                    { value: num(out.clickbait_score), label: 'Clickbait' },
+                    { value: num(out.hype_score), label: 'Hype' },
+                    { value: num(out.information_density), label: 'Densità info' }
+                ],
+                sections: [
+                    { title: 'Fatti', items: list(out.facts) },
+                    { title: 'Riempitivo / Hype', items: list(out.filler_patterns) }
+                ],
+                notes: [{ label: 'Framing', text: out.framing_note || '' }]
+            };
+        }
+        if (schema === 'brief') {
+            return {
+                metrics: [],
+                sections: [
+                    { title: 'Cosa è successo', items: list(out.what_happened) },
+                    { title: 'Perché conta', items: list(out.why_it_matters) },
+                    { title: 'Contesto', items: list(out.background) },
+                    { title: 'Letture alternative', items: list(out.alternative_views) },
+                    { title: 'Da monitorare', items: list(out.watch_next) }
+                ],
+                notes: [{ label: 'Importanza strategica', text: out.strategic_importance || '' }]
+            };
+        }
+        return null;
+    }
+
+    // Renderer generico per output brand-specifici (schema != summary).
     function updateModalWithBrandOutput(data) {
         const modalBody = document.getElementById('lemonsqueezer-modal-body');
         if (!modalBody) return;
-        const out = data.output || {};
-
-        if (data.schema === 'attention') {
-            const rec = attentionRecommendationLabel(out.recommendation);
-            modalBody.innerHTML = `
-                <div class="lemonsqueezer-attention">
-                    <div class="lemonsqueezer-attention-score">
-                        <div class="lsa-score-num" id="lsa-score"></div>
-                        <div class="lsa-score-label">Attention score</div>
-                    </div>
-                    <div class="lsa-reco" id="lsa-reco"></div>
-                    <div class="lsa-metrics">
-                        <div class="lsa-metric"><b id="lsa-nov"></b><span>Novità</span></div>
-                        <div class="lsa-metric"><b id="lsa-imp"></b><span>Rilevanza</span></div>
-                        <div class="lsa-metric"><b id="lsa-cred"></b><span>Affidabilità</span></div>
-                    </div>
-                    <ul class="lsa-reasons" id="lsa-reasons"></ul>
-                    <button class="lemonsqueezer-btn-secondary" onclick="document.getElementById('lemonsqueezer-modal').remove()">Chiudi</button>
-                </div>
-            `;
-            const setText = (id, v) => { const el = modalBody.querySelector(id); if (el) el.textContent = v; };
-            setText('#lsa-score', String(out.attention_score ?? 0));
-            const recEl = modalBody.querySelector('#lsa-reco');
-            if (recEl) { recEl.textContent = rec.label; recEl.style.background = rec.color; }
-            setText('#lsa-nov', String(out.novelty ?? 0));
-            setText('#lsa-imp', String(out.importance ?? 0));
-            setText('#lsa-cred', String(out.credibility ?? 0));
-            const ul = modalBody.querySelector('#lsa-reasons');
-            if (ul) {
-                (Array.isArray(out.reasons) ? out.reasons : []).forEach((r) => {
-                    const li = document.createElement('li');
-                    li.textContent = String(r);
-                    ul.appendChild(li);
-                });
-            }
+        const vm = brandOutputViewModel(data.schema, data.output || {});
+        if (!vm) {
+            updateModalWithError({ error: 'Formato di output non supportato in questa versione.' });
             return;
         }
 
-        // Fallback difensivo per schemi non ancora supportati dal renderer.
-        updateModalWithError({ error: 'Formato di output non supportato in questa versione.' });
+        const el = (tag, cls, text) => {
+            const e = document.createElement(tag);
+            if (cls) e.className = cls;
+            if (text != null) e.textContent = String(text);
+            return e;
+        };
+
+        modalBody.innerHTML = '';
+        const card = el('div', 'lemonsqueezer-brandout');
+
+        if (vm.hero) {
+            const h = el('div', 'lsb-hero');
+            h.appendChild(el('div', 'lsb-hero-num', vm.hero.value));
+            h.appendChild(el('div', 'lsb-hero-label', vm.hero.label));
+            card.appendChild(h);
+        }
+        if (vm.badge && vm.badge.text) {
+            const b = el('div', 'lsb-badge', vm.badge.text);
+            if (vm.badge.color) b.style.background = vm.badge.color;
+            card.appendChild(b);
+        }
+        if (vm.metrics && vm.metrics.length) {
+            const row = el('div', 'lsb-metrics');
+            vm.metrics.forEach((m) => {
+                const cell = el('div', 'lsb-metric');
+                cell.appendChild(el('b', null, m.value));
+                cell.appendChild(el('span', null, m.label));
+                row.appendChild(cell);
+            });
+            card.appendChild(row);
+        }
+        (vm.notes || []).forEach((n) => {
+            if (!n.text) return;
+            const note = el('div', 'lsb-note');
+            note.appendChild(el('span', 'lsb-note-label', `${n.label}: `));
+            note.appendChild(document.createTextNode(String(n.text)));
+            card.appendChild(note);
+        });
+        (vm.sections || []).forEach((s) => {
+            if (!s.items || !s.items.length) return;
+            card.appendChild(el('h4', 'lsb-section-title', s.title));
+            const ul = el('ul', 'lsb-list');
+            s.items.forEach((it) => ul.appendChild(el('li', null, it)));
+            card.appendChild(ul);
+        });
+
+        const closeBtn = el('button', 'lemonsqueezer-btn-secondary', 'Chiudi');
+        closeBtn.addEventListener('click', () => {
+            const modal = document.getElementById('lemonsqueezer-modal');
+            if (modal) modal.remove();
+        });
+        card.appendChild(closeBtn);
+
+        modalBody.appendChild(card);
     }
 
     // Funzione helper per ottenere gli stili del modal
@@ -922,21 +1003,23 @@
                 background: #e5e5e5;
             }
 
-            .lemonsqueezer-attention { padding: 20px; text-align: center; }
-            .lemonsqueezer-attention .lsa-score-num {
-                font-size: 56px; font-weight: 800; color: ${BRAND_PRIMARY}; line-height: 1;
-            }
-            .lemonsqueezer-attention .lsa-score-label { font-size: 12px; color: #8a94a3; text-transform: uppercase; letter-spacing: .5px; margin-top: 4px; }
-            .lemonsqueezer-attention .lsa-reco {
-                display: inline-block; margin: 14px 0; padding: 6px 14px; border-radius: 999px;
+            .lemonsqueezer-brandout { padding: 20px; }
+            .lemonsqueezer-brandout .lsb-hero { text-align: center; margin-bottom: 6px; }
+            .lemonsqueezer-brandout .lsb-hero-num { font-size: 56px; font-weight: 800; color: ${BRAND_PRIMARY}; line-height: 1; }
+            .lemonsqueezer-brandout .lsb-hero-label { font-size: 12px; color: #8a94a3; text-transform: uppercase; letter-spacing: .5px; margin-top: 4px; }
+            .lemonsqueezer-brandout .lsb-badge {
+                display: block; width: fit-content; margin: 12px auto; padding: 6px 14px; border-radius: 999px;
                 color: #fff; font-weight: 700; font-size: 14px;
             }
-            .lemonsqueezer-attention .lsa-metrics { display: flex; gap: 10px; margin: 8px 0 14px; }
-            .lemonsqueezer-attention .lsa-metric { flex: 1; background: #f7f8fa; border-radius: 10px; padding: 10px; }
-            .lemonsqueezer-attention .lsa-metric b { display: block; font-size: 18px; color: ${BRAND_INK}; }
-            .lemonsqueezer-attention .lsa-metric span { font-size: 11px; color: #8a94a3; }
-            .lemonsqueezer-attention .lsa-reasons { text-align: left; margin: 0 0 16px; padding-left: 18px; }
-            .lemonsqueezer-attention .lsa-reasons li { margin: 6px 0; font-size: 14px; color: #26303c; }
+            .lemonsqueezer-brandout .lsb-metrics { display: flex; gap: 10px; margin: 12px 0; }
+            .lemonsqueezer-brandout .lsb-metric { flex: 1; background: #f7f8fa; border-radius: 10px; padding: 10px; text-align: center; }
+            .lemonsqueezer-brandout .lsb-metric b { display: block; font-size: 18px; color: ${BRAND_INK}; }
+            .lemonsqueezer-brandout .lsb-metric span { font-size: 11px; color: #8a94a3; }
+            .lemonsqueezer-brandout .lsb-note { margin: 10px 0; font-size: 14px; color: #26303c; }
+            .lemonsqueezer-brandout .lsb-note-label { font-weight: 700; color: ${BRAND_INK}; }
+            .lemonsqueezer-brandout .lsb-section-title { margin: 16px 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .4px; color: #8a94a3; }
+            .lemonsqueezer-brandout .lsb-list { margin: 0 0 8px; padding-left: 18px; }
+            .lemonsqueezer-brandout .lsb-list li { margin: 6px 0; font-size: 14px; color: #26303c; line-height: 1.5; }
             
             /* Login modal styles */
             .lemonsqueezer-login {
