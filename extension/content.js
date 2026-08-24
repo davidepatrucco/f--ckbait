@@ -3,6 +3,12 @@
 
 (function() {
     'use strict';
+
+    // Tema del brand iniettato da brand-config.js (stesso isolated world del content script).
+    const BRAND = (typeof globalThis !== 'undefined' && globalThis.__BRAND__) ? globalThis.__BRAND__ : null;
+    const BRAND_PRIMARY = (BRAND && BRAND.tokens && BRAND.tokens.colors && BRAND.tokens.colors.primary) || '#FFD400';
+    const BRAND_PRIMARY_700 = (BRAND && BRAND.tokens && BRAND.tokens.colors && BRAND.tokens.colors.primary700) || '#FFB800';
+    const BRAND_INK = (BRAND && BRAND.tokens && BRAND.tokens.colors && BRAND.tokens.colors.black) || '#0D1117';
     let activeSummaryRequestId = null;
     
     // Funzione per calcolare la densità del testo in un elemento
@@ -579,6 +585,63 @@
         if (messageEl) messageEl.textContent = toUserFacingError(data && data.error);
     }
 
+    // Etichetta leggibile per la raccomandazione Scout.
+    function attentionRecommendationLabel(rec) {
+        const map = {
+            read_now: { label: 'Leggi ora', color: '#16A34A' },
+            skim: { label: 'Scorri', color: '#FFB800' },
+            save: { label: 'Salva per dopo', color: '#3B82F6' },
+            ignore: { label: 'Ignora', color: '#EF4444' }
+        };
+        return map[rec] || map.skim;
+    }
+
+    // Renderer per output brand-specifici (schema != summary). Attualmente Scout "attention".
+    function updateModalWithBrandOutput(data) {
+        const modalBody = document.getElementById('lemonsqueezer-modal-body');
+        if (!modalBody) return;
+        const out = data.output || {};
+
+        if (data.schema === 'attention') {
+            const rec = attentionRecommendationLabel(out.recommendation);
+            modalBody.innerHTML = `
+                <div class="lemonsqueezer-attention">
+                    <div class="lemonsqueezer-attention-score">
+                        <div class="lsa-score-num" id="lsa-score"></div>
+                        <div class="lsa-score-label">Attention score</div>
+                    </div>
+                    <div class="lsa-reco" id="lsa-reco"></div>
+                    <div class="lsa-metrics">
+                        <div class="lsa-metric"><b id="lsa-nov"></b><span>Novità</span></div>
+                        <div class="lsa-metric"><b id="lsa-imp"></b><span>Rilevanza</span></div>
+                        <div class="lsa-metric"><b id="lsa-cred"></b><span>Affidabilità</span></div>
+                    </div>
+                    <ul class="lsa-reasons" id="lsa-reasons"></ul>
+                    <button class="lemonsqueezer-btn-secondary" onclick="document.getElementById('lemonsqueezer-modal').remove()">Chiudi</button>
+                </div>
+            `;
+            const setText = (id, v) => { const el = modalBody.querySelector(id); if (el) el.textContent = v; };
+            setText('#lsa-score', String(out.attention_score ?? 0));
+            const recEl = modalBody.querySelector('#lsa-reco');
+            if (recEl) { recEl.textContent = rec.label; recEl.style.background = rec.color; }
+            setText('#lsa-nov', String(out.novelty ?? 0));
+            setText('#lsa-imp', String(out.importance ?? 0));
+            setText('#lsa-cred', String(out.credibility ?? 0));
+            const ul = modalBody.querySelector('#lsa-reasons');
+            if (ul) {
+                (Array.isArray(out.reasons) ? out.reasons : []).forEach((r) => {
+                    const li = document.createElement('li');
+                    li.textContent = String(r);
+                    ul.appendChild(li);
+                });
+            }
+            return;
+        }
+
+        // Fallback difensivo per schemi non ancora supportati dal renderer.
+        updateModalWithError({ error: 'Formato di output non supportato in questa versione.' });
+    }
+
     // Funzione helper per ottenere gli stili del modal
     function getModalStyles() {
         return `
@@ -626,7 +689,7 @@
                 width: 40px;
                 height: 40px;
                 border: 4px solid #f3f3f3;
-                border-top: 4px solid #FFD400;
+                border-top: 4px solid ${BRAND_PRIMARY};
                 border-radius: 50%;
                 animation: spin 1s linear infinite;
                 margin-bottom: 20px;
@@ -842,12 +905,12 @@
             }
             
             .lemonsqueezer-btn-primary {
-                background: #FFD400;
-                color: #0D1117;
+                background: ${BRAND_PRIMARY};
+                color: ${BRAND_INK};
             }
 
             .lemonsqueezer-btn-primary:hover {
-                background: #FFB800;
+                background: ${BRAND_PRIMARY_700};
             }
             
             .lemonsqueezer-btn-secondary {
@@ -858,6 +921,22 @@
             .lemonsqueezer-btn-secondary:hover {
                 background: #e5e5e5;
             }
+
+            .lemonsqueezer-attention { padding: 20px; text-align: center; }
+            .lemonsqueezer-attention .lsa-score-num {
+                font-size: 56px; font-weight: 800; color: ${BRAND_PRIMARY}; line-height: 1;
+            }
+            .lemonsqueezer-attention .lsa-score-label { font-size: 12px; color: #8a94a3; text-transform: uppercase; letter-spacing: .5px; margin-top: 4px; }
+            .lemonsqueezer-attention .lsa-reco {
+                display: inline-block; margin: 14px 0; padding: 6px 14px; border-radius: 999px;
+                color: #fff; font-weight: 700; font-size: 14px;
+            }
+            .lemonsqueezer-attention .lsa-metrics { display: flex; gap: 10px; margin: 8px 0 14px; }
+            .lemonsqueezer-attention .lsa-metric { flex: 1; background: #f7f8fa; border-radius: 10px; padding: 10px; }
+            .lemonsqueezer-attention .lsa-metric b { display: block; font-size: 18px; color: ${BRAND_INK}; }
+            .lemonsqueezer-attention .lsa-metric span { font-size: 11px; color: #8a94a3; }
+            .lemonsqueezer-attention .lsa-reasons { text-align: left; margin: 0 0 16px; padding-left: 18px; }
+            .lemonsqueezer-attention .lsa-reasons li { margin: 6px 0; font-size: 14px; color: #26303c; }
             
             /* Login modal styles */
             .lemonsqueezer-login {
@@ -1084,6 +1163,13 @@
 
             const dataRaw = apiResult.data;
             console.log('[CONTENT] Dati ricevuti (raw):', dataRaw);
+
+            // Output brand-specifico (schema != summary, es. Scout "attention"):
+            // renderer dedicato. Lo schema summary (Lemon) prosegue sotto invariato.
+            if (dataRaw && dataRaw.output && !dataRaw.summary) {
+                updateModalWithBrandOutput(dataRaw);
+                return;
+            }
 
             // Normalizza e fornisce fallback per campi mancanti
             const data = Object.assign({}, dataRaw);

@@ -55,12 +55,16 @@ Aggiornato: 2026-08-24 · Ultimo commit rilevante: CP1 backend scaffold + comple
 - Stripe per-brand, metadata.brand, webhook brand-aware, idempotenza.
 - Nota: `updateUserPlan` è già brand-aware; i webhook usano ancora `lemonsqueezer` (stopgap) → E08-003..008 da fare.
 
-## Wave 3 — One extension codebase, five builds (E09-E10) → 🟡 avviato
-- 🟡 E09-002 `brands/<brand>/brand.json` con **design token** (allineato Doc 17/18): `lemonsqueezer` + `scout`
-- 🟡 E09-003 convenzione asset `brands/<brand>/assets/` (icon.svg + 16/48/128); Scout icone generate
-- ✅ validator `scripts/validate-brands.mjs` (schema + coerenza con registry backend + esistenza asset)
-- ⬜ E09-001 spostare `extension/src` · E09-004 generare `brand-config.js` · E09-005..008 rimuovere hardcode (nome/tagline/colori/logo) · E09-009..012 X-Brand nelle fetch · E09-013/014 render brand-specific
-- ⬜ E10 build/packaging (`build-brand.mjs`, `package-brand.mjs`), rigenerare Lemon dal pipeline con parità
+## Wave 3 — One extension codebase, five builds (E09-E10) → ✅ core (Lemon + Scout)
+- ✅ E09-002 `brands/<brand>/brand.json` con **design token** (Doc 17/18): `lemonsqueezer` + `scout` · E09-003 asset convention (icon.svg+16/48/128; Scout icone generate)
+- ✅ E09-004 `brand-config.js` generato (`globalThis.__BRAND__`) consumato da popup/content/SW
+- ✅ E09-005..008 rimossi gli hardcode: nome/tagline/wordmark/colori (CSS var da token) e logo (icon-48) brand-driven
+- ✅ E09-009/010 `X-Brand` su summarize (SW) · E09-013/014 renderer brand-specifico (`updateModalWithBrandOutput`, Scout "attention")
+- ✅ validator `scripts/validate-brands.mjs`
+- ✅ E10-001 `build-brand.mjs` (dist/<brand> deterministico + integrity) · E10-004 `package-brand.mjs` (zip) · E10-006 integrity check · E10-008 Lemon dal pipeline con **parità verificata** · E10-009 build Scout
+- 🟡 E09-001 sorgente resta in `extension/` (non spostata in `extension/src`: scelta per non rompere il dev unpacked; build copia da `extension/`) · E09-011/012 X-Brand su auth/billing (SW summarize fatto; auth/billing da completare in E08)
+- Test: `test/build-brand.test.mjs` (integrity, branding Scout, **parità Lemon**, icone distinte). 59/59 verdi.
+- Deviazione tracciata: no `extension/src` move (E09-001) per zero-regression sul dev unpacked.
 
 ## Wave 4 — Cross-browser, contracts, telemetry, security (E11-E14) → ⬜
 ## Wave 5 — Test hardening & deployment automation (E15-E16) → ⬜

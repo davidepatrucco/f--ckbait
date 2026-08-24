@@ -68,16 +68,15 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            border-radius: var(--ls-radius);
-            background: var(--ls-black);
-            border: none;
         }
 
         .brand-accent { color: var(--ls-yellow-700); }
 
-        .brand-icon svg {
-            width: 28px;
-            height: 28px;
+        .brand-icon img {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: block;
         }
 
         .header h1 {
@@ -643,24 +642,10 @@
     <div class="popup-container">
         <div class="header">
             <div class="brand-icon" aria-hidden="true">
-                <svg viewBox="0 0 48 48" fill="none">
-                    <circle cx="24" cy="25" r="14" fill="#FFD400" stroke="#0D1117" stroke-width="2.5"/>
-                    <g stroke="#0D1117" stroke-width="1.5" stroke-linecap="round">
-                        <line x1="24" y1="25" x2="24" y2="12"/>
-                        <line x1="24" y1="25" x2="33" y2="16"/>
-                        <line x1="24" y1="25" x2="37" y2="25"/>
-                        <line x1="24" y1="25" x2="33" y2="34"/>
-                        <line x1="24" y1="25" x2="24" y2="38"/>
-                        <line x1="24" y1="25" x2="15" y2="34"/>
-                        <line x1="24" y1="25" x2="11" y2="25"/>
-                        <line x1="24" y1="25" x2="15" y2="16"/>
-                    </g>
-                    <circle cx="24" cy="25" r="2.2" fill="#0D1117"/>
-                    <path d="M12 37 L9 41" stroke="#FFB800" stroke-width="3" stroke-linecap="round"/>
-                </svg>
+                <img id="brandLogo" src="assets/icon-48.png" alt="" width="40" height="40">
             </div>
             <div>
-                <h1>Lemon<span class="brand-accent">Squeezer</span></h1>
+                <h1 id="brandWordmark">Lemon<span class="brand-accent">Squeezer</span></h1>
                 <p>Skip the noise. Get the point.</p>
             </div>
         </div>
@@ -820,6 +805,7 @@
         </div>
     </div>
     
+    <script src="brand-config.js"></script>
     <script type="module" src="popup.js"></script>
 </body>
 </html>

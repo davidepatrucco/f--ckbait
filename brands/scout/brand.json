@@ -4,6 +4,7 @@
   "displayName": "Scout",
   "storeName": "Scout — Worth reading?",
   "tagline": "Worth your time? Know before you read.",
+  "wordmark": { "pre": "", "accent": "Scout" },
   "defaultMode": "standard",
   "promptProfile": "scout.evaluate",
   "outputSchema": "attention",

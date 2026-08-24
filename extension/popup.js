@@ -32,6 +32,38 @@ async function generateCodeChallenge(verifier) {
 
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('[POPUP] ===== POPUP OPENED =====');
+
+    // Applica il tema del brand (token -> CSS variables, wordmark, tagline).
+    // Config iniettata da brand-config.js (globalThis.__BRAND__). Default: LemonSqueezer.
+    const BRAND = (typeof window !== 'undefined' && window.__BRAND__) ? window.__BRAND__ : null;
+    if (BRAND) {
+        const rootStyle = document.documentElement.style;
+        const colors = (BRAND.tokens && BRAND.tokens.colors) || {};
+        const setVar = (k, v) => { if (v) rootStyle.setProperty(k, v); };
+        setVar('--ls-yellow', colors.primary);
+        setVar('--ls-yellow-700', colors.primary700);
+        setVar('--ls-black', colors.black);
+        setVar('--ls-white', colors.white);
+        setVar('--ls-gray-100', colors.gray100);
+        setVar('--ls-mint', colors.mint);
+        setVar('--ls-red', colors.red);
+        setVar('--ls-radius', BRAND.tokens && BRAND.tokens.radius);
+        setVar('--font-sans', BRAND.tokens && BRAND.tokens.fontSans);
+        setVar('--font-display', BRAND.tokens && BRAND.tokens.fontSans);
+        const wm = document.getElementById('brandWordmark');
+        if (wm && BRAND.wordmark) {
+            wm.textContent = '';
+            if (BRAND.wordmark.pre) wm.appendChild(document.createTextNode(BRAND.wordmark.pre));
+            const span = document.createElement('span');
+            span.className = 'brand-accent';
+            span.textContent = BRAND.wordmark.accent || BRAND.displayName || '';
+            wm.appendChild(span);
+        }
+        if (BRAND.tagline) {
+            const tagEl = document.querySelector('.header p');
+            if (tagEl) tagEl.textContent = BRAND.tagline;
+        }
+    }
     
     // CONTROLLO: verifica se login completato durante chiusura popup
     const storage = await chrome.storage.local.get(['loginInProgress', 'authToken', 'user']);
@@ -90,7 +122,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }[supportedLanguage] || null;
     const text = uiText || { summary: 'Summarize this page', tagline: 'Skip the noise. Get the point.', options: 'Options', history: 'History', user: 'User', premium: 'Premium plan', free: 'Free plan', unlimited: 'Unlimited summaries', summaries: 'summaries', month: 'This month', total: 'Total', saved: 'saved', output: 'Output', language: 'Summary language', logout: 'Log out', emptyHistory: 'Your latest summaries will appear here.', login: 'Sign in to continue', or: 'or', create: 'Create account', clear: 'Clear' };
     document.documentElement.lang = supportedLanguage;
-    document.querySelector('.header p').textContent = text.tagline;
+    document.querySelector('.header p').textContent = (BRAND && BRAND.tagline) ? BRAND.tagline : text.tagline;
     document.querySelector('.login-title').textContent = text.login;
     document.querySelector('.login-divider').textContent = text.or;
     document.getElementById('emailLoginBtn').textContent = supportedLanguage === 'it' ? 'Accedi' : 'Sign in';

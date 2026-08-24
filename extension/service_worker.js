@@ -1,5 +1,9 @@
 // service_worker.js - Service Worker per l'estensione LemonSqueezer
 
+// Config del brand (iniettata da brand-config.js). Determina l'header X-Brand.
+try { importScripts('brand-config.js'); } catch (e) { console.warn('brand-config non caricato:', e); }
+const BRAND_ID = (self.__BRAND__ && self.__BRAND__.apiBrand) || 'lemonsqueezer';
+
 // Event listener per l'installazione
 chrome.runtime.onInstalled.addListener((details) => {
     console.log('LemonSqueezer installato:', details.reason);
@@ -92,7 +96,8 @@ async function summarizePageData(request, sendResponse) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${authToken}`
+                'Authorization': `Bearer ${authToken}`,
+                'X-Brand': BRAND_ID
             },
             body: JSON.stringify(request.requestBody || {})
         });
@@ -760,9 +765,10 @@ async function summarizeUrlDirectly(url, apiUrl, authToken, language, squeeze) {
     console.log('summarizeUrlDirectly chiamata con:', { url, apiUrl, language, squeeze });
     try {
         const headers = {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'X-Brand': BRAND_ID
         };
-        
+
         // Aggiungi Bearer token se fornito
         if (authToken) {
             headers['Authorization'] = `Bearer ${authToken}`;

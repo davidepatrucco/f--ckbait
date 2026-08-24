@@ -4,6 +4,7 @@
   "displayName": "LemonSqueezer",
   "storeName": "LemonSqueezer — TL;DR",
   "tagline": "Skip the noise. Get the point.",
+  "wordmark": { "pre": "Lemon", "accent": "Squeezer" },
   "defaultMode": "standard",
   "promptProfile": "summary.standard",
   "outputSchema": "summary",
