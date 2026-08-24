@@ -1,7 +1,7 @@
 // dynamodb.mjs - Gestione database utenti con DynamoDB
 
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import { DEFAULT_BRAND } from './brands.mjs';
 
 // Configurazione DynamoDB
@@ -236,6 +236,23 @@ export async function updateUserPlan(userId, brandId, newPlan, extra = {}) {
     } catch (error) {
         console.error('Error updating user plan:', error);
         throw new Error('Errore aggiornamento piano');
+    }
+}
+
+/**
+ * Cancella l'utente (tutti gli entitlement per-brand sono nel record utente).
+ * La cronologia è client-side; le subscription sono gestite a parte (payments).
+ */
+export async function deleteUser(userId) {
+    try {
+        await docClient.send(new DeleteCommand({
+            TableName: TABLE_NAME,
+            Key: { id: userId }
+        }));
+        return { deleted: true };
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        throw new Error('Errore cancellazione utente');
     }
 }
 

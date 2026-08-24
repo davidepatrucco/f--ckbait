@@ -20,8 +20,10 @@ import {
     handleStripeWebhook,
     getUserSubscription,
     cancelSubscription,
-    reactivateSubscription 
+    reactivateSubscription,
+    deleteUserSubscription
 } from '../src/payments.mjs';
+import { deleteUser } from '../src/dynamodb.mjs';
 
 // Origins are deployment configuration.  Do not ship a fake extension ID or
 // fall back to a wildcard: callers from an unlisted web origin receive no CORS
@@ -694,6 +696,29 @@ export async function healthHandler(event) {
     });
 }
 
+// Handler cancellazione account (E14-008): rimuove utente + subscription.
+// La cronologia è client-side (chrome.storage), non lato server.
+export async function accountDeleteHandler(event) {
+    if (event.httpMethod === 'OPTIONS') {
+        return { statusCode: 200, headers: getCorsHeaders(event), body: '' };
+    }
+    let user;
+    try {
+        user = await requireAuth(event);
+    } catch (authError) {
+        return createResponse(401, apiErrorBody('AUTH_REQUIRED'));
+    }
+    try {
+        await deleteUserSubscription(user.id); // best-effort (non blocca)
+        await deleteUser(user.id);
+        console.log('Account deleted:', user.id);
+        return createResponse(200, { deleted: true, userId: user.id });
+    } catch (error) {
+        console.error('Account deletion error:', error.message);
+        return createResponse(500, apiErrorBody('INTERNAL_ERROR'));
+    }
+}
+
 // Handler per statistiche utente
 export async function userStatsHandler(event) {
     try {
@@ -1167,6 +1192,8 @@ export async function handler(event, context) {
             return await cancelSubscriptionHandler(event);
         case '/health':
             return await healthHandler(event);
+        case '/account/delete':
+            return await accountDeleteHandler(event);
         default:
             return createResponse(404, {
                 error: 'Endpoint non trovato',
@@ -1187,6 +1214,7 @@ export async function handler(event, context) {
                     '/payments/webhook',
                     '/payments/subscription',
                     '/payments/cancel',
+                    '/account/delete',
                     '/health'
                 ]
             });

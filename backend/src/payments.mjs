@@ -339,6 +339,22 @@ export async function reactivateSubscription(userId) {
     }
 }
 
+/**
+ * Cancella il record subscription dell'utente (best-effort, per cancellazione account).
+ */
+export async function deleteUserSubscription(userId) {
+    try {
+        await docClient.send(new DeleteCommand({
+            TableName: PAYMENTS_TABLE,
+            Key: { user_id: userId }
+        }));
+        return { deleted: true };
+    } catch (error) {
+        console.warn('Error deleting user subscription record:', error.message);
+        return { deleted: false };
+    }
+}
+
 // --- Funzioni helper ---
 
 async function saveCheckoutSession(userId, sessionId, planType) {
