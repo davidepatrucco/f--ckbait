@@ -83,7 +83,7 @@ Aggiornato: 2026-08-24 · Ultimo commit rilevante: CP1 backend scaffold + comple
 - ✅ E12-003 `src/errors.mjs` catalogo centralizzato (codici stabili + status) · E12-004 USAGE_LIMIT_EXCEEDED arricchito (brand/plan/resetDate) · E12-005 OUTPUT_SCHEMA_ERROR/PAYMENT_BRAND_MISMATCH definiti
 - ✅ `request_id` in ogni envelope di risposta (set da `requestContext.requestId`) — copre anche E01-006 (correlazione)
 - ✅ E12-008 contract test (`test/errors-contract.test.mjs`: codici/status stabili). 80/80 verdi.
-- ⬜ E12-007 OpenAPI examples (doc)
+- ✅ E12-007 doc API (`docs/api.md`): envelope+request_id, catalogo errori, header X-Brand, endpoint, schemi output per brand, note sicurezza
 
 ### E14 — Security & Privacy Hardening  → 🟡 core
 - ✅ E14-002 secret scan (`scripts/scan-secrets.mjs`) — dist **pulito** (nessun segreto nei bundle) · E14-003 CORS: `ALLOWED_ORIGINS` multi-origin (no wildcard) + Allow-Headers X-Brand/X-Client
