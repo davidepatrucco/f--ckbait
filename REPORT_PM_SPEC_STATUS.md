@@ -125,13 +125,20 @@ Legenda: ✅ completo · 🟡 parziale · ⬜ non iniziato
 
 ---
 
-## 4. Decisioni richieste al PM
-1. Ambiente **produzione**: promuovere il backend `dev` a prod o continuare su dev per la beta? (sblocca E18-001/002).
-2. Ordine di **lancio brand**: confermare Scout come primo (schema output diverso da Lemon già pronto) e quali brand seguono.
-3. **Modello LLM / margini**: la migrazione a `gpt-5.6-luna` scatta automaticamente al 2026-12-10; output ~30x nano. Confermare pricing/piani a fronte del costo.
-4. **Dashboard analytics**: priorità e forma (interna vs prodotto) per E13-006/007.
-5. **Host permissions** (`*://*/*` → ristretto): accettare il tradeoff UX per la sicurezza (E14-001).
-6. **Store**: chi produce gli asset di listing (screenshot/copy) per i 5 store.
+## 4. Decisioni PM — RISOLTE (2026-08-24)
+1. **Ambienti**: creare subito `staging` + `prod` separati; `dev` resta sviluppo. Pipeline `dev → staging → smoke/E2E → prod` con **approvazione manuale** su prod. → In corso: staging creato e verificato; prod creato dalla pipeline al primo run (gate). Vedi `docs/environments.md`.
+2. **Ordine di lancio**: **Lemon → Scout → NoBull → Briefly → Signal**, unica *launch wave* 48–72h (l'ordine serve a QA/submission, non a distanziare i prodotti).
+3. **Pricing**: model-agnostic + **cost-aware routing** (Free = modello economico; Premium = stesso modello quando basta, superiore solo se il contenuto lo richiede; fallback premium solo per errore/qualità). Pricing per-brand semplice ma separato. **Numeri definitivi dopo misura degli unit economics reali** (costo medio 100/500/1.000 summary per brand dai token già registrati). → Follow-up: implementare router + misura costi.
+4. **Dashboard analytics**: **interna**, MVP. Una sola dashboard portfolio filtrabile (All/5 brand) con 4 blocchi (Acquisition/Activation, Engagement, Retention, Money) + tabella di **confronto brand** (Activation, D7, Summaries/User, Paid %, Cost/User). Funnel e retention distinti. Nessuna analytics dentro le estensioni oltre l'esistente.
+5. **Host permissions**: mantenere `*://*/*` per MVP (non restringere: attrito nel core flow). Rivalutazione post-launch. Motivazione chiara nelle submission store.
+6. **Store assets/listing**: li produciamo in buona parte noi. → Follow-up: generare copy + screenshot per i 5 brand (E17-006..011).
+
+### Follow-up tecnici derivati (da schedulare)
+- **Cost-aware model router** (#3) nel path summarize + target di costo per summary.
+- **Misura unit economics** (#3): query analytics → costo medio per brand su 100/500/1.000 summary.
+- **Dashboard interna** (#4): E13-007, secondo lo schema a 4 blocchi + tabella confronto.
+- **Store assets** (#6): E17-006..011 per i 5 brand.
+- **Stripe LIVE** (E18-005) prima del lancio reale: prod oggi è TEST-mode.
 
 ---
 
