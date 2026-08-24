@@ -1,4 +1,9 @@
-name: Test and deploy backend
+name: Deploy backend (dev → staging → prod)
+
+# Promozione: ogni push su main che tocca il backend attraversa
+# test → dev → smoke → staging → smoke/E2E → prod (approvazione manuale) → smoke.
+# Ogni stage è gate del successivo; prod è protetto da GitHub Environment 'production'
+# (required reviewer). dev usa var repo; staging/prod usano var per-environment.
 
 on:
   push:
@@ -6,22 +11,23 @@ on:
     paths:
       - 'backend/**'
       - 'infra/**'
+      - 'scripts/smoke-e2e.mjs'
       - '.github/workflows/deploy-backend.yml'
+      - '.github/actions/deploy-env/**'
   workflow_dispatch:
 
-# OIDC gives this workflow short-lived AWS credentials. No access keys in GitHub.
+# OIDC: credenziali AWS short-lived, nessuna access key in GitHub.
 permissions:
   contents: read
   id-token: write
 
+# Una pipeline alla volta; le run si accodano (no cancellazione a metà deploy).
 concurrency:
-  group: lemonsqueezer-dev-deploy
+  group: lemonsqueezer-deploy-pipeline
   cancel-in-progress: false
 
 env:
   AWS_REGION: eu-west-1
-  STACK_NAME: lemonsqueezer-dev
-  ENVIRONMENT: dev
 
 jobs:
   test:
@@ -40,32 +46,46 @@ jobs:
       - run: npm ci
       - run: npm test
 
-  deploy:
-    name: Deploy AWS dev
+  deploy-dev:
+    name: Deploy + smoke (dev)
     needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: aws-actions/configure-aws-credentials@v4
+      - uses: ./.github/actions/deploy-env
         with:
-          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-      - uses: aws-actions/setup-sam@v2
-      - name: Validate template
-        run: sam validate --template-file infra/sam-template-simple.yaml
-      - name: Build backend
-        run: sam build --template-file infra/sam-template-simple.yaml
-      - name: Deploy backend
-        run: >-
-          sam deploy
-          --template-file .aws-sam/build/template.yaml
-          --stack-name "$STACK_NAME"
-          --region "$AWS_REGION"
-          --resolve-s3
-          --s3-prefix "lemonsqueezer-$ENVIRONMENT"
-          --capabilities CAPABILITY_IAM
-          --no-confirm-changeset
-          --no-fail-on-empty-changeset
-          --parameter-overrides
-          "Environment=$ENVIRONMENT"
-          "AllowedOrigins=${{ vars.ALLOWED_ORIGINS }}"
+          environment: dev
+          stack-name: lemonsqueezer-dev
+          allowed-origins: ${{ vars.ALLOWED_ORIGINS }}
+          role-arn: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          region: ${{ env.AWS_REGION }}
+
+  deploy-staging:
+    name: Deploy + smoke/E2E (staging)
+    needs: deploy-dev
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/deploy-env
+        with:
+          environment: staging
+          stack-name: lemonsqueezer-staging
+          allowed-origins: ${{ vars.ALLOWED_ORIGINS }}
+          role-arn: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          region: ${{ env.AWS_REGION }}
+
+  deploy-prod:
+    name: Deploy + smoke (prod, manual approval)
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/deploy-env
+        with:
+          environment: prod
+          stack-name: lemonsqueezer-prod
+          allowed-origins: ${{ vars.ALLOWED_ORIGINS }}
+          role-arn: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          region: ${{ env.AWS_REGION }}
