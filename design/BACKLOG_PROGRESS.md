@@ -6,7 +6,7 @@ Regola hard-gate: **LemonSqueezer regression-zero** su ogni package.
 
 Legenda: ✅ done · 🟡 partial · ⬜ todo
 
-Aggiornato: 2026-08-24 · Ultimo commit rilevante: CP1 backend scaffold + completamento Wave 1 (E02-E06 core).
+Aggiornato: 2026-08-24 · Ultimo commit rilevante: chiusura gap (costi/luna, funnel analytics, legali per-brand) — commit `1a1eae6`. Report PM: `REPORT_PM_SPEC_STATUS.md`.
 
 ## Wave 1 — Multi-brand backend scaffold (E01-E06)
 
@@ -76,8 +76,9 @@ Aggiornato: 2026-08-24 · Ultimo commit rilevante: CP1 backend scaffold + comple
 ### E13 — Analytics, Funnels & Cost Telemetry
 - ✅ Fix persistenza: `buildAnalyticsEvent` scrive `eventId`/`userId`/`timestamp`(N)+`created_at`(ISO); `success` booleano reale. Query allineate: `getUserStats` → `UserEventsIndex` + `userId` + epoch; `getGlobalStats`/`getTrendingDomains` → `userId`, proiezioni/alias corretti; `getDailyBreakdown` usa `created_at`. Test `test/analytics-schema.test.mjs`. 75/75 verdi.
 - ✅ E13-002/003 brand tag su eventi + latenza (`duration_ms` + `brand_id`) · campi client (browser/client_version)
-- ✅ E13-005 token/costo per brand: `usage` (input/output tokens reali) propagato da `summarizeWithOpenAI` → analytics (`input_tokens`/`output_tokens`/`cost_estimate`); `estimateCost` con tabella prezzi per modello (sconosciuto→0, i conteggi token restano accurati). Test `test/token-cost.test.mjs`
-- ⬜ E13-006/007 funnel/retention dashboard (richiede storage query + UI)
+- ✅ E13-005 token/costo per brand: `usage` (input/output tokens reali) propagato da `summarizeWithOpenAI` → analytics (`input_tokens`/`output_tokens`/`cost_estimate`); `estimateCost` con **prezzi reali** (gpt-5-nano $0.05/$0.40, gpt-5.6-luna $2/$12 per 1M; override `MODEL_COSTS_JSON`; sconosciuto→0). **Auto-switch a gpt-5.6-luna dal 2026-12-10** (deprecazione nano); `SUMMARY_MODEL` forza il modello. Test `test/token-cost.test.mjs`, `test/funnel-cost.test.mjs`
+- ✅ E13-006 **cattura funnel**: `POST /analytics/event` (auth opzionale, eventi anonimi), vocabolario `event_type` controllato (`ALLOWED_EVENT_TYPES`), `extension_installed` emesso dal service worker. Fix: eventi anonimi ora persistono (userId assente, non null — GSI key type S; `removeUndefinedValues`). Verificato live su DynamoDB.
+- ⬜ E13-007 dashboard funnel/retention (UI/aggregazione — spec in `docs/dashboard-spec.md`)
 ### E12 — API Contracts & Error Model  → ✅ core
 - ✅ E12-001 brand via header X-Brand (fallback body) · E12-002 `brand` nei metadata di risposta
 - ✅ E12-003 `src/errors.mjs` catalogo centralizzato (codici stabili + status) · E12-004 USAGE_LIMIT_EXCEEDED arricchito (brand/plan/resetDate) · E12-005 OUTPUT_SCHEMA_ERROR/PAYMENT_BRAND_MISMATCH definiti
@@ -102,7 +103,9 @@ Aggiornato: 2026-08-24 · Ultimo commit rilevante: CP1 backend scaffold + comple
 ## Wave 6 — Assets & first multi-brand launch (E17-E18) → 🟡 avviato
 ### E17 — Brand Assets & Store Readiness
 - ✅ E17-001..005 brand pack per tutti e 5 i brand (`brands/<brand>/brand.json` + icone 16/48/128 generate da SVG): lemonsqueezer, scout, signal (blu), nobull (rosso/nero), briefly (neutro). `validate-brands` exit 0; build chromium+firefox OK per tutti.
-- ⬜ E17-006..012 store copy/asset per singolo store, privacy/terms per-brand (ora placeholder), support URL per-brand.
+- ✅ E17-012 URL privacy/terms/support per brand: privacy/terms generati (`legal/generate-legal.mjs`, entità Bifa SRLS invariata) e hostati su S3 `/<brand>/` (HTTP 200), `brand.json.urls` aggiornati → `validate-brands` 0 warning; support mailto per brand.
+- 🟡 E17-006 store copy template (`store.summary` presente; template completo per store parziale).
+- ⬜ E17-007..011 asset store per singolo store (screenshot/listing per CWS/AMO/App Store).
 
 ## Milestones (Doc 14)
 - ✅ M1 Backend multi-brand complete — E02-E08 core fatti (registry, entitlement per-brand, quota, cache/analytics, prompt/schema, billing per-brand). Restano sotto-task minori + config di lancio (SSM Scout).
