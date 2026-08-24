@@ -4,7 +4,7 @@ import { validateSubscription } from '../src/subscription.mjs';
 import { checkRateLimit } from '../src/rate-limit.mjs';
 import { fetchWebContent } from '../src/web-fetcher.mjs';
 import { loginWithGoogle, loginWithEmail, registerWithEmail, verifyAuthToken, requireAuth, canUserSummarize, incrementUsage, getEntitlement } from '../src/auth.mjs';
-import { resolveBrandId } from '../src/brands.mjs';
+import { resolveBrandId, isValidBrand, getBrand } from '../src/brands.mjs';
 import { handleGoogleAuth } from '../src/auth-google.mjs';
 import { logSummaryEvent, getUserStats, getGlobalStats, getTrendingDomains } from '../src/analytics.mjs';
 import { getCachedSummary, setCachedSummary, shouldCacheUrl, getCacheStats, cleanExpiredCache } from '../src/cache.mjs';
@@ -255,19 +255,6 @@ export async function summarizeUrlHandler(event) {
             return createResponse(401, { error: authError.message, code: 'AUTH_REQUIRED' });
         }
 
-        // Brand corrente (header X-Brand). Quota e piano sono indipendenti per brand.
-        const brandId = resolveBrandId(event.headers?.['x-brand'] || event.headers?.['X-Brand']);
-
-        // Verifica limiti piano (per-brand)
-        const usageCheck = canUserSummarize(user, brandId);
-        if (!usageCheck.canSummarize) {
-            return createResponse(429, { 
-                error: usageCheck.reason, 
-                code: 'USAGE_LIMIT_EXCEEDED',
-                resetDate: usageCheck.resetDate
-            });
-        }
-
         let body;
         const parseStartTime = Date.now();
         try {
@@ -284,6 +271,24 @@ export async function summarizeUrlHandler(event) {
             return createResponse(400, {
                 error: 'URL è richiesto e deve essere una stringa',
                 code: 'MISSING_URL'
+            });
+        }
+
+        // Brand: precedenza X-Brand header > body.brand > default. Quota e piano
+        // sono indipendenti per brand. Un brand esplicito ma non valido è rifiutato.
+        const rawBrand = event.headers?.['x-brand'] || event.headers?.['X-Brand'] || body.brand;
+        if (rawBrand !== undefined && rawBrand !== null && rawBrand !== '' && !isValidBrand(rawBrand)) {
+            return createResponse(400, { error: 'Brand non valido', code: 'INVALID_BRAND' });
+        }
+        const brandId = resolveBrandId(rawBrand);
+
+        // Verifica limiti piano (per-brand)
+        const usageCheck = canUserSummarize(user, brandId);
+        if (!usageCheck.canSummarize) {
+            return createResponse(429, {
+                error: usageCheck.reason,
+                code: 'USAGE_LIMIT_EXCEEDED',
+                resetDate: usageCheck.resetDate
             });
         }
 
@@ -354,8 +359,11 @@ export async function summarizeUrlHandler(event) {
         console.log(`📄 [TIMING] Extracted ${text.length} characters from URL`);
 
         const sourceType = hasTranscript ? 'video' : 'web';
+        const brandConfig = getBrand(brandId);
         const cacheInput = {
             brandId,
+            promptProfile: brandConfig.promptProfile,
+            outputSchema: brandConfig.outputSchema,
             url: body.url,
             text,
             language,

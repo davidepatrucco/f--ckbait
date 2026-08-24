@@ -23,6 +23,8 @@ const CACHE_VERSION = 'summary-v3';
  */
 export function buildSummaryCacheKey({
     brandId = 'lemonsqueezer',
+    promptProfile = '',
+    outputSchema = '',
     text,
     language = 'it',
     summaryProfile = 'standard',
@@ -38,6 +40,9 @@ export function buildSummaryCacheKey({
     const keyParts = [
         CACHE_VERSION,
         `b:${brandId}`,
+        // Prompt/schema version: cambiarli invalida la cache logica (no output stantii).
+        `pp:${promptProfile}`,
+        `os:${outputSchema}`,
         contentHash,
         language,
         summaryProfile,
