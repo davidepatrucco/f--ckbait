@@ -48,6 +48,24 @@ const countWords = (text) => String(text || '').trim().split(/\s+/).filter(Boole
 const DEFAULT_SUMMARY_MODEL = process.env.SUMMARY_MODEL || 'gpt-5-nano';
 const ALLOWED_SUMMARY_MODELS = new Set([DEFAULT_SUMMARY_MODEL, 'gpt-5-nano', 'gpt-5.6-luna']);
 
+// Prezzi USD per 1M token (input/output). Da popolare con i valori reali del
+// provider. Modello sconosciuto -> costo 0 (i conteggi token restano accurati).
+const MODEL_COSTS = {
+    // 'gpt-5-nano': { input: 0.00, output: 0.00 }
+};
+export function estimateCost(model, inputTokens, outputTokens) {
+    const p = MODEL_COSTS[model];
+    if (!p) return 0;
+    return Number((((inputTokens || 0) / 1e6) * p.input + ((outputTokens || 0) / 1e6) * p.output).toFixed(6));
+}
+function readUsage(completion) {
+    const u = completion?.usage || {};
+    return {
+        input: u.prompt_tokens ?? u.input_tokens ?? 0,
+        output: u.completion_tokens ?? u.output_tokens ?? 0
+    };
+}
+
 export function getSummaryModel(requestedModel) {
     return ALLOWED_SUMMARY_MODELS.has(requestedModel) ? requestedModel : DEFAULT_SUMMARY_MODEL;
 }
@@ -168,6 +186,11 @@ export async function summarizeWithOpenAI(content) {
         const apiCallStartTime = Date.now();
         // Chiamata a OpenAI
         const client = await getOpenAIClient();
+        // Accumula i token di TUTTE le completion (retry/compressione inclusi).
+        let inTok = 0;
+        let outTok = 0;
+        const addUsage = (c) => { const u = readUsage(c); inTok += u.input; outTok += u.output; };
+        const usagePayload = () => ({ input_tokens: inTok, output_tokens: outTok, cost_estimate: estimateCost(model, inTok, outTok) });
         const requestCompletion = async (messages, strictSchema = true) => client.chat.completions.create({
             model,
             messages,
@@ -224,10 +247,12 @@ export async function summarizeWithOpenAI(content) {
             } else {
                 genCompletion = await requestCompletion(messages, false);
             }
+            addUsage(genCompletion);
             let output = schema.parse(readResponseText(genCompletion));
             if (!output) {
                 // Un retry in JSON mode meno restrittivo.
                 genCompletion = await requestCompletion(messages, false);
+                addUsage(genCompletion);
                 output = schema.parse(readResponseText(genCompletion));
             }
             if (!output) throw new Error('Risposta OpenAI non utilizzabile');
@@ -238,6 +263,7 @@ export async function summarizeWithOpenAI(content) {
             return {
                 schema: outputSchemaName,
                 output,
+                usage: usagePayload(),
                 stats: {
                     originalWords: genStats.originalWords,
                     originalReadingTime: formatTime(genStats.originalReadingTime)
@@ -251,6 +277,7 @@ export async function summarizeWithOpenAI(content) {
             { role: 'system', content: `${systemPrompt} Restituisci solo i bullet, uno per riga, preceduti da •.` },
             { role: 'user', content: userPrompt }
         ]);
+        addUsage(completion);
         const apiCallTime = Date.now() - apiCallStartTime;
         console.log('⚡ [TIMING] OpenAI API call took:', apiCallTime, 'ms');
         let response = readResponseText(completion);
@@ -266,6 +293,7 @@ export async function summarizeWithOpenAI(content) {
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userPrompt }
             ], false);
+            addUsage(completion);
             response = readResponseText(completion);
         }
         if (!response) {
@@ -276,6 +304,7 @@ export async function summarizeWithOpenAI(content) {
                 { role: 'system', content: `${systemPrompt} Restituisci solo i bullet, uno per riga, preceduti da •.` },
                 { role: 'user', content: userPrompt }
             ]);
+            addUsage(completion);
             response = readResponseText(completion);
         }
         if (!response) throw new Error('Risposta vuota da OpenAI');
@@ -293,6 +322,7 @@ export async function summarizeWithOpenAI(content) {
                     content: `Riduci il seguente riassunto a massimo ${plan.targetWords} parole totali, mantenendo solo i fatti essenziali.\n\n${summaryText}`
                 }
             ]);
+            addUsage(completion);
             const compressed = coerceBullets(readResponseText(completion));
             if (compressed.length) {
                 bullets = compressed;
@@ -311,6 +341,7 @@ export async function summarizeWithOpenAI(content) {
             text: summaryText,
             readingTimeMinutes: Math.ceil(stats.summaryReadingTime / 60),
             wordsCount: stats.summaryWords,
+            usage: usagePayload(),
             stats: {
                 originalWords: stats.originalWords,
                 summaryWords: stats.summaryWords,

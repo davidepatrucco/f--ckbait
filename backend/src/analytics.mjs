@@ -34,6 +34,9 @@ export function buildAnalyticsEvent(eventData) {
         language: eventData.language || 'it',
         chars_input: eventData.charsInput || 0,
         chars_output: eventData.charsOutput || 0,
+        input_tokens: eventData.inputTokens || 0,
+        output_tokens: eventData.outputTokens || 0,
+        cost_estimate: eventData.costEstimate || 0,
         duration_ms: eventData.durationMs || 0,
         date_partition: getDatePartition(), // Per query efficienti
         user_agent: eventData.userAgent,

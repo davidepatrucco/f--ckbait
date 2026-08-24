@@ -76,7 +76,8 @@ Aggiornato: 2026-08-24 · Ultimo commit rilevante: CP1 backend scaffold + comple
 ### E13 — Analytics, Funnels & Cost Telemetry
 - ✅ Fix persistenza: `buildAnalyticsEvent` scrive `eventId`/`userId`/`timestamp`(N)+`created_at`(ISO); `success` booleano reale. Query allineate: `getUserStats` → `UserEventsIndex` + `userId` + epoch; `getGlobalStats`/`getTrendingDomains` → `userId`, proiezioni/alias corretti; `getDailyBreakdown` usa `created_at`. Test `test/analytics-schema.test.mjs`. 75/75 verdi.
 - ✅ E13-002/003 brand tag su eventi + latenza (`duration_ms` + `brand_id`) · campi client (browser/client_version)
-- ⬜ E13-005 costo/token per brand · E13-006/007 funnel/retention dashboard (richiede storage query + UI)
+- ✅ E13-005 token/costo per brand: `usage` (input/output tokens reali) propagato da `summarizeWithOpenAI` → analytics (`input_tokens`/`output_tokens`/`cost_estimate`); `estimateCost` con tabella prezzi per modello (sconosciuto→0, i conteggi token restano accurati). Test `test/token-cost.test.mjs`
+- ⬜ E13-006/007 funnel/retention dashboard (richiede storage query + UI)
 ### E12 — API Contracts & Error Model  → ✅ core
 - ✅ E12-001 brand via header X-Brand (fallback body) · E12-002 `brand` nei metadata di risposta
 - ✅ E12-003 `src/errors.mjs` catalogo centralizzato (codici stabili + status) · E12-004 USAGE_LIMIT_EXCEEDED arricchito (brand/plan/resetDate) · E12-005 OUTPUT_SCHEMA_ERROR/PAYMENT_BRAND_MISMATCH definiti
