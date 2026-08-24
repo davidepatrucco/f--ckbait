@@ -29,8 +29,8 @@ const RATE_LIMITS = {
     }
 };
 
-// Funzione per creare una chiave per il rate limiting
-function createRateLimitKey(apiKey, window) {
+// Funzione per creare una chiave per il rate limiting (opzionalmente per-brand).
+export function createRateLimitKey(apiKey, window, brand = '') {
     const now = new Date();
     let timeWindow;
     
@@ -48,13 +48,15 @@ function createRateLimitKey(apiKey, window) {
             throw new Error('Invalid time window');
     }
     
-    return `${apiKey}#${window}#${timeWindow}`;
+    // Il segmento brand è aggiunto solo se presente: chiavi legacy (senza brand) invariate.
+    const brandSeg = brand ? `${brand}#` : '';
+    return `${apiKey}#${brandSeg}${window}#${timeWindow}`;
 }
 
 // Funzione per verificare e aggiornare il rate limit per una finestra temporale
-async function checkAndUpdateRateLimit(apiKey, window, config) {
+async function checkAndUpdateRateLimit(apiKey, window, config, brand = '') {
     try {
-        const key = createRateLimitKey(apiKey, window);
+        const key = createRateLimitKey(apiKey, window, brand);
         const now = new Date();
         const ttl = Math.floor((now.getTime() + config.window) / 1000); // TTL in secondi
         
@@ -108,18 +110,14 @@ async function checkAndUpdateRateLimit(apiKey, window, config) {
 }
 
 // Funzione principale per verificare tutti i rate limits
-export async function checkRateLimit(apiKey) {
+export async function checkRateLimit(apiKey, brand = '') {
     try {
         const results = {};
-        
-        // Verifica rate limit per minuto
-        results.minute = await checkAndUpdateRateLimit(apiKey, 'minute', RATE_LIMITS.perMinute);
-        
-        // Verifica rate limit per ora
-        results.hour = await checkAndUpdateRateLimit(apiKey, 'hour', RATE_LIMITS.perHour);
-        
-        // Verifica rate limit per giorno
-        results.day = await checkAndUpdateRateLimit(apiKey, 'day', RATE_LIMITS.perDay);
+
+        // Verifica rate limit per minuto/ora/giorno (chiave per-brand se brand fornito)
+        results.minute = await checkAndUpdateRateLimit(apiKey, 'minute', RATE_LIMITS.perMinute, brand);
+        results.hour = await checkAndUpdateRateLimit(apiKey, 'hour', RATE_LIMITS.perHour, brand);
+        results.day = await checkAndUpdateRateLimit(apiKey, 'day', RATE_LIMITS.perDay, brand);
         
         // Log del rate limiting
         console.log('Rate limit check:', {

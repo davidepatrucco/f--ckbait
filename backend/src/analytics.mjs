@@ -13,29 +13,40 @@ const docClient = DynamoDBDocumentClient.from(client);
 const ANALYTICS_TABLE = process.env.ANALYTICS_TABLE_NAME || 'tldr-analytics';
 
 /**
+ * Costruisce l'evento analytics (funzione pura, testabile).
+ * PRIVACY: solo metadati (dominio, titolo, conteggi caratteri) — MAI il contenuto
+ * grezzo della pagina né il testo del riassunto (E06-007).
+ */
+export function buildAnalyticsEvent(eventData) {
+    return {
+        id: uuidv4(),
+        brand_id: eventData.brandId || 'lemonsqueezer',
+        user_id: eventData.userId,
+        email: eventData.userEmail,
+        plan: eventData.userPlan,
+        url: eventData.url,
+        url_domain: extractDomain(eventData.url),
+        title: eventData.title,
+        language: eventData.language || 'it',
+        chars_input: eventData.charsInput || 0,
+        chars_output: eventData.charsOutput || 0,
+        duration_ms: eventData.durationMs || 0,
+        timestamp: new Date().toISOString(),
+        date_partition: getDatePartition(), // Per query efficienti
+        user_agent: eventData.userAgent,
+        browser: eventData.browser || null,
+        client_version: eventData.clientVersion || null,
+        success: eventData.success || true,
+        error_code: eventData.errorCode || null
+    };
+}
+
+/**
  * Registra un evento di riassunto
  */
 export async function logSummaryEvent(eventData) {
     try {
-        const event = {
-            id: uuidv4(),
-            brand_id: eventData.brandId || 'lemonsqueezer',
-            user_id: eventData.userId,
-            email: eventData.userEmail,
-            plan: eventData.userPlan,
-            url: eventData.url,
-            url_domain: extractDomain(eventData.url),
-            title: eventData.title,
-            language: eventData.language || 'it',
-            chars_input: eventData.charsInput || 0,
-            chars_output: eventData.charsOutput || 0,
-            duration_ms: eventData.durationMs || 0,
-            timestamp: new Date().toISOString(),
-            date_partition: getDatePartition(), // Per query efficienti
-            user_agent: eventData.userAgent,
-            success: eventData.success || true,
-            error_code: eventData.errorCode || null
-        };
+        const event = buildAnalyticsEvent(eventData);
 
         const command = new PutCommand({
             TableName: ANALYTICS_TABLE,

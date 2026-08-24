@@ -4,7 +4,8 @@ import { validateSubscription } from '../src/subscription.mjs';
 import { checkRateLimit } from '../src/rate-limit.mjs';
 import { fetchWebContent } from '../src/web-fetcher.mjs';
 import { loginWithGoogle, loginWithEmail, registerWithEmail, verifyAuthToken, requireAuth, canUserSummarize, incrementUsage, getEntitlement } from '../src/auth.mjs';
-import { resolveBrandId, isValidBrand, getBrand } from '../src/brands.mjs';
+import { resolveBrandId, isValidBrand, getBrand, listBrands } from '../src/brands.mjs';
+import { ARCHITECTURE_VERSION, API_VERSION, ENVIRONMENT } from '../src/config.mjs';
 import { handleGoogleAuth } from '../src/auth-google.mjs';
 import { logSummaryEvent, getUserStats, getGlobalStats, getTrendingDomains } from '../src/analytics.mjs';
 import { getCachedSummary, setCachedSummary, shouldCacheUrl, getCacheStats, cleanExpiredCache } from '../src/cache.mjs';
@@ -164,7 +165,7 @@ export async function summarizeHandler(event) {
 
         // Rate limiting check - CRITICAL for cost control
         try {
-            await checkRateLimit(apiKey);
+            await checkRateLimit(apiKey, resolveBrandId(event.headers?.['x-brand'] || event.headers?.['X-Brand']));
         } catch (rateLimitError) {
             return createResponse(429, {
                 error: 'Rate limit superato. Riprova più tardi.',
@@ -472,6 +473,8 @@ export async function summarizeUrlHandler(event) {
                 charsOutput: summary.text ? summary.text.length : JSON.stringify(summary.output || {}).length,
                 durationMs: analyticsTime,
                 userAgent: event.headers?.['User-Agent'],
+                browser: event.headers?.['x-client'] || event.headers?.['X-Client'],
+                clientVersion: event.headers?.['x-client-version'] || event.headers?.['X-Client-Version'],
                 success: true
             });
         } catch (analyticsError) {
@@ -668,7 +671,11 @@ export async function healthHandler(event) {
     return createResponse(200, {
         status: 'healthy',
         timestamp: new Date().toISOString(),
-        version: '1.0.0'
+        version: '1.0.0',
+        architectureVersion: ARCHITECTURE_VERSION,
+        apiVersion: API_VERSION,
+        environment: ENVIRONMENT,
+        brands: listBrands()
     });
 }
 

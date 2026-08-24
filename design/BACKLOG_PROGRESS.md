@@ -11,9 +11,9 @@ Aggiornato: 2026-08-24 · Ultimo commit rilevante: CP1 backend scaffold + comple
 ## Wave 1 — Multi-brand backend scaffold (E01-E06)
 
 ### E01 — Architecture Baseline & Safety Net
-- 🟡 E01-002 test suite backend verde (41/41)
-- 🟡 E01-003 smoke estensione Lemon (verificato manualmente in sessione)
-- ⬜ E01-001 tag baseline · E01-004 inventario env/SSM · E01-005 version constant · E01-006 requestId middleware · E01-007 structured logger · E01-008 fixtures pagine · E01-009 legacy user fixture · E01-010 compat harness
+- ✅ E01-002 test suite backend verde (71/71) · E01-005 version constant (`src/config.mjs` + health espone architectureVersion/apiVersion/environment/brands) · E01-009/010 legacy user compat test (shim provato, `test/wave1-residuals.test.mjs`)
+- 🟡 E01-003 smoke estensione Lemon (manuale)
+- ⬜ E01-001 tag baseline · E01-004 inventario env/SSM · E01-006 requestId middleware (parziale: health versionato) · E01-007 structured logger · E01-008 fixtures pagine
 
 ### E02 — Brand Registry & Request Context  → ✅ core
 - ✅ E02-001 `src/brands.mjs` · E02-003 getBrand · E02-004 isValidBrand · E02-005 listBrands
@@ -33,12 +33,13 @@ Aggiornato: 2026-08-24 · Ultimo commit rilevante: CP1 backend scaffold + comple
 - ⬜ E04-010 unit test DynamoDB entitlements (mock)
 
 ### E05 — Quota, Usage & Rate Limits  → ✅ core (path estensione)
-- ✅ E05-001 free limit nel registry · E05-002 reset mensile lazy per-brand · E05-003 usage response per-brand · E05-006 errore USAGE_LIMIT_EXCEEDED
-- ⬜ E05-004 rate-limit key brand-aware (solo path legacy /summarize; l'estensione usa la quota) · E05-005 policy anonimi · E05-007/008 test dedicati
+- ✅ E05-001 free limit nel registry · E05-002 reset mensile lazy per-brand · E05-003 usage response per-brand · E05-006 errore USAGE_LIMIT_EXCEEDED · E05-004 rate-limit key brand-aware (`createRateLimitKey(apiKey,window,brand)` + test)
+- ⬜ E05-005 policy anonimi
 
 ### E06 — Brand-aware Cache & Analytics  → ✅ core
-- ✅ E06-001 brandId in cache input · E06-002 promptProfile in key · E06-003 outputSchema/version in key · E06-004 test stessa URL brand diversi · E06-005 brandId negli eventi analytics
-- ⬜ E06-006 campi browser/client version · E06-007 audit leakage contenuto grezzo · E06-008 analytics schema tests
+- ✅ E06-001 brandId in cache input · E06-002 promptProfile in key · E06-003 outputSchema/version in key · E06-004 test stessa URL brand diversi · E06-005 brandId negli eventi analytics · E06-006 campi browser/client_version · E06-007 audit anti-leak (buildAnalyticsEvent: solo metadati, mai contenuto grezzo) · E06-008 analytics schema test (`test/wave1-residuals.test.mjs`)
+
+> ⚠️ **Scoperta (priorità E13)**: I/O analytics disallineato con lo schema tabella — item scrive `id`/`user_id`/`timestamp`(ISO) ma la tabella ha PK `eventId`, GSI `userId`+`timestamp`(N) e `UserEventsIndex`. Conseguenza: **le PutItem analytics falliscono** ("Missing the key eventId") e le query GSI non tornano dati. Il tagging brand è corretto sullo shape dell'evento; la persistenza va sistemata in E13 (allineare eventId/userId/timestamp-N + query). Bug pre-esistente, non introdotto dal multi-brand.
 
 ## Wave 2 — Prompt/output + commercial isolation (E07-E08)
 
