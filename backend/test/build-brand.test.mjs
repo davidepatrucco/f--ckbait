@@ -35,7 +35,8 @@ describe('build-brand pipeline', () => {
 
     it('LemonSqueezer build reproduces the shared extension files (regression-zero)', () => {
         const res = buildBrand('lemonsqueezer', out);
-        for (const f of ['popup.html', 'popup.js', 'service_worker.js', 'content.js', 'oauth-config.js']) {
+        // oauth-config.js è git-ignored (assente in CI) -> escluso dal confronto di parità.
+        for (const f of ['popup.html', 'popup.js', 'service_worker.js', 'content.js']) {
             const a = readFileSync(join(REPO, 'extension', f), 'utf8');
             const b = readFileSync(join(res.outDir, f), 'utf8');
             assert.equal(b, a, `${f} differisce dalla sorgente extension/`);

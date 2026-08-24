@@ -13,7 +13,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const EXT = join(ROOT, 'extension');
 
 // File condivisi copiati in ogni build (whitelist: niente _old/test/example).
-const SHARED_FILES = ['manifest.json', 'popup.html', 'popup.js', 'service_worker.js', 'content.js', 'oauth-config.js'];
+// oauth-config.js è gestito a parte perché è git-ignored (assente in CI): fallback
+// a oauth-config.example.js così build/test funzionano senza il file reale.
+const SHARED_FILES = ['manifest.json', 'popup.html', 'popup.js', 'service_worker.js', 'content.js'];
 const ASSET_FILES = ['icon.svg', 'icon-16.png', 'icon-48.png', 'icon-128.png'];
 const REQUIRED_OUTPUT = ['manifest.json', 'popup.html', 'popup.js', 'service_worker.js', 'content.js', 'brand-config.js',
     'assets/icon-16.png', 'assets/icon-48.png', 'assets/icon-128.png'];
@@ -35,6 +37,13 @@ export function buildBrand(brandId, outRoot = join(ROOT, 'dist')) {
         if (!existsSync(src)) throw new Error(`file condiviso mancante: extension/${f}`);
         copyFileSync(src, join(outDir, f));
     }
+
+    // 1b. oauth-config.js (git-ignored): usa il reale se presente, altrimenti l'example.
+    const oauthReal = join(EXT, 'oauth-config.js');
+    const oauthExample = join(EXT, 'oauth-config.example.js');
+    if (existsSync(oauthReal)) copyFileSync(oauthReal, join(outDir, 'oauth-config.js'));
+    else if (existsSync(oauthExample)) copyFileSync(oauthExample, join(outDir, 'oauth-config.js'));
+    else throw new Error('manca extension/oauth-config.js (e nessun oauth-config.example.js)');
 
     // 2. brand-config.js generato dal brand pack
     writeFileSync(join(outDir, 'brand-config.js'), generateBrandConfigJs(cfg));
