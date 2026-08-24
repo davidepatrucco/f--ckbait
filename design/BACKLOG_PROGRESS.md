@@ -39,7 +39,7 @@ Aggiornato: 2026-08-24 · Ultimo commit rilevante: CP1 backend scaffold + comple
 ### E06 — Brand-aware Cache & Analytics  → ✅ core
 - ✅ E06-001 brandId in cache input · E06-002 promptProfile in key · E06-003 outputSchema/version in key · E06-004 test stessa URL brand diversi · E06-005 brandId negli eventi analytics · E06-006 campi browser/client_version · E06-007 audit anti-leak (buildAnalyticsEvent: solo metadati, mai contenuto grezzo) · E06-008 analytics schema test (`test/wave1-residuals.test.mjs`)
 
-> ⚠️ **Scoperta (priorità E13)**: I/O analytics disallineato con lo schema tabella — item scrive `id`/`user_id`/`timestamp`(ISO) ma la tabella ha PK `eventId`, GSI `userId`+`timestamp`(N) e `UserEventsIndex`. Conseguenza: **le PutItem analytics falliscono** ("Missing the key eventId") e le query GSI non tornano dati. Il tagging brand è corretto sullo shape dell'evento; la persistenza va sistemata in E13 (allineare eventId/userId/timestamp-N + query). Bug pre-esistente, non introdotto dal multi-brand.
+> ✅ **Risolto in E13**: l'I/O analytics era disallineato con lo schema tabella (scriveva `id`/`user_id`/`timestamp`-ISO; tabella: PK `eventId`, GSI `userId`+`timestamp`-N, `UserEventsIndex`) → PutItem falliva e le query non tornavano dati. Corretto: vedi sezione E13.
 
 ## Wave 2 — Prompt/output + commercial isolation (E07-E08)
 
@@ -71,7 +71,12 @@ Aggiornato: 2026-08-24 · Ultimo commit rilevante: CP1 backend scaffold + comple
 - Test: `test/build-brand.test.mjs` (integrity, branding Scout, **parità Lemon**, icone distinte). 59/59 verdi.
 - Deviazione tracciata: no `extension/src` move (E09-001) per zero-regression sul dev unpacked.
 
-## Wave 4 — Cross-browser, contracts, telemetry, security (E11-E14) → ⬜
+## Wave 4 — Cross-browser, contracts, telemetry, security (E11-E14) → 🟡 avviato
+### E13 — Analytics, Funnels & Cost Telemetry
+- ✅ Fix persistenza: `buildAnalyticsEvent` scrive `eventId`/`userId`/`timestamp`(N)+`created_at`(ISO); `success` booleano reale. Query allineate: `getUserStats` → `UserEventsIndex` + `userId` + epoch; `getGlobalStats`/`getTrendingDomains` → `userId`, proiezioni/alias corretti; `getDailyBreakdown` usa `created_at`. Test `test/analytics-schema.test.mjs`. 75/75 verdi.
+- ✅ E13-002/003 brand tag su eventi + latenza (`duration_ms` + `brand_id`) · campi client (browser/client_version)
+- ⬜ E13-005 costo/token per brand · E13-006/007 funnel/retention dashboard (richiede storage query + UI)
+- E11/E12/E14: ⬜ (cross-browser, contract/error model, security hardening)
 ## Wave 5 — Test hardening & deployment automation (E15-E16) → ⬜
 ## Wave 6 — Assets & first multi-brand launch (E17-E18) → ⬜
 

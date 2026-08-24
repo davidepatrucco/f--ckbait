@@ -18,10 +18,14 @@ const ANALYTICS_TABLE = process.env.ANALYTICS_TABLE_NAME || 'tldr-analytics';
  * grezzo della pagina né il testo del riassunto (E06-007).
  */
 export function buildAnalyticsEvent(eventData) {
+    const now = new Date();
     return {
-        id: uuidv4(),
+        // Chiavi allineate allo schema tabella: PK eventId, GSI userId + timestamp(N).
+        eventId: uuidv4(),
+        userId: eventData.userId,
+        timestamp: now.getTime(), // Number (epoch ms) per la GSI
+        created_at: now.toISOString(), // ISO leggibile per display/raggruppamenti
         brand_id: eventData.brandId || 'lemonsqueezer',
-        user_id: eventData.userId,
         email: eventData.userEmail,
         plan: eventData.userPlan,
         url: eventData.url,
@@ -31,12 +35,11 @@ export function buildAnalyticsEvent(eventData) {
         chars_input: eventData.charsInput || 0,
         chars_output: eventData.charsOutput || 0,
         duration_ms: eventData.durationMs || 0,
-        timestamp: new Date().toISOString(),
         date_partition: getDatePartition(), // Per query efficienti
         user_agent: eventData.userAgent,
         browser: eventData.browser || null,
         client_version: eventData.clientVersion || null,
-        success: eventData.success || true,
+        success: eventData.success !== false,
         error_code: eventData.errorCode || null
     };
 }
@@ -54,7 +57,7 @@ export async function logSummaryEvent(eventData) {
         });
 
         await docClient.send(command);
-        return event.id;
+        return event.eventId;
 
     } catch (error) {
         console.error('Error logging analytics event:', error);
@@ -73,14 +76,14 @@ export async function getUserStats(userId, days = 30) {
         
         const command = new QueryCommand({
             TableName: ANALYTICS_TABLE,
-            IndexName: 'UserIndex',
-            KeyConditionExpression: 'user_id = :userId AND #ts >= :startDate',
+            IndexName: 'UserEventsIndex',
+            KeyConditionExpression: 'userId = :userId AND #ts >= :startDate',
             ExpressionAttributeNames: {
                 '#ts': 'timestamp'
             },
             ExpressionAttributeValues: {
                 ':userId': userId,
-                ':startDate': startDate.toISOString()
+                ':startDate': startDate.getTime() // epoch ms (timestamp è Number)
             }
         });
 
@@ -97,7 +100,7 @@ export async function getUserStats(userId, days = 30) {
             languageBreakdown: getLanguageBreakdown(events),
             domainBreakdown: getDomainBreakdown(events),
             recentActivity: events.slice(-10).map(e => ({
-                date: e.timestamp,
+                date: e.created_at || (e.timestamp ? new Date(e.timestamp).toISOString() : null),
                 url: e.url,
                 domain: e.url_domain,
                 duration: e.duration_ms,
@@ -131,9 +134,9 @@ export async function getGlobalStats(days = 7) {
         const response = await docClient.send(command);
         const events = response.Items || [];
 
-        const uniqueUsers = new Set(events.map(e => e.user_id)).size;
-        const freeUsers = new Set(events.filter(e => e.plan === 'free').map(e => e.user_id)).size;
-        const premiumUsers = new Set(events.filter(e => e.plan === 'premium').map(e => e.user_id)).size;
+        const uniqueUsers = new Set(events.map(e => e.userId)).size;
+        const freeUsers = new Set(events.filter(e => e.plan === 'free').map(e => e.userId)).size;
+        const premiumUsers = new Set(events.filter(e => e.plan === 'premium').map(e => e.userId)).size;
 
         return {
             totalSummaries: events.length,
@@ -169,12 +172,15 @@ export async function getTrendingDomains(days = 7, limit = 20) {
 
         const command = new ScanCommand({
             TableName: ANALYTICS_TABLE,
-            FilterExpression: 'date_partition >= :startPartition AND success = :success',
+            FilterExpression: 'date_partition >= :startPartition AND #success = :success',
+            ExpressionAttributeNames: {
+                '#success': 'success'
+            },
             ExpressionAttributeValues: {
                 ':startPartition': startPartition,
                 ':success': true
             },
-            ProjectionExpression: 'url_domain, timestamp'
+            ProjectionExpression: 'url_domain'
         });
 
         const response = await docClient.send(command);
@@ -244,10 +250,11 @@ function getDailyBreakdown(events, days) {
         daily[dateStr] = 0;
     }
     
-    // Conta eventi per giorno
+    // Conta eventi per giorno (usa created_at ISO; fallback a timestamp Number)
     events.forEach(e => {
-        const dateStr = e.timestamp.split('T')[0];
-        if (daily.hasOwnProperty(dateStr)) {
+        const iso = e.created_at || (typeof e.timestamp === 'number' ? new Date(e.timestamp).toISOString() : String(e.timestamp || ''));
+        const dateStr = iso.split('T')[0];
+        if (Object.prototype.hasOwnProperty.call(daily, dateStr)) {
             daily[dateStr]++;
         }
     });
