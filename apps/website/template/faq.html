@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{displayName}} — FAQ</title>
+  <meta name="description" content="{{displayName}} frequently asked questions." />
+  <style>
+    :root {
+      --primary: {{primary}};
+      --primary-700: {{primary700}};
+      --black: {{black}};
+      --white: {{white}};
+      --gray-100: {{gray100}};
+      --radius: {{radius}};
+      --font-sans: {{fontSans}};
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body { font-family: var(--font-sans); color: var(--black); background: var(--white); line-height: 1.55; -webkit-font-smoothing: antialiased; }
+    .wrap { max-width: 780px; margin: 0 auto; padding: 0 20px; }
+    header.site { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; border-bottom: 1px solid var(--gray-100); }
+    .wordmark { font-weight: 800; font-size: 20px; letter-spacing: -0.02em; }
+    .wordmark .accent { color: var(--primary-700); }
+    nav.site a { margin-left: 18px; text-decoration: none; font-weight: 600; font-size: 14px; }
+    h1.page { font-size: 36px; letter-spacing: -0.03em; margin: 56px 0 32px; }
+    details { border: 1px solid var(--gray-100); border-radius: var(--radius); padding: 16px 18px; margin-bottom: 12px; }
+    details[open] { border-color: var(--primary); }
+    summary { font-weight: 700; cursor: pointer; font-size: 16px; }
+    details p { margin: 12px 0 0; font-size: 14px; opacity: 0.85; }
+    footer.site { border-top: 1px solid var(--gray-100); padding: 24px 0; margin-top: 48px; font-size: 13px; opacity: 0.75; }
+    footer.site a { text-decoration: none; margin-right: 16px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="site">
+      <div class="wordmark">{{wordmarkPre}}<span class="accent">{{wordmarkAccent}}</span></div>
+      <nav class="site">
+        <a href="landing.html">Home</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="faq.html">FAQ</a>
+      </nav>
+    </header>
+
+    <h1 class="page">Frequently asked questions</h1>
+
+    <details open>
+      <summary>What is {{displayName}}?</summary>
+      <p>{{storeSummary}}</p>
+    </details>
+
+    <details>
+      <summary>Which browsers are supported?</summary>
+      <p>{{displayName}} runs as a browser extension on Chromium-based browsers (Chrome, Edge, Brave) and Firefox.</p>
+    </details>
+
+    <details>
+      <summary>Do you store the pages I read?</summary>
+      <p>No. Only metadata (domain, title, character counts) is processed. Raw page content and generated output are never stored.</p>
+    </details>
+
+    <details>
+      <summary>How much does it cost?</summary>
+      <p>There is a free tier with a daily limit and a Premium plan. See the <a href="pricing.html">Pricing</a> page.</p>
+    </details>
+
+    <details>
+      <summary>How do I get support?</summary>
+      <p>Contact us via the <a href="{{supportUrl}}">support channel</a>.</p>
+    </details>
+
+    <footer class="site">
+      <a href="{{privacyUrl}}">Privacy</a>
+      <a href="{{termsUrl}}">Terms</a>
+      <a href="{{supportUrl}}">Support</a>
+      <div>© {{year}} {{displayName}}. All rights reserved.</div>
+    </footer>
+  </div>
+</body>
+</html>

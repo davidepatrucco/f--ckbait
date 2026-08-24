@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{displayName}} — Pricing</title>
+  <meta name="description" content="{{displayName}} pricing. {{tagline}}" />
+  <style>
+    :root {
+      --primary: {{primary}};
+      --primary-700: {{primary700}};
+      --black: {{black}};
+      --white: {{white}};
+      --gray-100: {{gray100}};
+      --radius: {{radius}};
+      --font-sans: {{fontSans}};
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body { font-family: var(--font-sans); color: var(--black); background: var(--white); line-height: 1.55; -webkit-font-smoothing: antialiased; }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 0 20px; }
+    header.site { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; border-bottom: 1px solid var(--gray-100); }
+    .wordmark { font-weight: 800; font-size: 20px; letter-spacing: -0.02em; }
+    .wordmark .accent { color: var(--primary-700); }
+    nav.site a { margin-left: 18px; text-decoration: none; font-weight: 600; font-size: 14px; }
+    h1.page { text-align: center; font-size: 36px; letter-spacing: -0.03em; margin: 56px 0 8px; }
+    p.sub { text-align: center; opacity: 0.8; margin: 0 0 40px; }
+    .plans { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; padding-bottom: 64px; }
+    .plan { border: 1px solid var(--gray-100); border-radius: var(--radius); padding: 28px; }
+    .plan.featured { border: 2px solid var(--primary); box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+    .plan h2 { margin: 0 0 4px; font-size: 20px; }
+    .price { font-size: 40px; font-weight: 800; letter-spacing: -0.03em; margin: 8px 0 4px; }
+    .price small { font-size: 15px; font-weight: 500; opacity: 0.7; }
+    ul.feats { list-style: none; padding: 0; margin: 18px 0 24px; }
+    ul.feats li { padding: 6px 0; font-size: 14px; border-bottom: 1px solid var(--gray-100); }
+    .cta { display: inline-block; background: var(--primary); color: var(--black); font-weight: 700; text-decoration: none; padding: 12px 22px; border-radius: var(--radius); }
+    .cta:hover { background: var(--primary-700); }
+    .cta.ghost { background: transparent; border: 1px solid var(--black); }
+    footer.site { border-top: 1px solid var(--gray-100); padding: 24px 0; font-size: 13px; opacity: 0.75; }
+    footer.site a { text-decoration: none; margin-right: 16px; }
+    @media (max-width: 720px) { .plans { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="site">
+      <div class="wordmark">{{wordmarkPre}}<span class="accent">{{wordmarkAccent}}</span></div>
+      <nav class="site">
+        <a href="landing.html">Home</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="faq.html">FAQ</a>
+      </nav>
+    </header>
+
+    <h1 class="page">Simple pricing</h1>
+    <p class="sub">{{tagline}}</p>
+
+    <section class="plans">
+      <div class="plan">
+        <h2>Free</h2>
+        <div class="price">€0<small>/mo</small></div>
+        <ul class="feats">
+          <li>Daily usage limit</li>
+          <li>Core features</li>
+          <li>Community support</li>
+        </ul>
+        <a class="cta ghost" href="{{supportUrl}}">Start free</a>
+      </div>
+      <div class="plan featured">
+        <h2>Premium</h2>
+        <div class="price">€4.99<small>/mo</small></div>
+        <ul class="feats">
+          <li>Unlimited usage</li>
+          <li>Priority processing</li>
+          <li>Priority support</li>
+        </ul>
+        <a class="cta" href="{{supportUrl}}">Go Premium</a>
+      </div>
+    </section>
+
+    <footer class="site">
+      <a href="{{privacyUrl}}">Privacy</a>
+      <a href="{{termsUrl}}">Terms</a>
+      <a href="{{supportUrl}}">Support</a>
+      <div>© {{year}} {{displayName}}. All rights reserved.</div>
+    </footer>
+  </div>
+</body>
+</html>
