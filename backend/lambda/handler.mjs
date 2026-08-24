@@ -913,12 +913,14 @@ export async function createCheckoutHandler(event) {
         }
 
         const planType = body.planType || 'premium_monthly';
-        
+
         if (!['premium_monthly', 'premium_yearly'].includes(planType)) {
             return createResponse(400, { error: 'Piano non valido. Usa premium_monthly o premium_yearly.' });
         }
 
-        const checkoutSession = await createCheckoutSession(user.id, user.email, planType);
+        // Brand corrente: checkout crea la subscription del brand giusto (vita commerciale separata).
+        const checkoutBrand = resolveBrandId(event.headers?.['x-brand'] || event.headers?.['X-Brand'] || body.brand);
+        const checkoutSession = await createCheckoutSession(user.id, user.email, checkoutBrand, planType);
         
         return createResponse(200, {
             checkout_session: checkoutSession,

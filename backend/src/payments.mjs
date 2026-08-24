@@ -4,6 +4,7 @@ import Stripe from 'stripe';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import { updateUserPlan } from './dynamodb.mjs';
+import { getBrand, isValidBrand, DEFAULT_BRAND } from './brands.mjs';
 import { SecretsManager } from './secrets.mjs';
 
 // Configurazione
@@ -17,48 +18,66 @@ const docClient = DynamoDBDocumentClient.from(client);
 
 const PAYMENTS_TABLE = process.env.PAYMENTS_TABLE_NAME || 'tldr-payments';
 
-// Configurazione prodotti Stripe (caricata dinamicamente)
+// Client Stripe (chiave segreta globale) + prodotti per-brand (price id per brand).
 let stripeClient;
-let stripeProducts;
+const brandProductsCache = {};
 
-/**
- * Inizializza il client Stripe e carica la configurazione
- */
-async function initializeStripe() {
+async function getStripeClient() {
     if (!stripeClient) {
         const stripeSecretKey = await secretsManager.getSecret('STRIPE_SECRET_KEY');
         stripeClient = new Stripe(stripeSecretKey);
-        
-        // Configurazione prodotti Stripe
-        const monthlyPriceId = await secretsManager.getSecret('STRIPE_PREMIUM_MONTHLY_PRICE_ID');
-        const yearlyPriceId = await secretsManager.getSecret('STRIPE_PREMIUM_YEARLY_PRICE_ID');
-        
-        stripeProducts = {
-            premium_monthly: {
-                price_id: monthlyPriceId,
-                amount: 999, // €9.99/mese in centesimi
-                currency: 'eur',
-                interval: 'month'
-            },
-            premium_yearly: {
-                price_id: yearlyPriceId,
-                amount: 9999, // €99.99/anno in centesimi  
-                currency: 'eur',
-                interval: 'year'
-            }
-        };
     }
-    
-    return { stripe: stripeClient, products: stripeProducts };
+    return stripeClient;
+}
+
+/**
+ * Prodotti Stripe di uno specifico brand (price id letti dalle chiavi SSM del brand).
+ * "Independent commercial lifecycle per brand": ogni brand ha i suoi price id.
+ */
+async function getBrandProducts(brandId) {
+    if (brandProductsCache[brandId]) return brandProductsCache[brandId];
+    const brand = getBrand(brandId);
+    const monthlyPriceId = await secretsManager.getSecret(brand.stripe.monthlyPriceKey);
+    const yearlyPriceId = await secretsManager.getSecret(brand.stripe.yearlyPriceKey);
+    const products = {
+        premium_monthly: { price_id: monthlyPriceId, amount: 999, currency: 'eur', interval: 'month' },
+        premium_yearly: { price_id: yearlyPriceId, amount: 9999, currency: 'eur', interval: 'year' }
+    };
+    brandProductsCache[brandId] = products;
+    return products;
+}
+
+/**
+ * Compat: alcune funzioni usano solo il client. Restituisce { stripe }.
+ */
+async function initializeStripe() {
+    return { stripe: await getStripeClient() };
+}
+
+/**
+ * Ricava il brand da metadata Stripe (session/subscription). Default: LemonSqueezer
+ * (retrocompatibile con record creati prima del multi-brand).
+ */
+export function resolveStripeBrand(obj) {
+    const b = obj?.metadata?.brand;
+    return isValidBrand(b) ? b : DEFAULT_BRAND;
 }
 
 /**
  * Crea sessione di checkout Stripe
  */
-export async function createCheckoutSession(userId, userEmail, planType = 'premium_monthly') {
+export async function createCheckoutSession(userId, userEmail, brand = DEFAULT_BRAND, planType = 'premium_monthly') {
     try {
-        const { stripe, products } = await initializeStripe();
-        
+        if (!isValidBrand(brand)) {
+            throw new Error(`Brand non valido: ${brand}`);
+        }
+        // Valida il piano PRIMA di chiamare Stripe/secrets (input validation up-front).
+        if (!['premium_monthly', 'premium_yearly'].includes(planType)) {
+            throw new Error(`Piano non valido: ${planType}`);
+        }
+        const stripe = await getStripeClient();
+        const products = await getBrandProducts(brand);
+
         if (!products[planType]) {
             throw new Error(`Piano non valido: ${planType}`);
         }
@@ -80,6 +99,7 @@ export async function createCheckoutSession(userId, userEmail, planType = 'premi
             client_reference_id: userId,
             metadata: {
                 user_id: userId,
+                brand,
                 plan_type: planType
             },
             success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
@@ -89,6 +109,7 @@ export async function createCheckoutSession(userId, userEmail, planType = 'premi
             subscription_data: {
                 metadata: {
                     user_id: userId,
+                    brand,
                     plan_type: planType
                 }
             }
@@ -151,12 +172,18 @@ export async function verifyCheckoutSession(sessionId) {
             currency: session.currency
         });
 
-        // Aggiorna piano utente a premium
-        await updateUserPlan(userId, 'lemonsqueezer', 'premium');
+        // Aggiorna il piano del brand corretto a premium
+        const brand = resolveStripeBrand(session);
+        await updateUserPlan(userId, brand, 'premium', {
+            subscriptionStatus: subscription.status,
+            stripeCustomerId: customer.id,
+            stripeSubscriptionId: subscription.id
+        });
 
         return {
             success: true,
             userId,
+            brand,
             subscriptionId: subscription.id,
             customerId: customer.id,
             status: subscription.status,
@@ -394,22 +421,29 @@ async function handleCheckoutCompleted(session) {
     
     const userId = session.client_reference_id;
     const planType = session.metadata?.plan_type || 'premium_monthly';
-    
+    const brand = resolveStripeBrand(session);
+
     if (!userId) {
         console.error('Missing user ID in checkout session');
         return;
     }
-    
-    console.log(`Processing upgrade for user ${userId} to plan ${planType}`);
-    
+
+    console.log(`Processing upgrade for user ${userId} (brand ${brand}) to plan ${planType}`);
+
     try {
+        // updateUserPlan e la PUT del record sono idempotenti: un evento webhook
+        // duplicato non causa doppio addebito né stato incoerente (E08-010).
         console.log('Calling updateUserPlan...');
-        await updateUserPlan(userId, 'lemonsqueezer', 'premium');
+        await updateUserPlan(userId, brand, 'premium', {
+            subscriptionStatus: 'active',
+            stripeSubscriptionId: session.subscription
+        });
         console.log('updateUserPlan completed successfully');
-        
+
         // Salva record subscription
         const subscriptionData = {
             user_id: userId,
+            brand,
             subscription_id: session.subscription,
             plan_type: planType,
             status: 'active',
@@ -439,13 +473,14 @@ async function handleSubscriptionCreated(subscription) {
 async function handleSubscriptionUpdated(subscription) {
     console.log('Subscription updated:', subscription.id);
     const userId = subscription.metadata?.user_id;
-    
+    const brand = resolveStripeBrand(subscription);
+
     if (userId) {
         await updateSubscriptionStatus(userId, subscription.status);
-        
-        // Se subscription scaduta, downgrade a free
+
+        // Se subscription scaduta, downgrade a free SOLO per il brand interessato
         if (subscription.status === 'canceled' || subscription.status === 'incomplete_expired') {
-            await updateUserPlan(userId, 'lemonsqueezer', 'free');
+            await updateUserPlan(userId, brand, 'free', { subscriptionStatus: subscription.status });
         }
     }
 }
@@ -453,9 +488,10 @@ async function handleSubscriptionUpdated(subscription) {
 async function handleSubscriptionDeleted(subscription) {
     console.log('Subscription deleted:', subscription.id);
     const userId = subscription.metadata?.user_id;
-    
+    const brand = resolveStripeBrand(subscription);
+
     if (userId) {
-        await updateUserPlan(userId, 'lemonsqueezer', 'free');
+        await updateUserPlan(userId, brand, 'free', { subscriptionStatus: 'deleted' });
         await updateSubscriptionStatus(userId, 'deleted');
     }
 }

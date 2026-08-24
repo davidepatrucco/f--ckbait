@@ -544,7 +544,8 @@ if (!email || !password) {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${authToken}`
+                    'Authorization': `Bearer ${authToken}`,
+                    'X-Brand': (window.__BRAND__ && window.__BRAND__.apiBrand) || 'lemonsqueezer'
                 },
                 body: JSON.stringify({
                     planType: 'premium_monthly'

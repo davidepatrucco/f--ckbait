@@ -26,8 +26,8 @@ describe('Payments Module Tests', () => {
         const { createCheckoutSession } = await import('../src/payments.mjs');
         
         try {
-            // Test con piano invalido
-            await createCheckoutSession('test-user-123', 'test@example.com', 'invalid_plan');
+            // Test con piano invalido (brand valido, planType invalido)
+            await createCheckoutSession('test-user-123', 'test@example.com', 'lemonsqueezer', 'invalid_plan');
             assert.fail('Should have thrown an error for invalid plan');
         } catch (error) {
             assert.ok(error.message.includes('Piano non valido'), 'Should reject invalid plan types');

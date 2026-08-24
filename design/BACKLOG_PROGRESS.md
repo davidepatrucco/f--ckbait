@@ -51,9 +51,13 @@ Aggiornato: 2026-08-24 · Ultimo commit rilevante: CP1 backend scaffold + comple
 - ⬜ E07-008..013 prompt+schema Signal/NoBull/Briefly (ora fallback a summary; non client-wired)
 - Handler: gestisce shape generico `output` (Scout → 200 envelope), cache gata a schema summary. 55/55 test verdi.
 
-### E08 — Payments & Commercial Isolation  → ⬜
-- Stripe per-brand, metadata.brand, webhook brand-aware, idempotenza.
-- Nota: `updateUserPlan` è già brand-aware; i webhook usano ancora `lemonsqueezer` (stopgap) → E08-003..008 da fare.
+### E08 — Payments & Commercial Isolation  → ✅ core (codice)
+- ✅ E08-001 price key per brand in `brands.mjs` · E08-003 `createCheckoutSession(userId,email,brand,planType)` seleziona i price del brand
+- ✅ E08-004/005 `metadata.brand` su Checkout Session e Subscription · E08-006/007/008 webhook (`resolveStripeBrand`) aggiornano l'entitlement del **brand corretto** (checkout/updated/deleted); downgrade free solo per quel brand
+- ✅ E08-010 idempotenza (SET/PUT naturalmente idempotenti) · E08-012 checkout con brand non valido → errore (test) · E09-012 `X-Brand` su create-checkout (estensione)
+- ✅ handler `/payments/create-checkout` risolve X-Brand → brand del checkout · validazione planType up-front
+- Test: `test/payments-brand.test.mjs` (brand resolution, cross-brand, invalid brand). 64/64 verdi.
+- ⬜ E08-009 policy stripe_customer per-brand vs globale (ora per-brand nell'entitlement) · **E18-005** creare prodotti/prezzi Stripe Scout + parametri SSM `stripe-scout-*` (task di lancio; il codice è brand-ready)
 
 ## Wave 3 — One extension codebase, five builds (E09-E10) → ✅ core (Lemon + Scout)
 - ✅ E09-002 `brands/<brand>/brand.json` con **design token** (Doc 17/18): `lemonsqueezer` + `scout` · E09-003 asset convention (icon.svg+16/48/128; Scout icone generate)
@@ -71,7 +75,7 @@ Aggiornato: 2026-08-24 · Ultimo commit rilevante: CP1 backend scaffold + comple
 ## Wave 6 — Assets & first multi-brand launch (E17-E18) → ⬜
 
 ## Milestones (Doc 14)
-- 🟡 M1 Backend multi-brand complete — scaffold fatto; restano E07/E08 (prompt/schema + billing per-brand)
+- ✅ M1 Backend multi-brand complete — E02-E08 core fatti (registry, entitlement per-brand, quota, cache/analytics, prompt/schema, billing per-brand). Restano sotto-task minori + config di lancio (SSM Scout).
 - ⬜ M2 Extension multi-brand · M3 First non-Lemon live (Scout) · M4 Five stores · M5 First paying customer · M6 Public launch
 
 ## Prossimo passo consigliato
