@@ -90,7 +90,12 @@ Aggiornato: 2026-08-24 · Ultimo commit rilevante: CP1 backend scaffold + comple
 - Test: `test/security.test.mjs` (redaction, scanner, anti-injection tutti i brand). 96/96 verdi
 - Nota: fencing = mitigazione (non garanzia assoluta). ⬜ E14-001 minimizzare host permissions (`*://*/*` → tradeoff UX) · E14-008 cancellazione account (entitlement/history)
 
-### E11 → ⬜ (cross-browser Firefox/Edge/Safari)
+### E11 — Cross-browser Targets  → 🟡 codice pronto, QA runtime pendente
+- ✅ E11-001 target Chromium (Chrome/Edge/Brave/Arc/Opera: stesso pacchetto) · E11-002 target Firefox (manifest event-page + `browser_specific_settings.gecko.id`) via `build-brand --browser firefox`
+- ✅ E11-003 adapter `extension/browser-polyfill.js` (allinea `chrome`→`browser` su Firefox; no-op su Chromium) caricato per primo in popup/content/SW
+- ✅ E11-005 Edge = pacchetto Chromium · E11-009 doc differenze per-browser (`docs/cross-browser.md`)
+- ✅ Test manifest per-target (`test/build-brand.test.mjs`: firefox event-page+gecko, chromium service_worker). 98/98 verdi
+- ⬜ **E11-004 QA runtime Firefox** · E11-006 QA Edge · E11-007/008 Safari (spike Xcode, richiede macOS+Xcode — non eseguibile qui). Chrome resta l'unico verificato a runtime.
 ## Wave 5 — Test hardening & deployment automation (E15-E16) → ⬜
 ## Wave 6 — Assets & first multi-brand launch (E17-E18) → ⬜
 

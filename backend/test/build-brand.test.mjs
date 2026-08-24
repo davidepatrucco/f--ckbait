@@ -11,7 +11,7 @@ const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const out = mkdtempSync(join(tmpdir(), 'ls-build-'));
 after(() => rmSync(out, { recursive: true, force: true }));
 
-const REQUIRED = ['manifest.json', 'popup.html', 'popup.js', 'service_worker.js', 'content.js', 'brand-config.js',
+const REQUIRED = ['manifest.json', 'popup.html', 'popup.js', 'service_worker.js', 'content.js', 'browser-polyfill.js', 'brand-config.js',
     'assets/icon-16.png', 'assets/icon-48.png', 'assets/icon-128.png'];
 
 describe('build-brand pipeline', () => {
@@ -36,11 +36,28 @@ describe('build-brand pipeline', () => {
     it('LemonSqueezer build reproduces the shared extension files (regression-zero)', () => {
         const res = buildBrand('lemonsqueezer', out);
         // oauth-config.js è git-ignored (assente in CI) -> escluso dal confronto di parità.
-        for (const f of ['popup.html', 'popup.js', 'service_worker.js', 'content.js']) {
+        for (const f of ['popup.html', 'popup.js', 'service_worker.js', 'content.js', 'browser-polyfill.js']) {
             const a = readFileSync(join(REPO, 'extension', f), 'utf8');
             const b = readFileSync(join(res.outDir, f), 'utf8');
             assert.equal(b, a, `${f} differisce dalla sorgente extension/`);
         }
+    });
+
+    it('E11 firefox target: event-page manifest + gecko id, no service_worker key', () => {
+        const res = buildBrand('lemonsqueezer', { browser: 'firefox', outRoot: out });
+        const m = JSON.parse(readFileSync(join(res.outDir, 'manifest.json'), 'utf8'));
+        assert.ok(Array.isArray(m.background.scripts), 'firefox usa background.scripts');
+        assert.ok(m.background.scripts.includes('service_worker.js'));
+        assert.ok(m.background.scripts.includes('browser-polyfill.js'));
+        assert.ok(!m.background.service_worker, 'firefox non deve avere service_worker');
+        assert.match(m.browser_specific_settings.gecko.id, /@bifa\.digital/);
+    });
+
+    it('E11 chromium target: keeps service_worker, no gecko settings', () => {
+        const res = buildBrand('lemonsqueezer', { browser: 'chromium', outRoot: out });
+        const m = JSON.parse(readFileSync(join(res.outDir, 'manifest.json'), 'utf8'));
+        assert.equal(m.background.service_worker, 'service_worker.js');
+        assert.ok(!m.browser_specific_settings);
     });
 
     it('brands ship distinct icon assets', () => {

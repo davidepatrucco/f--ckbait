@@ -15,19 +15,41 @@ const EXT = join(ROOT, 'extension');
 // File condivisi copiati in ogni build (whitelist: niente _old/test/example).
 // oauth-config.js è gestito a parte perché è git-ignored (assente in CI): fallback
 // a oauth-config.example.js così build/test funzionano senza il file reale.
-const SHARED_FILES = ['manifest.json', 'popup.html', 'popup.js', 'service_worker.js', 'content.js'];
+const SHARED_FILES = ['manifest.json', 'popup.html', 'popup.js', 'service_worker.js', 'content.js', 'browser-polyfill.js'];
 const ASSET_FILES = ['icon.svg', 'icon-16.png', 'icon-48.png', 'icon-128.png'];
-const REQUIRED_OUTPUT = ['manifest.json', 'popup.html', 'popup.js', 'service_worker.js', 'content.js', 'brand-config.js',
+const REQUIRED_OUTPUT = ['manifest.json', 'popup.html', 'popup.js', 'service_worker.js', 'content.js', 'browser-polyfill.js', 'brand-config.js',
     'assets/icon-16.png', 'assets/icon-48.png', 'assets/icon-128.png'];
 
-export function buildBrand(brandId, outRoot = join(ROOT, 'dist')) {
+const SUPPORTED_BROWSERS = ['chromium', 'firefox'];
+
+// Trasforma il manifest Chromium (MV3, service_worker) nel formato del browser target.
+// Chromium (Chrome/Edge/Brave/Arc/Opera): invariato. Firefox: background.scripts +
+// browser_specific_settings.gecko (Firefox MV3 usa event page, non service worker).
+function applyBrowserManifest(manifest, browser, brandId) {
+    if (browser !== 'firefox') return manifest;
+    const swFile = manifest.background?.service_worker || 'service_worker.js';
+    manifest.background = { scripts: ['browser-polyfill.js', 'brand-config.js', swFile] };
+    manifest.browser_specific_settings = {
+        gecko: { id: `${brandId}@bifa.digital`, strict_min_version: '121.0' }
+    };
+    return manifest;
+}
+
+export function buildBrand(brandId, options = {}) {
+    // Backward compat: 2º arg stringa = outRoot (target chromium).
+    const opts = typeof options === 'string' ? { outRoot: options } : options;
+    const outRoot = opts.outRoot || join(ROOT, 'dist');
+    const browser = opts.browser || 'chromium';
+    if (!SUPPORTED_BROWSERS.includes(browser)) throw new Error(`browser non supportato: ${browser}`);
+
     const brandDir = join(ROOT, 'brands', brandId);
     const cfgPath = join(brandDir, 'brand.json');
     if (!existsSync(cfgPath)) throw new Error(`brand.json non trovato per "${brandId}" (${cfgPath})`);
     const cfg = JSON.parse(readFileSync(cfgPath, 'utf8'));
     if (cfg.id !== brandId) throw new Error(`brand.json id (${cfg.id}) != cartella (${brandId})`);
 
-    const outDir = join(outRoot, brandId);
+    // chromium mantiene dist/<brand> (parità storica); altri target: dist/<brand>-<browser>.
+    const outDir = join(outRoot, browser === 'chromium' ? brandId : `${brandId}-${browser}`);
     rmSync(outDir, { recursive: true, force: true });
     mkdirSync(join(outDir, 'assets'), { recursive: true });
 
@@ -60,22 +82,26 @@ export function buildBrand(brandId, outRoot = join(ROOT, 'dist')) {
     manifest.name = cfg.storeName || cfg.displayName;
     if (cfg.store && cfg.store.summary) manifest.description = cfg.store.summary;
     if (manifest.action) manifest.action.default_title = cfg.storeName || cfg.displayName;
+    applyBrowserManifest(manifest, browser, brandId);
     writeFileSync(join(outDir, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 
     // 5. Integrity check
     const missing = REQUIRED_OUTPUT.filter((f) => !existsSync(join(outDir, f)));
     if (missing.length) throw new Error(`build ${brandId} incompleta, mancano: ${missing.join(', ')}`);
 
-    return { brandId, outDir, name: manifest.name, version: manifest.version };
+    return { brandId, browser, outDir, name: manifest.name, version: manifest.version };
 }
 
-// CLI
+// CLI: node scripts/build-brand.mjs <brand> [--browser chromium|firefox]
 if (import.meta.url === `file://${process.argv[1]}`) {
-    const brandId = process.argv[2];
-    if (!brandId) { console.error('uso: node scripts/build-brand.mjs <brand>'); process.exit(1); }
+    const args = process.argv.slice(2);
+    const brandId = args.find((a) => !a.startsWith('--'));
+    const bIdx = args.indexOf('--browser');
+    const browser = bIdx >= 0 ? args[bIdx + 1] : 'chromium';
+    if (!brandId) { console.error('uso: node scripts/build-brand.mjs <brand> [--browser chromium|firefox]'); process.exit(1); }
     try {
-        const res = buildBrand(brandId);
-        console.log(`✓ build "${res.brandId}" -> ${res.outDir} (name: "${res.name}", v${res.version})`);
+        const res = buildBrand(brandId, { browser });
+        console.log(`✓ build "${res.brandId}" [${res.browser}] -> ${res.outDir} (name: "${res.name}", v${res.version})`);
     } catch (e) {
         console.error(`✗ ${e.message}`);
         process.exit(1);

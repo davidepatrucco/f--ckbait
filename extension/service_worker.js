@@ -1,7 +1,7 @@
 // service_worker.js - Service Worker per l'estensione LemonSqueezer
 
 // Config del brand (iniettata da brand-config.js). Determina l'header X-Brand.
-try { importScripts('brand-config.js'); } catch (e) { console.warn('brand-config non caricato:', e); }
+try { importScripts('browser-polyfill.js', 'brand-config.js'); } catch (e) { console.warn('brand-config/polyfill non caricati via importScripts (atteso su event-page):', e?.message); }
 const BRAND_ID = (self.__BRAND__ && self.__BRAND__.apiBrand) || 'lemonsqueezer';
 
 // Event listener per l'installazione
