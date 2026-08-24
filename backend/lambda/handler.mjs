@@ -6,6 +6,11 @@ import { fetchWebContent } from '../src/web-fetcher.mjs';
 import { loginWithGoogle, loginWithEmail, registerWithEmail, verifyAuthToken, requireAuth, canUserSummarize, incrementUsage, getEntitlement } from '../src/auth.mjs';
 import { resolveBrandId, isValidBrand, getBrand, listBrands } from '../src/brands.mjs';
 import { ARCHITECTURE_VERSION, API_VERSION, ENVIRONMENT } from '../src/config.mjs';
+import { apiErrorBody } from '../src/errors.mjs';
+
+// Request id dell'invocazione corrente (Lambda: un'invocazione per container).
+// Incluso nell'envelope di ogni risposta per correlazione client/log.
+let currentRequestId = null;
 import { handleGoogleAuth } from '../src/auth-google.mjs';
 import { logSummaryEvent, getUserStats, getGlobalStats, getTrendingDomains } from '../src/analytics.mjs';
 import { getCachedSummary, setCachedSummary, shouldCacheUrl, getCacheStats, cleanExpiredCache } from '../src/cache.mjs';
@@ -42,6 +47,12 @@ function getCorsHeaders(event) {
 }
 
 // Factory function to create response handler bound to event
+function withRequestId(body) {
+    return (body && typeof body === 'object' && !Array.isArray(body))
+        ? { request_id: currentRequestId, ...body }
+        : body;
+}
+
 function createResponseFactory(event) {
     return (statusCode, body, additionalHeaders = {}) => {
         return {
@@ -51,7 +62,7 @@ function createResponseFactory(event) {
                 'Content-Type': 'application/json',
                 ...additionalHeaders
             },
-            body: JSON.stringify(body)
+            body: JSON.stringify(withRequestId(body))
         };
     };
 }
@@ -67,7 +78,7 @@ function createResponse(statusCode, body, additionalHeaders = {}) {
             'Cache-Control': 'no-store',
             ...additionalHeaders
         },
-        body: JSON.stringify(body)
+        body: JSON.stringify(withRequestId(body))
     };
 }
 
@@ -279,18 +290,19 @@ export async function summarizeUrlHandler(event) {
         // sono indipendenti per brand. Un brand esplicito ma non valido è rifiutato.
         const rawBrand = event.headers?.['x-brand'] || event.headers?.['X-Brand'] || body.brand;
         if (rawBrand !== undefined && rawBrand !== null && rawBrand !== '' && !isValidBrand(rawBrand)) {
-            return createResponse(400, { error: 'Brand non valido', code: 'INVALID_BRAND' });
+            return createResponse(400, apiErrorBody('INVALID_BRAND', { brand: rawBrand }));
         }
         const brandId = resolveBrandId(rawBrand);
 
         // Verifica limiti piano (per-brand)
         const usageCheck = canUserSummarize(user, brandId);
         if (!usageCheck.canSummarize) {
-            return createResponse(429, {
+            return createResponse(429, apiErrorBody('USAGE_LIMIT_EXCEEDED', {
                 error: usageCheck.reason,
-                code: 'USAGE_LIMIT_EXCEEDED',
+                brand: brandId,
+                plan: 'free',
                 resetDate: usageCheck.resetDate
-            });
+            }));
         }
 
         const hasTranscript = typeof body.transcript === 'string';
@@ -1112,8 +1124,9 @@ export async function cancelSubscriptionHandler(event) {
 
 // Handler principale (router)
 export async function handler(event, context) {
-    console.log('Request received:', { path: event.path || event.rawPath, method: event.httpMethod });
-    
+    currentRequestId = event?.requestContext?.requestId || context?.awsRequestId || null;
+    console.log('Request received:', { path: event.path || event.rawPath, method: event.httpMethod, requestId: currentRequestId });
+
     const path = event.path || event.rawPath;
     
     switch (path) {
