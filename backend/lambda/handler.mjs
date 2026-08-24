@@ -375,7 +375,10 @@ export async function summarizeUrlHandler(event) {
             description: hasTranscript ? videoDescription : '',
             comments: hasTranscript ? videoComments : []
         };
-        if (shouldCacheUrl(body.url)) {
+        // Cache solo per lo schema summary (Lemon): gli schemi strutturati (es. Scout)
+        // hanno un payload diverso e per ora non vengono cache-ati.
+        const cacheable = shouldCacheUrl(body.url) && brandConfig.outputSchema === 'summary';
+        if (cacheable) {
             const cacheStartTime = Date.now();
             const cachedSummary = await getCachedSummary(cacheInput);
             if (cachedSummary) {
@@ -421,20 +424,20 @@ export async function summarizeUrlHandler(event) {
         
         console.log('Summary object received:', JSON.stringify(summary, null, 2));
         
-        if (!summary || !summary.text) {
+        if (!summary || (!summary.text && !summary.output)) {
             console.error('Summary object is invalid:', summary);
             return createResponse(500, {
                 error: 'Risposta OpenAI non valida',
                 code: 'INVALID_OPENAI_RESPONSE'
             });
         }
-        
+
         // Incrementa contatore utilizzo (per-brand)
         user = await incrementUsage(user, brandId);
         const entitlement = getEntitlement(user, brandId);
 
-        // 💾 SALVA IN CACHE SE POSSIBILE
-        if (shouldCacheUrl(body.url)) {
+        // 💾 SALVA IN CACHE SE POSSIBILE (solo schema summary)
+        if (cacheable && summary.text) {
             console.log('💾 [CACHE] Saving to cache...');
             try {
                 const processingTime = Date.now() - startTime;
@@ -466,7 +469,7 @@ export async function summarizeUrlHandler(event) {
                 title: title || 'Contenuto web',
                 language: language,
                 charsInput: text.length,
-                charsOutput: summary.text.length,
+                charsOutput: summary.text ? summary.text.length : JSON.stringify(summary.output || {}).length,
                 durationMs: analyticsTime,
                 userAgent: event.headers?.['User-Agent'],
                 success: true
@@ -480,20 +483,30 @@ export async function summarizeUrlHandler(event) {
         console.log('🏁 [TIMING] Total request time:', totalTime, 'ms');
         console.log('📊 [TIMING] Breakdown - Fetch:', fetchTime, 'ms, OpenAI:', openaiTime, 'ms, Other:', totalTime - fetchTime - openaiTime, 'ms');
         
-        return createResponse(200, {
-            summary: summary.text,
-            readingTimeMinutes: summary.readingTimeMinutes,
-            wordsCount: summary.wordsCount,
-            stats: summary.stats,
+        // Schema summary (Lemon): risposta legacy invariata. Altri schemi (es. Scout):
+        // envelope generico con `output` strutturato.
+        const baseResponse = {
             url: body.url,
             title: title || 'Contenuto web',
             sourceType: hasTranscript ? 'video' : 'web',
             videoDurationSeconds: hasTranscript && Number.isFinite(videoDurationSeconds) ? videoDurationSeconds : undefined,
             brand: brandId,
-            user: {
-                usage: entitlement.usage,
-                plan: entitlement.plan
-            }
+            user: { usage: entitlement.usage, plan: entitlement.plan }
+        };
+        if (summary.text) {
+            return createResponse(200, {
+                ...baseResponse,
+                summary: summary.text,
+                readingTimeMinutes: summary.readingTimeMinutes,
+                wordsCount: summary.wordsCount,
+                stats: summary.stats
+            });
+        }
+        return createResponse(200, {
+            ...baseResponse,
+            schema: summary.schema,
+            output: summary.output,
+            stats: summary.stats
         });
         
     } catch (error) {

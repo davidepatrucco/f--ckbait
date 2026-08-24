@@ -39,10 +39,20 @@ Aggiornato: 2026-08-24 · Ultimo commit rilevante: CP1 backend scaffold + comple
 - ✅ E06-001 brandId in cache input · E06-002 promptProfile in key · E06-003 outputSchema/version in key · E06-004 test stessa URL brand diversi · E06-005 brandId negli eventi analytics
 - ⬜ E06-006 campi browser/client version · E06-007 audit leakage contenuto grezzo · E06-008 analytics schema tests
 
-## Wave 2 — Prompt/output + commercial isolation (E07-E08) → ⬜
-- E07 Prompt Profiles & Output Schemas (Lemon estratto, Scout/Signal/NoBull/Briefly + parser)
-- E08 Payments & Commercial Isolation (Stripe per-brand, webhook brand-aware, idempotenza)
-Nota: `updateUserPlan` è già brand-aware; i webhook usano ancora `lemonsqueezer` (stopgap) → E08-006/007/008 da fare.
+## Wave 2 — Prompt/output + commercial isolation (E07-E08)
+
+### E07 — Prompt Profiles & Output Schemas  → 🟡 core (Lemon + Scout)
+- ✅ E07-001 prompt Lemon estratto (`src/prompts/summary.standard.mjs`) · E07-002 registry (`src/prompts/index.mjs`)
+- ✅ E07-003 schema summary (`src/schemas/summary.mjs`) · E07-004 coerceBullets→parser summary (re-export compat) · E07-005 interfaccia parser (`src/schemas/index.mjs`)
+- ✅ E07-006 prompt Scout (`scout.evaluate`) · E07-007 schema/parser Scout (`attention`, con responseFormat + clamp/enum/reasons)
+- ✅ E07-014 `summarizeWithOpenAI` instrada profilo/schema da brand config (no if/else brand) · E07-015 retry su output non valido
+- 🟡 E07-016 golden/adversarial tests (Lemon summary + Scout attention: `test/prompts-schemas.test.mjs`; mancano Signal/NoBull/Briefly)
+- ⬜ E07-008..013 prompt+schema Signal/NoBull/Briefly (ora fallback a summary; non client-wired)
+- Handler: gestisce shape generico `output` (Scout → 200 envelope), cache gata a schema summary. 55/55 test verdi.
+
+### E08 — Payments & Commercial Isolation  → ⬜
+- Stripe per-brand, metadata.brand, webhook brand-aware, idempotenza.
+- Nota: `updateUserPlan` è già brand-aware; i webhook usano ancora `lemonsqueezer` (stopgap) → E08-003..008 da fare.
 
 ## Wave 3 — One extension codebase, five builds (E09-E10) → ⬜
 - E09 refactor `extension/src` + brand-config + X-Brand nelle fetch
