@@ -12,7 +12,7 @@ import { apiErrorBody } from '../src/errors.mjs';
 // Incluso nell'envelope di ogni risposta per correlazione client/log.
 let currentRequestId = null;
 import { handleGoogleAuth } from '../src/auth-google.mjs';
-import { logSummaryEvent, getUserStats, getGlobalStats, getTrendingDomains } from '../src/analytics.mjs';
+import { logSummaryEvent, logClientEvent, ALLOWED_EVENT_TYPES, getUserStats, getGlobalStats, getTrendingDomains } from '../src/analytics.mjs';
 import { getCachedSummary, setCachedSummary, shouldCacheUrl, getCacheStats, cleanExpiredCache } from '../src/cache.mjs';
 import { 
     createCheckoutSession, 
@@ -719,6 +719,44 @@ export async function accountDeleteHandler(event) {
     }
 }
 
+// Handler ingestione eventi funnel dal client (estensione). Solo metadati.
+// Auth opzionale: se presente attribuisce all'utente, altrimenti anonimo.
+export async function analyticsEventHandler(event) {
+    if (event.httpMethod === 'OPTIONS') {
+        return { statusCode: 200, headers: getCorsHeaders(event), body: '' };
+    }
+    if (event.httpMethod !== 'POST') {
+        return createResponse(405, apiErrorBody('INTERNAL_ERROR', { error: 'Metodo non supportato. Usa POST.' }));
+    }
+    let body;
+    try { body = JSON.parse(event.body || '{}'); } catch { return createResponse(400, apiErrorBody('INVALID_JSON')); }
+
+    if (!ALLOWED_EVENT_TYPES.has(body.event_type)) {
+        return createResponse(400, apiErrorBody('INVALID_REQUEST', { error: 'event_type non valido', allowed: [...ALLOWED_EVENT_TYPES] }));
+    }
+    const rawBrand = event.headers?.['x-brand'] || event.headers?.['X-Brand'] || body.brand;
+    if (rawBrand && !isValidBrand(rawBrand)) {
+        return createResponse(400, apiErrorBody('INVALID_BRAND', { brand: rawBrand }));
+    }
+    const brandId = resolveBrandId(rawBrand);
+
+    // Auth opzionale
+    let user = null;
+    try { user = await requireAuth(event); } catch { /* anonimo */ }
+
+    const eventId = await logClientEvent({
+        eventType: body.event_type,
+        userId: user?.id || null,
+        userEmail: user?.email || null,
+        userPlan: user ? getEntitlement(user, brandId).plan : null,
+        brandId,
+        url: typeof body.url === 'string' ? body.url : undefined,
+        browser: event.headers?.['x-client'] || event.headers?.['X-Client'],
+        clientVersion: event.headers?.['x-client-version'] || event.headers?.['X-Client-Version']
+    });
+    return createResponse(200, { logged: !!eventId, event_id: eventId, event_type: body.event_type, brand: brandId });
+}
+
 // Handler per statistiche utente
 export async function userStatsHandler(event) {
     try {
@@ -1194,6 +1232,8 @@ export async function handler(event, context) {
             return await healthHandler(event);
         case '/account/delete':
             return await accountDeleteHandler(event);
+        case '/analytics/event':
+            return await analyticsEventHandler(event);
         default:
             return createResponse(404, {
                 error: 'Endpoint non trovato',
@@ -1215,6 +1255,7 @@ export async function handler(event, context) {
                     '/payments/subscription',
                     '/payments/cancel',
                     '/account/delete',
+                    '/analytics/event',
                     '/health'
                 ]
             });

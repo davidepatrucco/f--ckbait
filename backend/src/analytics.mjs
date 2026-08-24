@@ -17,6 +17,14 @@ const ANALYTICS_TABLE = process.env.ANALYTICS_TABLE_NAME || 'tldr-analytics';
  * PRIVACY: solo metadati (dominio, titolo, conteggi caratteri) — MAI il contenuto
  * grezzo della pagina né il testo del riassunto (E06-007).
  */
+// Vocabolario controllato degli event_type (funnel). Server + client.
+export const ALLOWED_EVENT_TYPES = new Set([
+    'summary_completed', 'summary_failed',
+    'extension_installed', 'extension_opened', 'page_detected',
+    'login_completed', 'sidepanel_opened', 'result_copied', 'source_opened',
+    'paywall_viewed', 'checkout_started', 'subscription_activated'
+]);
+
 export function buildAnalyticsEvent(eventData) {
     const now = new Date();
     return {
@@ -25,6 +33,8 @@ export function buildAnalyticsEvent(eventData) {
         userId: eventData.userId,
         timestamp: now.getTime(), // Number (epoch ms) per la GSI
         created_at: now.toISOString(), // ISO leggibile per display/raggruppamenti
+        event_type: ALLOWED_EVENT_TYPES.has(eventData.eventType) ? eventData.eventType : 'summary_completed',
+        source: eventData.source === 'client' ? 'client' : 'server',
         brand_id: eventData.brandId || 'lemonsqueezer',
         email: eventData.userEmail,
         plan: eventData.userPlan,
@@ -65,6 +75,26 @@ export async function logSummaryEvent(eventData) {
     } catch (error) {
         console.error('Error logging analytics event:', error);
         // Non fallire il riassunto per errori analytics
+        return null;
+    }
+}
+
+/**
+ * Registra un evento di funnel inviato dal client (estensione).
+ * Solo metadati: event_type whitelisted, brand, plan; MAI contenuto grezzo.
+ * Ritorna null se l'event_type non è nel vocabolario controllato.
+ */
+export async function logClientEvent({ eventType, userId, userEmail, userPlan, brandId, url, browser, clientVersion }) {
+    if (!ALLOWED_EVENT_TYPES.has(eventType)) return null;
+    try {
+        const event = buildAnalyticsEvent({
+            eventType, source: 'client', userId, userEmail, userPlan, brandId,
+            url, browser, clientVersion, success: true
+        });
+        await docClient.send(new PutCommand({ TableName: ANALYTICS_TABLE, Item: event }));
+        return event.eventId;
+    } catch (error) {
+        console.error('Error logging client event:', error);
         return null;
     }
 }

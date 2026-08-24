@@ -5,6 +5,7 @@
 export const API_ERRORS = {
     // 400
     INVALID_JSON: { status: 400, message: 'Body della richiesta non valido' },
+    INVALID_REQUEST: { status: 400, message: 'Richiesta non valida' },
     MISSING_URL: { status: 400, message: 'URL è richiesto e deve essere una stringa' },
     INVALID_BRAND: { status: 400, message: 'Brand non valido' },
     INVALID_TRANSCRIPT: { status: 400, message: 'Trascrizione non valida' },

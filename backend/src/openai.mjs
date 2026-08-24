@@ -45,14 +45,30 @@ const WORDS_PER_MINUTE = 220;
 const MAX_SUMMARY_WORDS = Number.parseInt(process.env.SUMMARY_MAX_WORDS || '800', 10);
 const countWords = (text) => String(text || '').trim().split(/\s+/).filter(Boolean).length;
 
-const DEFAULT_SUMMARY_MODEL = process.env.SUMMARY_MODEL || 'gpt-5-nano';
+// Migrazione modello: gpt-5-nano è deprecato dal 2026-12-10 → dopo quella data il
+// default passa automaticamente a gpt-5.6-luna (override sempre possibile via
+// SUMMARY_MODEL). Così il servizio non si rompe alla deprecazione senza un deploy.
+const NANO_DEPRECATION_MS = Date.parse('2026-12-10T00:00:00Z');
+const AUTO_DEFAULT_MODEL = Date.now() >= NANO_DEPRECATION_MS ? 'gpt-5.6-luna' : 'gpt-5-nano';
+const DEFAULT_SUMMARY_MODEL = process.env.SUMMARY_MODEL || AUTO_DEFAULT_MODEL;
+if (DEFAULT_SUMMARY_MODEL === 'gpt-5-nano' && Date.now() >= NANO_DEPRECATION_MS) {
+    console.warn('[MODEL] gpt-5-nano è deprecato dal 2026-12-10: imposta SUMMARY_MODEL=gpt-5.6-luna');
+}
 const ALLOWED_SUMMARY_MODELS = new Set([DEFAULT_SUMMARY_MODEL, 'gpt-5-nano', 'gpt-5.6-luna']);
 
-// Prezzi USD per 1M token (input/output). Da popolare con i valori reali del
-// provider. Modello sconosciuto -> costo 0 (i conteggi token restano accurati).
+// Prezzi USD per 1M token (input/output). gpt-5-nano da pricing OpenAI (verificato
+// ago 2026: $0.05/1M input, $0.40/1M output). Override/aggiunte via env
+// MODEL_COSTS_JSON (es. {"gpt-5.6-luna":{"input":2.5,"output":10}}). Modello
+// sconosciuto -> costo 0 (i conteggi token restano accurati).
 const MODEL_COSTS = {
-    // 'gpt-5-nano': { input: 0.00, output: 0.00 }
+    'gpt-5-nano': { input: 0.05, output: 0.40 },
+    'gpt-5.6-luna': { input: 2.0, output: 12.0 }
 };
+try {
+    if (process.env.MODEL_COSTS_JSON) Object.assign(MODEL_COSTS, JSON.parse(process.env.MODEL_COSTS_JSON));
+} catch (e) {
+    console.warn('MODEL_COSTS_JSON non valido, ignorato:', e?.message);
+}
 export function estimateCost(model, inputTokens, outputTokens) {
     const p = MODEL_COSTS[model];
     if (!p) return 0;

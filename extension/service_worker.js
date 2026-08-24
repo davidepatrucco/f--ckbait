@@ -5,9 +5,28 @@ try { importScripts('browser-polyfill.js', 'brand-config.js'); } catch (e) { con
 const BRAND_ID = (self.__BRAND__ && self.__BRAND__.apiBrand) || 'lemonsqueezer';
 
 // Event listener per l'installazione
+const API_BASE = 'https://4jo5gamel9.execute-api.eu-west-1.amazonaws.com/dev';
+
+// Emette un evento funnel al backend (best-effort, non blocca, no contenuto).
+async function emitClientEvent(eventType, authToken) {
+    try {
+        await fetch(`${API_BASE}/analytics/event`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Brand': BRAND_ID,
+                'X-Client': 'browser-extension',
+                ...(authToken ? { Authorization: `Bearer ${authToken}` } : {})
+            },
+            body: JSON.stringify({ event_type: eventType })
+        });
+    } catch (e) { /* funnel best-effort */ }
+}
+
 chrome.runtime.onInstalled.addListener((details) => {
     console.log('LemonSqueezer installato:', details.reason);
-    
+    if (details.reason === 'install') emitClientEvent('extension_installed');
+
     // Inizializza la configurazione di default
     chrome.storage.local.set({
         language: 'it',

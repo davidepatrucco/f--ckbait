@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Briefly — Privacy Policy</title>
+<style>
+  :root { --yellow:#FFD400; --yellow7:#FFB800; --black:#0D1117; --gray:#F2F4F7; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif; color:#1f2937; line-height:1.65; margin:0; background:var(--gray); }
+  .wrap { max-width: 840px; margin: 0 auto; padding: 36px 24px 90px; }
+  .top { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom: 8px; flex-wrap:wrap; }
+  .brand { display:flex; align-items:center; gap:12px; }
+  .mark { width:40px; height:40px; border-radius:10px; background:var(--black); display:flex; align-items:center; justify-content:center; }
+  .lang { display:flex; gap:6px; }
+  .lang button { border:1px solid #d7dbe2; background:#fff; color:#374151; font-weight:700; font-size:13px; padding:6px 12px; border-radius:999px; cursor:pointer; }
+  .lang button.active { background:var(--yellow); border-color:var(--yellow7); color:var(--black); }
+  h1 { font-size: 28px; margin: 22px 0 4px; }
+  h2 { font-size: 18px; margin: 26px 0 8px; }
+  h3 { font-size: 15px; margin: 16px 0 6px; }
+  .muted { color:#6b7280; font-size: 14px; }
+  table { border-collapse: collapse; width:100%; margin: 10px 0; font-size: 13.5px; }
+  th, td { border:1px solid #e2e8f0; padding:8px 10px; text-align:left; vertical-align:top; }
+  th { background:#fff; }
+  code { background:#fff; border:1px solid #e2e8f0; padding:1px 5px; border-radius:4px; font-size: 12.5px; }
+  ul { margin: 6px 0 6px 2px; padding-left: 18px; }
+  li { margin: 3px 0; }
+  a { color:#b45309; }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand">
+      <div class="mark">
+        <svg width="26" height="26" viewBox="0 0 48 48"><circle cx="24" cy="24" r="14" fill="#FFD400" stroke="#0D1117" stroke-width="2.5"/><g stroke="#0D1117" stroke-width="1.5" stroke-linecap="round"><line x1="24" y1="24" x2="24" y2="11"/><line x1="24" y1="24" x2="37" y2="24"/><line x1="24" y1="24" x2="24" y2="37"/><line x1="24" y1="24" x2="11" y2="24"/><line x1="24" y1="24" x2="33" y2="15"/><line x1="24" y1="24" x2="33" y2="33"/><line x1="24" y1="24" x2="15" y2="33"/><line x1="24" y1="24" x2="15" y2="15"/></g></svg>
+      </div>
+      <strong>Briefly — The context you're missing</strong>
+    </div>
+    <div class="lang">
+      <button id="btn-it" class="active" onclick="setLang('it')">Italiano</button>
+      <button id="btn-en" onclick="setLang('en')">English</button>
+    </div>
+  </div>
+
+  <!-- ==================== ITALIANO ==================== -->
+  <section id="it">
+    <h1>Informativa sulla Privacy</h1>
+    <p class="muted">Ultimo aggiornamento: 23 agosto 2026 · Versione 2.0</p>
+
+    <h2>1. Titolare del trattamento</h2>
+    <p>Il titolare del trattamento è <strong>Bifa SRLS</strong> (Torino, Italia), di seguito "Titolare". Per qualsiasi richiesta relativa ai dati personali: <a href="mailto:contact@bifa.digital">contact@bifa.digital</a>.</p>
+
+    <h2>2. Ambito</h2>
+    <p>La presente informativa descrive il trattamento dei dati personali degli utenti dell'estensione per browser "Briefly — The context you're missing" (di seguito "l'Estensione") e dei relativi servizi backend. L'Estensione genera riassunti di pagine web e video YouTube su richiesta esplicita dell'utente.</p>
+
+    <h2>3. Dati trattati, finalità e base giuridica</h2>
+    <table>
+      <tr><th>Categoria di dati</th><th>Finalità</th><th>Base giuridica (GDPR)</th></tr>
+      <tr><td>Dati account: email, nome, ID Google (via OAuth); oppure email e password (registrazione email)</td><td>Creazione e gestione dell'account, autenticazione, associazione dei riassunti all'utente</td><td>Art. 6(1)(b) — esecuzione del contratto</td></tr>
+      <tr><td>Contenuto da riassumere: URL e testo della pagina; per YouTube trascrizione, descrizione e un campione di commenti pubblici</td><td>Generazione del riassunto richiesto</td><td>Art. 6(1)(b) — esecuzione del contratto</td></tr>
+      <tr><td>Dati di utilizzo: numero di riassunti, piano, lingua, dimensione input/output, durata, user agent</td><td>Applicazione dei limiti di piano, prevenzione abusi, statistiche e diagnostica del servizio</td><td>Art. 6(1)(f) — legittimo interesse a erogare e proteggere il servizio</td></tr>
+      <tr><td>Dati di pagamento</td><td>Sottoscrizione del piano Premium (raccolti ed elaborati direttamente da Stripe; l'Estensione non memorizza i dati della carta)</td><td>Art. 6(1)(b) — esecuzione del contratto</td></tr>
+      <tr><td>Dati locali sul dispositivo: token di sessione, profilo, cronologia riassunti, preferenze (lingua, compressione)</td><td>Funzionamento dell'Estensione sul dispositivo dell'utente</td><td>Art. 6(1)(b) / 6(1)(f)</td></tr>
+    </table>
+
+    <h2>4. Sub-responsabili e trasferimenti internazionali</h2>
+    <p>Per erogare il servizio, il Titolare si avvale dei seguenti fornitori, che trattano i dati per suo conto:</p>
+    <table>
+      <tr><th>Fornitore</th><th>Ruolo / dati</th><th>Ubicazione</th></tr>
+      <tr><td>Amazon Web Services</td><td>Hosting e persistenza del backend (account, utilizzo, cache, abbonamenti)</td><td>UE (eu-west-1, Irlanda)</td></tr>
+      <tr><td>OpenAI</td><td>Generazione del riassunto a partire dal contenuto inviato</td><td>USA</td></tr>
+      <tr><td>Google</td><td>Autenticazione OAuth (email, profilo)</td><td>USA / globale</td></tr>
+      <tr><td>Stripe</td><td>Elaborazione dei pagamenti Premium</td><td>USA / globale</td></tr>
+    </table>
+    <p>Per i trasferimenti verso Paesi terzi (es. USA) ci basiamo sulle garanzie previste dagli accordi sul trattamento dei dati (DPA) stipulati con i fornitori: Clausole Contrattuali Standard (SCC) ai sensi degli artt. 44-49 GDPR e, ove applicabile, l'EU-US Data Privacy Framework. I dati gestiti da AWS sono trattati nella regione UE (eu-west-1).</p>
+
+    <h2>5. Conservazione</h2>
+    <ul>
+      <li>Dati account e di utilizzo: conservati per la durata dell'account e cancellati su richiesta o alla chiusura dello stesso.</li>
+      <li>Cache dei riassunti: conservata per un periodo tecnico limitato al fine di ridurre tempi e costi, poi eliminata automaticamente.</li>
+      <li>Dati locali: restano sul dispositivo finché l'utente non li cancella (svuotamento cronologia) o disinstalla l'Estensione.</li>
+      <li>Dati di pagamento: conservati da Stripe secondo la sua informativa e gli obblighi di legge.</li>
+    </ul>
+
+    <h2>6. Cosa NON facciamo</h2>
+    <ul>
+      <li>Non vendiamo i dati personali a terzi.</li>
+      <li>Non usiamo il contenuto delle pagine per finalità diverse dalla generazione del riassunto richiesto.</li>
+      <li>Non tracciamo la cronologia di navigazione: una pagina è elaborata solo quando l'utente avvia esplicitamente un riassunto.</li>
+      <li>Non raccogliamo dati da pagine per cui l'utente non richiede un riassunto.</li>
+      <li>Non usiamo i dati per profilazione pubblicitaria.</li>
+    </ul>
+
+    <h2>7. Permessi dell'Estensione</h2>
+    <table>
+      <tr><th>Permesso</th><th>Motivo</th></tr>
+      <tr><td><code>activeTab</code>, <code>scripting</code>, host <code>*://*/*</code></td><td>Leggere il contenuto della pagina attiva quando l'utente avvia un riassunto</td></tr>
+      <tr><td><code>identity</code></td><td>Login con Google (OAuth)</td></tr>
+      <tr><td><code>storage</code></td><td>Salvare sessione, preferenze e cronologia sul dispositivo</td></tr>
+      <tr><td><code>contextMenus</code></td><td>Voce "Riassumi questo link" nel menu contestuale</td></tr>
+      <tr><td><code>notifications</code></td><td>Avvisi essenziali (es. login richiesto)</td></tr>
+    </table>
+
+    <h2>8. Sicurezza</h2>
+    <p>I dati in transito sono protetti tramite cifratura TLS/HTTPS. L'accesso al backend è protetto da autenticazione basata su token (JWT) e da controlli di accesso. Nessuna misura di sicurezza è assoluta, ma adottiamo misure tecniche e organizzative adeguate al rischio.</p>
+
+    <h2>9. Archiviazione locale e cookie</h2>
+    <p>L'Estensione non utilizza cookie di tracciamento. Utilizza <code>chrome.storage.local</code> per memorizzare sul dispositivo il token di sessione, le preferenze e la cronologia, necessari al funzionamento.</p>
+
+    <h2>10. Decisioni automatizzate</h2>
+    <p>I riassunti sono generati automaticamente ma non costituiscono decisioni con effetti giuridici o significativi sull'utente ai sensi dell'art. 22 GDPR.</p>
+
+    <h2>11. Minori</h2>
+    <p>Il servizio non è destinato a minori di 16 anni. Non raccogliamo consapevolmente dati di minori; in tal caso i dati saranno cancellati su segnalazione.</p>
+
+    <h2>12. Diritti dell'interessato</h2>
+    <p>L'utente può esercitare i diritti previsti dagli artt. 15-22 GDPR: accesso, rettifica, cancellazione, limitazione, portabilità, opposizione e revoca del consenso (ove applicabile). Le richieste vanno inviate a <a href="mailto:contact@bifa.digital">contact@bifa.digital</a>. L'utente ha inoltre diritto di proporre reclamo all'autorità di controllo (in Italia, il Garante per la protezione dei dati personali).</p>
+
+    <h2>13. Modifiche</h2>
+    <p>La presente informativa può essere aggiornata; la versione vigente è pubblicata a questa pagina con la relativa data.</p>
+
+    <h2>14. Contatti</h2>
+    <p>Bifa SRLS — Torino, Italia — <a href="mailto:contact@bifa.digital">contact@bifa.digital</a>.</p>
+  </section>
+
+  <!-- ==================== ENGLISH ==================== -->
+  <section id="en" class="hidden">
+    <h1>Privacy Policy</h1>
+    <p class="muted">Last updated: 23 August 2026 · Version 2.0</p>
+
+    <h2>1. Data controller</h2>
+    <p>The data controller is <strong>Bifa SRLS</strong> (Turin, Italy), the "Controller". For any request regarding personal data: <a href="mailto:contact@bifa.digital">contact@bifa.digital</a>.</p>
+
+    <h2>2. Scope</h2>
+    <p>This policy describes how personal data of users of the browser extension "Briefly — The context you're missing" (the "Extension") and its backend services are processed. The Extension generates summaries of web pages and YouTube videos at the user's explicit request.</p>
+
+    <h2>3. Data processed, purposes and legal basis</h2>
+    <table>
+      <tr><th>Data category</th><th>Purpose</th><th>Legal basis (GDPR)</th></tr>
+      <tr><td>Account data: email, name, Google ID (via OAuth); or email and password (email sign-up)</td><td>Account creation and management, authentication, associating summaries with the user</td><td>Art. 6(1)(b) — performance of a contract</td></tr>
+      <tr><td>Content to summarize: page URL and text; for YouTube the transcript, description and a sample of public comments</td><td>Generating the requested summary</td><td>Art. 6(1)(b) — performance of a contract</td></tr>
+      <tr><td>Usage data: number of summaries, plan, language, input/output size, duration, user agent</td><td>Enforcing plan limits, abuse prevention, service statistics and diagnostics</td><td>Art. 6(1)(f) — legitimate interest in providing and protecting the service</td></tr>
+      <tr><td>Payment data</td><td>Premium subscription (collected and processed directly by Stripe; the Extension does not store card data)</td><td>Art. 6(1)(b) — performance of a contract</td></tr>
+      <tr><td>Local device data: session token, profile, summary history, preferences (language, compression)</td><td>Operation of the Extension on the user's device</td><td>Art. 6(1)(b) / 6(1)(f)</td></tr>
+    </table>
+
+    <h2>4. Sub-processors and international transfers</h2>
+    <p>To provide the service, the Controller relies on the following providers, processing data on its behalf:</p>
+    <table>
+      <tr><th>Provider</th><th>Role / data</th><th>Location</th></tr>
+      <tr><td>Amazon Web Services</td><td>Backend hosting and storage (account, usage, cache, subscriptions)</td><td>EU (eu-west-1, Ireland)</td></tr>
+      <tr><td>OpenAI</td><td>Summary generation from the submitted content</td><td>USA</td></tr>
+      <tr><td>Google</td><td>OAuth authentication (email, profile)</td><td>USA / global</td></tr>
+      <tr><td>Stripe</td><td>Premium payment processing</td><td>USA / global</td></tr>
+    </table>
+    <p>For transfers to third countries (e.g. the USA) we rely on the safeguards set out in the data processing agreements (DPAs) entered into with our providers: Standard Contractual Clauses (SCCs) under Art. 44-49 GDPR and, where applicable, the EU-US Data Privacy Framework. Data handled by AWS is processed in the EU region (eu-west-1).</p>
+
+    <h2>5. Retention</h2>
+    <ul>
+      <li>Account and usage data: kept for the lifetime of the account and deleted on request or upon account closure.</li>
+      <li>Summary cache: kept for a limited technical period to reduce latency and cost, then automatically removed.</li>
+      <li>Local data: remains on the device until the user clears it (clear history) or uninstalls the Extension.</li>
+      <li>Payment data: retained by Stripe per its policy and legal obligations.</li>
+    </ul>
+
+    <h2>6. What we do NOT do</h2>
+    <ul>
+      <li>We do not sell personal data to third parties.</li>
+      <li>We do not use page content for any purpose other than generating the requested summary.</li>
+      <li>We do not track browsing history: a page is processed only when the user explicitly starts a summary.</li>
+      <li>We do not collect data from pages for which the user does not request a summary.</li>
+      <li>We do not use data for advertising profiling.</li>
+    </ul>
+
+    <h2>7. Extension permissions</h2>
+    <table>
+      <tr><th>Permission</th><th>Reason</th></tr>
+      <tr><td><code>activeTab</code>, <code>scripting</code>, host <code>*://*/*</code></td><td>Read the active page content when the user starts a summary</td></tr>
+      <tr><td><code>identity</code></td><td>Google sign-in (OAuth)</td></tr>
+      <tr><td><code>storage</code></td><td>Store session, preferences and history on the device</td></tr>
+      <tr><td><code>contextMenus</code></td><td>"Summarize this link" context-menu item</td></tr>
+      <tr><td><code>notifications</code></td><td>Essential alerts (e.g. sign-in required)</td></tr>
+    </table>
+
+    <h2>8. Security</h2>
+    <p>Data in transit is protected via TLS/HTTPS encryption. Backend access is protected by token-based authentication (JWT) and access controls. No security measure is absolute, but we apply technical and organizational measures appropriate to the risk.</p>
+
+    <h2>9. Local storage and cookies</h2>
+    <p>The Extension does not use tracking cookies. It uses <code>chrome.storage.local</code> to store the session token, preferences and history on the device, as required for operation.</p>
+
+    <h2>10. Automated decision-making</h2>
+    <p>Summaries are generated automatically but do not constitute decisions producing legal or similarly significant effects on the user under Art. 22 GDPR.</p>
+
+    <h2>11. Children</h2>
+    <p>The service is not intended for children under 16. We do not knowingly collect data from minors; such data will be deleted upon notice.</p>
+
+    <h2>12. Your rights</h2>
+    <p>Users may exercise their rights under Art. 15-22 GDPR: access, rectification, erasure, restriction, portability, objection and withdrawal of consent (where applicable). Requests should be sent to <a href="mailto:contact@bifa.digital">contact@bifa.digital</a>. Users also have the right to lodge a complaint with a supervisory authority (in Italy, the Garante per la protezione dei dati personali).</p>
+
+    <h2>13. Changes</h2>
+    <p>This policy may be updated; the current version is published on this page with its date.</p>
+
+    <h2>14. Contact</h2>
+    <p>Bifa SRLS — Turin, Italy — <a href="mailto:contact@bifa.digital">contact@bifa.digital</a>.</p>
+  </section>
+</div>
+
+<script>
+  function setLang(l){
+    document.getElementById('it').classList.toggle('hidden', l !== 'it');
+    document.getElementById('en').classList.toggle('hidden', l !== 'en');
+    document.getElementById('btn-it').classList.toggle('active', l === 'it');
+    document.getElementById('btn-en').classList.toggle('active', l === 'en');
+    document.documentElement.lang = l;
+  }
+  // Default alla lingua del browser se inglese
+  if ((navigator.language || 'it').toLowerCase().startsWith('en')) setLang('en');
+</script>
+</body>
+</html>

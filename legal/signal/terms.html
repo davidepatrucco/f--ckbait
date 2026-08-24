@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signal — Termini e Condizioni / Terms</title>
+<style>
+  :root { --yellow:#FFD400; --yellow7:#FFB800; --black:#0D1117; --gray:#F2F4F7; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif; color:#1f2937; line-height:1.65; margin:0; background:var(--gray); }
+  .wrap { max-width: 840px; margin: 0 auto; padding: 36px 24px 90px; }
+  .top { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom: 8px; flex-wrap:wrap; }
+  .brand { display:flex; align-items:center; gap:12px; }
+  .mark { width:40px; height:40px; border-radius:10px; background:var(--black); display:flex; align-items:center; justify-content:center; }
+  .lang { display:flex; gap:6px; }
+  .lang button { border:1px solid #d7dbe2; background:#fff; color:#374151; font-weight:700; font-size:13px; padding:6px 12px; border-radius:999px; cursor:pointer; }
+  .lang button.active { background:var(--yellow); border-color:var(--yellow7); color:var(--black); }
+  h1 { font-size: 28px; margin: 22px 0 4px; }
+  h2 { font-size: 18px; margin: 24px 0 8px; }
+  .muted { color:#6b7280; font-size: 14px; }
+  a { color:#b45309; }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand">
+      <div class="mark">
+        <svg width="26" height="26" viewBox="0 0 48 48"><circle cx="24" cy="24" r="14" fill="#FFD400" stroke="#0D1117" stroke-width="2.5"/><g stroke="#0D1117" stroke-width="1.5" stroke-linecap="round"><line x1="24" y1="24" x2="24" y2="11"/><line x1="24" y1="24" x2="37" y2="24"/><line x1="24" y1="24" x2="24" y2="37"/><line x1="24" y1="24" x2="11" y2="24"/><line x1="24" y1="24" x2="33" y2="15"/><line x1="24" y1="24" x2="33" y2="33"/><line x1="24" y1="24" x2="15" y2="33"/><line x1="24" y1="24" x2="15" y2="15"/></g></svg>
+      </div>
+      <strong>Signal — What actually matters</strong>
+    </div>
+    <div class="lang">
+      <button id="btn-it" class="active" onclick="setLang('it')">Italiano</button>
+      <button id="btn-en" onclick="setLang('en')">English</button>
+    </div>
+  </div>
+
+  <!-- ==================== ITALIANO ==================== -->
+  <section id="it">
+    <h1>Termini e Condizioni d'uso</h1>
+    <p class="muted">Ultimo aggiornamento: 23 agosto 2026 · Versione 2.0 · Fornitore: Bifa SRLS · <a href="mailto:contact@bifa.digital">contact@bifa.digital</a></p>
+
+    <h2>1. Oggetto del servizio</h2>
+    <p>Signal — What actually matters (il "Servizio") è un'estensione per browser che genera riassunti di pagine web e video YouTube su richiesta dell'utente. L'uso del Servizio implica l'accettazione dei presenti Termini.</p>
+
+    <h2>2. Account</h2>
+    <p>L'accesso richiede un account (login Google o email). L'utente è responsabile della riservatezza delle credenziali e delle attività svolte tramite il proprio account.</p>
+
+    <h2>3. Piani, pagamenti e recesso</h2>
+    <p>È disponibile un piano gratuito con un limite mensile di riassunti e un piano Premium a pagamento con limiti estesi. I pagamenti sono elaborati da Stripe. Il piano Premium si rinnova secondo la periodicità scelta fino alla cancellazione, effettuabile in qualsiasi momento con effetto dal periodo successivo. Il consumatore può esercitare il diritto di recesso nei termini di legge; l'erogazione di contenuti digitali richiesti espressamente può comportare la rinuncia al recesso una volta iniziata l'esecuzione, come previsto dalla normativa applicabile.</p>
+
+    <h2>4. Uso consentito</h2>
+    <p>L'utente si impegna a non utilizzare il Servizio per: violare diritti di terzi o leggi applicabili; riassumere contenuti a cui non ha legittimo accesso; aggirare i limiti di piano; sovraccaricare o compromettere l'infrastruttura; effettuare reverse engineering non consentito dalla legge.</p>
+
+    <h2>5. Contenuti e proprietà intellettuale</h2>
+    <p>I riassunti sono generati automaticamente dalla fonte indicata dall'utente. L'utente dichiara di avere il diritto di trattare i contenuti sottoposti al Servizio. Marchi, logo e software di Signal restano di proprietà del Fornitore.</p>
+
+    <h2>6. Riassunti generati automaticamente</h2>
+    <p>I riassunti sono prodotti da modelli automatici e possono contenere imprecisioni od omissioni. Non costituiscono consulenza professionale. L'utente è tenuto a verificare le informazioni rilevanti alla fonte.</p>
+
+    <h2>7. Disponibilità del servizio</h2>
+    <p>Il Servizio è fornito "così com'è" e "come disponibile". Il Fornitore non garantisce continuità, assenza di errori o idoneità a scopi specifici, e può modificare, sospendere o cessare funzionalità.</p>
+
+    <h2>8. Limitazione di responsabilità</h2>
+    <p>Nei limiti consentiti dalla legge, il Fornitore non è responsabile per danni indiretti, incidentali o consequenziali derivanti dall'uso o dall'impossibilità di uso del Servizio. Restano ferme le tutele inderogabili a favore del consumatore.</p>
+
+    <h2>9. Sospensione e cessazione</h2>
+    <p>Il Fornitore può sospendere o chiudere account in caso di violazione dei presenti Termini. L'utente può cessare l'uso in qualsiasi momento disinstallando l'Estensione e richiedendo la cancellazione dei dati.</p>
+
+    <h2>10. Modifiche ai Termini</h2>
+    <p>I Termini possono essere aggiornati; la versione vigente è pubblicata a questa pagina con la relativa data. L'uso continuato dopo la pubblicazione costituisce accettazione.</p>
+
+    <h2>11. Legge applicabile e foro</h2>
+    <p>I presenti Termini sono regolati dalla legge italiana; foro competente Torino, salvo il foro inderogabile del consumatore ove applicabile.</p>
+
+    <h2>12. Contatti</h2>
+    <p>Bifa SRLS — Torino, Italia — <a href="mailto:contact@bifa.digital">contact@bifa.digital</a>.</p>
+  </section>
+
+  <!-- ==================== ENGLISH ==================== -->
+  <section id="en" class="hidden">
+    <h1>Terms &amp; Conditions</h1>
+    <p class="muted">Last updated: 23 August 2026 · Version 2.0 · Provider: Bifa SRLS · <a href="mailto:contact@bifa.digital">contact@bifa.digital</a></p>
+
+    <h2>1. The service</h2>
+    <p>Signal — What actually matters (the "Service") is a browser extension that generates summaries of web pages and YouTube videos at the user's request. Using the Service constitutes acceptance of these Terms.</p>
+
+    <h2>2. Account</h2>
+    <p>Access requires an account (Google or email sign-in). The user is responsible for keeping credentials confidential and for activity carried out through their account.</p>
+
+    <h2>3. Plans, payments and withdrawal</h2>
+    <p>A free plan with a monthly summary limit and a paid Premium plan with extended limits are available. Payments are processed by Stripe. Premium renews at the chosen interval until cancellation, which can be done at any time effective from the next period. Consumers may exercise their statutory right of withdrawal; for expressly requested digital content, starting performance may entail loss of the withdrawal right as permitted by applicable law.</p>
+
+    <h2>4. Acceptable use</h2>
+    <p>Users agree not to use the Service to: infringe third-party rights or applicable laws; summarize content they are not lawfully entitled to access; circumvent plan limits; overload or compromise the infrastructure; reverse engineer where not permitted by law.</p>
+
+    <h2>5. Content and intellectual property</h2>
+    <p>Summaries are generated automatically from the source indicated by the user. The user represents that they have the right to process the content submitted to the Service. Signal trademarks, logo and software remain the property of the Provider.</p>
+
+    <h2>6. Automatically generated summaries</h2>
+    <p>Summaries are produced by automated models and may contain inaccuracies or omissions. They do not constitute professional advice. Users should verify relevant information against the source.</p>
+
+    <h2>7. Availability</h2>
+    <p>The Service is provided "as is" and "as available". The Provider does not warrant continuity, error-free operation or fitness for a particular purpose, and may modify, suspend or discontinue features.</p>
+
+    <h2>8. Limitation of liability</h2>
+    <p>To the extent permitted by law, the Provider is not liable for indirect, incidental or consequential damages arising from the use or inability to use the Service. Mandatory consumer protections remain unaffected.</p>
+
+    <h2>9. Suspension and termination</h2>
+    <p>The Provider may suspend or terminate accounts in case of breach of these Terms. Users may stop using the Service at any time by uninstalling the Extension and requesting data deletion.</p>
+
+    <h2>10. Changes to the Terms</h2>
+    <p>These Terms may be updated; the current version is published on this page with its date. Continued use after publication constitutes acceptance.</p>
+
+    <h2>11. Governing law and jurisdiction</h2>
+    <p>These Terms are governed by Italian law; the court of Turin has jurisdiction, subject to any mandatory consumer jurisdiction where applicable.</p>
+
+    <h2>12. Contact</h2>
+    <p>Bifa SRLS — Turin, Italy — <a href="mailto:contact@bifa.digital">contact@bifa.digital</a>.</p>
+  </section>
+</div>
+
+<script>
+  function setLang(l){
+    document.getElementById('it').classList.toggle('hidden', l !== 'it');
+    document.getElementById('en').classList.toggle('hidden', l !== 'en');
+    document.getElementById('btn-it').classList.toggle('active', l === 'it');
+    document.getElementById('btn-en').classList.toggle('active', l === 'en');
+    document.documentElement.lang = l;
+  }
+  if ((navigator.language || 'it').toLowerCase().startsWith('en')) setLang('en');
+</script>
+</body>
+</html>

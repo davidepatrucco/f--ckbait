@@ -4,8 +4,9 @@ import { estimateCost } from '../src/openai.mjs';
 import { buildAnalyticsEvent } from '../src/analytics.mjs';
 
 describe('E13-005 token & cost tracking', () => {
-    it('estimateCost is 0 for an unknown model (prices not configured)', () => {
-        assert.equal(estimateCost('gpt-5-nano', 1000, 2000), 0);
+    it('estimateCost prices gpt-5-nano and returns 0 for unknown models', () => {
+        // gpt-5-nano: $0.05/1M input + $0.40/1M output → 1000*0.05e-6 + 2000*0.40e-6
+        assert.equal(estimateCost('gpt-5-nano', 1000, 2000), 0.00085);
         assert.equal(estimateCost('unknown-model', 999999, 999999), 0);
     });
 
