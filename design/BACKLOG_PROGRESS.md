@@ -1,6 +1,7 @@
 # Backlog Progress Tracker
 
 Fonte: `Document_14B_Engineering_Task_Backlog_v1.0` (192 task, E01-E18) + `Document_14_Sprint_Backlog_v1.0`.
+Riferimenti di design adottati: Doc 1-20. **17 Brand Packs** + **18 Figma Design System** vincolano `brand.json` (design token: colors/spacing/radius/typography/elevation, asset SVG→PNG). **19 Testing Bible** guida la copertura (unit/integration/contract/e2e/visual + regression Lemon + cross-brand isolation). **15 Launch / 16 Operations / 20 Scaling** = fase E18+ (launch/ops/scaling).
 Regola hard-gate: **LemonSqueezer regression-zero** su ogni package.
 
 Legenda: ✅ done · 🟡 partial · ⬜ todo
@@ -54,9 +55,12 @@ Aggiornato: 2026-08-24 · Ultimo commit rilevante: CP1 backend scaffold + comple
 - Stripe per-brand, metadata.brand, webhook brand-aware, idempotenza.
 - Nota: `updateUserPlan` è già brand-aware; i webhook usano ancora `lemonsqueezer` (stopgap) → E08-003..008 da fare.
 
-## Wave 3 — One extension codebase, five builds (E09-E10) → ⬜
-- E09 refactor `extension/src` + brand-config + X-Brand nelle fetch
-- E10 build/packaging (`build-brand.mjs`, `package-brand.mjs`), rigenerare Lemon dal pipeline
+## Wave 3 — One extension codebase, five builds (E09-E10) → 🟡 avviato
+- 🟡 E09-002 `brands/<brand>/brand.json` con **design token** (allineato Doc 17/18): `lemonsqueezer` + `scout`
+- 🟡 E09-003 convenzione asset `brands/<brand>/assets/` (icon.svg + 16/48/128); Scout icone generate
+- ✅ validator `scripts/validate-brands.mjs` (schema + coerenza con registry backend + esistenza asset)
+- ⬜ E09-001 spostare `extension/src` · E09-004 generare `brand-config.js` · E09-005..008 rimuovere hardcode (nome/tagline/colori/logo) · E09-009..012 X-Brand nelle fetch · E09-013/014 render brand-specific
+- ⬜ E10 build/packaging (`build-brand.mjs`, `package-brand.mjs`), rigenerare Lemon dal pipeline con parità
 
 ## Wave 4 — Cross-browser, contracts, telemetry, security (E11-E14) → ⬜
 ## Wave 5 — Test hardening & deployment automation (E15-E16) → ⬜

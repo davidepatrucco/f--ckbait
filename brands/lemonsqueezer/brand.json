@@ -1,0 +1,43 @@
+{
+  "id": "lemonsqueezer",
+  "apiBrand": "lemonsqueezer",
+  "displayName": "LemonSqueezer",
+  "storeName": "LemonSqueezer — TL;DR",
+  "tagline": "Skip the noise. Get the point.",
+  "defaultMode": "standard",
+  "promptProfile": "summary.standard",
+  "outputSchema": "summary",
+  "primaryAction": "summarize",
+  "heroMetric": "time_saved",
+  "tokens": {
+    "colors": {
+      "primary": "#FFD400",
+      "primary700": "#FFB800",
+      "black": "#0D1117",
+      "white": "#FFFFFF",
+      "gray100": "#F2F4F7",
+      "mint": "#22C55E",
+      "red": "#EF4444"
+    },
+    "radius": "12px",
+    "shadowSm": "0 2px 6px rgba(0,0,0,0.08)",
+    "shadowMd": "0 8px 24px rgba(0,0,0,0.12)",
+    "fontSans": "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    "spacing": { "xs": "4px", "sm": "8px", "md": "12px", "lg": "16px", "xl": "24px" }
+  },
+  "assets": {
+    "iconSvg": "assets/icon.svg",
+    "icon16": "assets/icon-16.png",
+    "icon48": "assets/icon-48.png",
+    "icon128": "assets/icon-128.png"
+  },
+  "store": {
+    "category": "Productivity",
+    "summary": "Riassumi qualsiasi pagina web o video YouTube in un clic: bullet chiari, tempo risparmiato calcolato, sintesi dei commenti."
+  },
+  "urls": {
+    "privacy": "https://lemonsqueezer-legal.s3.eu-west-1.amazonaws.com/privacy-policy.html",
+    "terms": "https://lemonsqueezer-legal.s3.eu-west-1.amazonaws.com/terms.html",
+    "support": "mailto:contact@bifa.digital"
+  }
+}

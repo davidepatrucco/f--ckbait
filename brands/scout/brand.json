@@ -1,0 +1,43 @@
+{
+  "id": "scout",
+  "apiBrand": "scout",
+  "displayName": "Scout",
+  "storeName": "Scout — Worth reading?",
+  "tagline": "Worth your time? Know before you read.",
+  "defaultMode": "standard",
+  "promptProfile": "scout.evaluate",
+  "outputSchema": "attention",
+  "primaryAction": "evaluate",
+  "heroMetric": "attention_score",
+  "tokens": {
+    "colors": {
+      "primary": "#16A34A",
+      "primary700": "#15803D",
+      "black": "#0D1117",
+      "white": "#FFFFFF",
+      "gray100": "#F2F4F7",
+      "mint": "#22C55E",
+      "red": "#EF4444"
+    },
+    "radius": "12px",
+    "shadowSm": "0 2px 6px rgba(0,0,0,0.08)",
+    "shadowMd": "0 8px 24px rgba(0,0,0,0.12)",
+    "fontSans": "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    "spacing": { "xs": "4px", "sm": "8px", "md": "12px", "lg": "16px", "xl": "24px" }
+  },
+  "assets": {
+    "iconSvg": "assets/icon.svg",
+    "icon16": "assets/icon-16.png",
+    "icon48": "assets/icon-48.png",
+    "icon128": "assets/icon-128.png"
+  },
+  "store": {
+    "category": "Productivity",
+    "summary": "Scopri se un contenuto merita il tuo tempo: punteggio di attenzione, novità e affidabilità in un clic, prima di leggere."
+  },
+  "urls": {
+    "privacy": "TODO://per-brand-privacy-url",
+    "terms": "TODO://per-brand-terms-url",
+    "support": "mailto:contact@bifa.digital"
+  }
+}
