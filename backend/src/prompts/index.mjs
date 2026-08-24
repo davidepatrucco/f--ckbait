@@ -2,10 +2,16 @@
 // (brands.mjs -> promptProfile). Nessun if/else brand-specifico nel core.
 import { buildPrompt as summaryStandard } from './summary.standard.mjs';
 import { buildPrompt as scoutEvaluate } from './scout.evaluate.mjs';
+import { buildPrompt as signalInsights } from './signal.insights.mjs';
+import { buildPrompt as nobullNoise } from './nobull.noise.mjs';
+import { buildPrompt as brieflyBrief } from './briefly.brief.mjs';
 
 const REGISTRY = {
     'summary.standard': summaryStandard,
-    'scout.evaluate': scoutEvaluate
+    'scout.evaluate': scoutEvaluate,
+    'signal.insights': signalInsights,
+    'nobull.noise': nobullNoise,
+    'briefly.brief': brieflyBrief
 };
 
 export const DEFAULT_PROMPT_PROFILE = 'summary.standard';

@@ -48,8 +48,9 @@ Aggiornato: 2026-08-24 · Ultimo commit rilevante: CP1 backend scaffold + comple
 - ✅ E07-003 schema summary (`src/schemas/summary.mjs`) · E07-004 coerceBullets→parser summary (re-export compat) · E07-005 interfaccia parser (`src/schemas/index.mjs`)
 - ✅ E07-006 prompt Scout (`scout.evaluate`) · E07-007 schema/parser Scout (`attention`, con responseFormat + clamp/enum/reasons)
 - ✅ E07-014 `summarizeWithOpenAI` instrada profilo/schema da brand config (no if/else brand) · E07-015 retry su output non valido
-- 🟡 E07-016 golden/adversarial tests (Lemon summary + Scout attention: `test/prompts-schemas.test.mjs`; mancano Signal/NoBull/Briefly)
-- ⬜ E07-008..013 prompt+schema Signal/NoBull/Briefly (ora fallback a summary; non client-wired)
+- ✅ E07-008/009 Signal (`signal.insights` + schema `insights`) · E07-010/011 NoBull (`nobull.noise` + `noise`) · E07-012/013 Briefly (`briefly.brief` + `brief`) — parser difensivi + responseFormat strict
+- ✅ E07-016 golden/adversarial tests per tutti i profili (`test/prompts-schemas.test.mjs`, `test/brand-schemas.test.mjs`). 91/91 verdi
+- Nota: il renderer estensione (`updateModalWithBrandOutput`) copre `attention`; insights/noise/brief hanno il backend pronto ma il rendering UI dedicato è E09-013/014 per-brand (non client-wired ora)
 - Handler: gestisce shape generico `output` (Scout → 200 envelope), cache gata a schema summary. 55/55 test verdi.
 
 ### E08 — Payments & Commercial Isolation  → ✅ core (codice)
