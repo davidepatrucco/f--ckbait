@@ -97,7 +97,10 @@ Aggiornato: 2026-08-24 · Ultimo commit rilevante: CP1 backend scaffold + comple
 - ✅ Test manifest per-target (`test/build-brand.test.mjs`: firefox event-page+gecko, chromium service_worker). 98/98 verdi
 - ⬜ **E11-004 QA runtime Firefox** · E11-006 QA Edge · E11-007/008 Safari (spike Xcode, richiede macOS+Xcode — non eseguibile qui). Chrome resta l'unico verificato a runtime.
 ## Wave 5 — Test hardening & deployment automation (E15-E16) → ⬜
-## Wave 6 — Assets & first multi-brand launch (E17-E18) → ⬜
+## Wave 6 — Assets & first multi-brand launch (E17-E18) → 🟡 avviato
+### E17 — Brand Assets & Store Readiness
+- ✅ E17-001..005 brand pack per tutti e 5 i brand (`brands/<brand>/brand.json` + icone 16/48/128 generate da SVG): lemonsqueezer, scout, signal (blu), nobull (rosso/nero), briefly (neutro). `validate-brands` exit 0; build chromium+firefox OK per tutti.
+- ⬜ E17-006..012 store copy/asset per singolo store, privacy/terms per-brand (ora placeholder), support URL per-brand.
 
 ## Milestones (Doc 14)
 - ✅ M1 Backend multi-brand complete — E02-E08 core fatti (registry, entitlement per-brand, quota, cache/analytics, prompt/schema, billing per-brand). Restano sotto-task minori + config di lancio (SSM Scout).
