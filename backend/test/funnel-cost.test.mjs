@@ -39,4 +39,11 @@ describe('E13-006/007 funnel event_type', () => {
     it('logClientEvent rifiuta event_type non whitelisted (nessuna scrittura)', async () => {
         assert.equal(await logClientEvent({ eventType: 'not_allowed', brandId: 'scout' }), null);
     });
+    it('evento anonimo: userId ASSENTE (non null) per non violare la GSI key', () => {
+        const anon = buildAnalyticsEvent({ eventType: 'extension_installed', userId: null, brandId: 'scout' });
+        assert.equal('userId' in anon ? anon.userId : undefined, undefined);
+        assert.notEqual(anon.userId, null);
+        const auth = buildAnalyticsEvent({ eventType: 'extension_installed', userId: 'user-123' });
+        assert.equal(auth.userId, 'user-123');
+    });
 });

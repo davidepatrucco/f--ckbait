@@ -8,7 +8,11 @@ import { v4 as uuidv4 } from 'uuid';
 const client = new DynamoDBClient({
     region: process.env.AWS_REGION || 'eu-west-1'
 });
-const docClient = DynamoDBDocumentClient.from(client);
+// removeUndefinedValues: gli eventi anonimi/parziali hanno attributi assenti
+// (userId, email, user_agent...). Senza questa opzione il PutCommand lancia.
+const docClient = DynamoDBDocumentClient.from(client, {
+    marshallOptions: { removeUndefinedValues: true }
+});
 
 const ANALYTICS_TABLE = process.env.ANALYTICS_TABLE_NAME || 'tldr-analytics';
 
@@ -30,7 +34,9 @@ export function buildAnalyticsEvent(eventData) {
     return {
         // Chiavi allineate allo schema tabella: PK eventId, GSI userId + timestamp(N).
         eventId: uuidv4(),
-        userId: eventData.userId,
+        // userId è chiave della GSI UserEventsIndex (tipo S): per eventi anonimi
+        // dev'essere ASSENTE (undefined → rimosso), MAI null (NULL type → mismatch).
+        userId: eventData.userId || undefined,
         timestamp: now.getTime(), // Number (epoch ms) per la GSI
         created_at: now.toISOString(), // ISO leggibile per display/raggruppamenti
         event_type: ALLOWED_EVENT_TYPES.has(eventData.eventType) ? eventData.eventType : 'summary_completed',
