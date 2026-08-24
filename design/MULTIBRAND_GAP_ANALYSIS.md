@@ -7,7 +7,9 @@ Data: 2026-08-24
 - **Architettura backend: resta quella attuale** — Node.js ESM su AWS Lambda (SAM), API Gateway REST, DynamoDB, SSM Parameter Store, OpenAI. Nessun FastAPI/Postgres/Redis/Celery.
 - **Quota: per-brand** (conteggio separato per brand).
 - **Subscription/Stripe: per-brand** (prodotti e vita commerciale separati).
-- **Aperto (da confermare):** identità utente. Raccomandazione: **login condiviso** (un account Google/email funziona su tutti i brand) con **entitlement per-brand** (plan/usage/subscription separati). Alternativa: account totalmente separati per brand (PK `brand#user`) — più invasiva, rompe l'identità condivisa. Il resto del documento assume la raccomandazione.
+- **Identità: RISOLTA — login condiviso.** Regola vincolante: **"Shared identity, independent commercial lifecycle per brand."** Un solo account (stesso login/email) valido su tutti i brand; **nessun account separato per brand**. L'**entitlement è sempre la coppia `(user_id, brand_id)`**, con per ogni brand valori separati: `plan`, `usage`, `usage_limit`, `subscription_status`, `stripe_customer_id`, `stripe_subscription_id`.
+- **Regole fissate:** stesso login/email · `X-Brand` su ogni richiesta · quota separata · subscription Stripe separata · prezzo separato · webhook Stripe brand-aware · history e analytics brand-tagged · nessun `plan` globale nel JWT.
+- **Nota architetturale:** `entitlements[brand]` dentro il record utente è un'**ottimizzazione pragmatica per DynamoDB/MVP**, non il modello dati definitivo. Con crescita o migrazione a storage relazionale, questi dati vanno **normalizzati** in entità separate (`subscriptions`, `usage`, `plans`) con chiave `(user_id, brand_id)`.
 
 ## Principio guida
 Il brand seleziona **configurazione** (prompt, schema output, tema, prezzi, feature flag). Nessun `if (brand === ...)` nella logica di business: il brand entra via config/strategia tipizzata.
@@ -135,4 +137,4 @@ Questo è il costo dominante: non l'infrastruttura, ma **prompt+schema+listing p
 - **JWT**: rimuovere `plan` dal token evita stati stantii per-brand.
 - **`/summarize` legacy (x-api-key)**: decidere se deprecarlo o renderlo brand-aware.
 - **Store**: fino a 5 listing Chrome separati; ognuno con il proprio ID → `ALLOWED_ORIGINS` e redirect OAuth per ogni brand.
-- **Identità**: confermare login condiviso vs account separati (vedi Decisioni).
+- **Identità**: RISOLTA — login condiviso + entitlement `(user_id, brand_id)`; nessun account separato per brand.
