@@ -1,9 +1,14 @@
 # Dashboard Analytics per Brand — Specifica
 
-> Stato: **scaffolding / specifica**. Questo documento definisce metriche, funnel e
-> query DynamoDB per una dashboard analytics per-brand. Non contiene codice di
-> produzione. Le query sono progettate sullo schema attuale della tabella e vanno
-> validate contro dati reali prima dell'adozione.
+> Stato: **parzialmente implementato (#4)**. AGGIORNAMENTO 2026-08-25: da questa spec
+> è stato implementato l'MVP: il campo `event_type` **ora esiste** e il funnel è
+> **strumentato** (`extension_installed/opened`, `login_completed`, `summary_completed`,
+> `checkout_started`, `subscription_activated`). L'aggregazione è in
+> `backend/src/dashboard.mjs` (Scan+filtro in-memory) esposta da **`GET /admin/metrics`**
+> (admin-gated) e resa da **`GET /admin/dashboard`** (shell HTML same-origin). I §0.1
+> "gap noti" qui sotto sono in gran parte **superati** (event_type presente); resta valido
+> il §0.2 (GSI `BrandDateIndex` per scalare oltre lo Scan). Definizioni metriche
+> autoritative: commenti in `backend/src/dashboard.mjs`.
 
 ## 0. Sorgente dati
 

@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { retention } from '../src/dashboard.mjs';
-import { adminMetricsHandler } from '../lambda/handler.mjs';
+import { adminMetricsHandler, adminDashboardHandler } from '../lambda/handler.mjs';
 
 describe('#4 dashboard: retention (logica pura)', () => {
     it('D1: coorte per primo giorno, retained se attivo a first+1', () => {
@@ -41,5 +41,11 @@ describe('#4 dashboard: adminMetricsHandler guard', () => {
         const res = await adminMetricsHandler({ httpMethod: 'GET', headers: {} });
         assert.equal(res.statusCode, 401);
         assert.equal(JSON.parse(res.body).code, 'AUTH_REQUIRED');
+    });
+    it('adminDashboardHandler serve HTML (shell, no dati)', async () => {
+        const res = await adminDashboardHandler({ httpMethod: 'GET', headers: {} });
+        assert.equal(res.statusCode, 200);
+        assert.match(res.headers['Content-Type'], /text\/html/);
+        assert.match(res.body, /Portfolio dashboard/);
     });
 });

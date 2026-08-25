@@ -15,6 +15,7 @@ let currentRequestId = null;
 import { handleGoogleAuth } from '../src/auth-google.mjs';
 import { logSummaryEvent, logClientEvent, logEvent, ALLOWED_EVENT_TYPES, getUserStats, getGlobalStats, getTrendingDomains } from '../src/analytics.mjs';
 import { computePortfolioMetrics } from '../src/dashboard.mjs';
+import { dashboardHtml } from '../src/dashboard-page.mjs';
 import { getCachedSummary, setCachedSummary, shouldCacheUrl, getCacheStats, cleanExpiredCache } from '../src/cache.mjs';
 import { 
     createCheckoutSession, 
@@ -795,6 +796,19 @@ export async function adminMetricsHandler(event) {
     return createResponse(200, metrics);
 }
 
+// Dashboard interna (#4): shell HTML servita same-origin (i fetch a /admin/metrics
+// non passano da CORS). La pagina chiede il token admin; nessun dato inline.
+export async function adminDashboardHandler(event) {
+    if (event.httpMethod === 'OPTIONS') {
+        return { statusCode: 200, headers: getCorsHeaders(event), body: '' };
+    }
+    return {
+        statusCode: 200,
+        headers: { ...getCorsHeaders(event), 'Content-Type': 'text/html; charset=utf-8' },
+        body: dashboardHtml()
+    };
+}
+
 // Handler per statistiche utente
 export async function userStatsHandler(event) {
     try {
@@ -1279,6 +1293,8 @@ export async function handler(event, context) {
             return await analyticsEventHandler(event);
         case '/admin/metrics':
             return await adminMetricsHandler(event);
+        case '/admin/dashboard':
+            return await adminDashboardHandler(event);
         default:
             return createResponse(404, {
                 error: 'Endpoint non trovato',
