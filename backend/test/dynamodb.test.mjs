@@ -40,6 +40,13 @@ describe('DynamoDB Module Tests', () => {
         assert.strictEqual(formattedUser.usage.used, 5);
         assert.strictEqual(formattedUser.usage.limit, 10);
         assert.strictEqual(formattedUser.usage.resetDate, '2025-10-01T00:00:00.000Z');
+        assert.strictEqual(formattedUser.role, 'user'); // default quando assente
+    });
+
+    it('proietta role dal record (gate admin)', async () => {
+        const { formatUserFromDynamoDB } = await import('../src/dynamodb.mjs');
+        assert.strictEqual(formatUserFromDynamoDB({ id: 'a', role: 'admin' }).role, 'admin');
+        assert.strictEqual(formatUserFromDynamoDB({ id: 'b' }).role, 'user');
     });
 
     it('should handle null user data', async () => {

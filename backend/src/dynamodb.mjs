@@ -289,6 +289,8 @@ export function formatUserFromDynamoDB(dynamoUser) {
         picture: dynamoUser.picture,
         createdAt: dynamoUser.created_at,
         lastLogin: dynamoUser.last_login,
+        // role letto fresco dal DB (default 'user'); usato dai gate admin (es. /admin/metrics).
+        role: dynamoUser.role || 'user',
         entitlements,
         // Proiezione retrocompatibile (brand di default).
         plan: def.plan || 'free',
