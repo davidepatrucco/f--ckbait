@@ -37,10 +37,10 @@ describe('#4 dashboard: adminMetricsHandler guard', () => {
         const res = await adminMetricsHandler({ httpMethod: 'POST', headers: {} });
         assert.equal(res.statusCode, 405);
     });
-    it('senza auth → 401', async () => {
+    it('senza chiave/token → 401 ADMIN_REQUIRED', async () => {
         const res = await adminMetricsHandler({ httpMethod: 'GET', headers: {} });
         assert.equal(res.statusCode, 401);
-        assert.equal(JSON.parse(res.body).code, 'AUTH_REQUIRED');
+        assert.equal(JSON.parse(res.body).code, 'ADMIN_REQUIRED');
     });
     it('adminDashboardHandler serve HTML (shell, no dati)', async () => {
         const res = await adminDashboardHandler({ httpMethod: 'GET', headers: {} });

@@ -13,8 +13,7 @@
 // - summariesPerUser   = summaries / activeUsers
 // - repeatPct          = % activeUsers con >1 summary
 // - retention Dk       = % della coorte (per data primo summary) con un summary a giorno +k
-// - Money da tabella users: paidPct, premiumUsers, mrrEstimate (premium × price),
-//   cost da cost_estimate degli eventi summary.
+// - Money: paidPct/premiumUsers da tabella users; cost da cost_estimate (COGS LLM misurato).
 // - activation (comparison) = firstSummaryUsers / installs  (proxy brand-level: install anonimi)
 
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
@@ -65,12 +64,9 @@ export function retention(userSummaryDays, k) {
     return { cohort, retainedPct: cohort ? Number(((retained / cohort) * 100).toFixed(1)) : null };
 }
 
-function summarizeBrand(agg, users, price) {
+function summarizeBrand(agg, users) {
     const activeUsers = agg.userSummaryDays.size;
-    const repeatUsers = [...agg.userSummaryDays.values()].filter(s => {
-        // >1 summary = più di un evento; approssimato con >1 giorno OPPURE contatore.
-        return s.size > 1;
-    }).length;
+    const repeatUsers = [...agg.userSummaryDays.values()].filter(s => s.size > 1).length;
     const totalUsers = users.total;
     const premiumUsers = users.premium;
     const d1 = retention(agg.userSummaryDays, 1);
@@ -79,9 +75,6 @@ function summarizeBrand(agg, users, price) {
     const costPerSummary = agg.summaries ? agg.costTotal / agg.summaries : 0;
     const costPerActiveUser = activeUsers ? agg.costTotal / activeUsers : 0;
     const paidPct = totalUsers ? Number(((premiumUsers / totalUsers) * 100).toFixed(1)) : null;
-    const mrrEstimate = Number((premiumUsers * price).toFixed(2));
-    const grossMarginPct = price > 0 && premiumUsers > 0
-        ? Number((((price - costPerActiveUser) / price) * 100).toFixed(1)) : null;
     return {
         acquisition: {
             installs: agg.installs, opens: agg.opens, logins: agg.logins,
@@ -95,14 +88,13 @@ function summarizeBrand(agg, users, price) {
         },
         retention: { d1: d1.retainedPct, d7: d7.retainedPct, d30: d30.retainedPct, cohort: d1.cohort },
         money: {
-            totalUsers, premiumUsers, paidPct, mrrEstimate,
+            totalUsers, premiumUsers, paidPct,
             checkoutStarted: agg.checkoutStarted, subscriptionActivated: agg.subscriptionActivated,
             cost: {
                 total: Number(agg.costTotal.toFixed(6)),
                 perSummary: Number(costPerSummary.toFixed(6)),
                 perActiveUser: Number(costPerActiveUser.toFixed(6))
-            },
-            grossMarginPct
+            }
         }
     };
 }
@@ -110,9 +102,8 @@ function summarizeBrand(agg, users, price) {
 /**
  * @param {object} opts
  * @param {number} opts.days finestra (default 30)
- * @param {number} opts.price prezzo mensile premium ipotizzato (MRR/margine)
  */
-export async function computePortfolioMetrics({ days = 30, price = 4.99 } = {}) {
+export async function computePortfolioMetrics({ days = 30 } = {}) {
     const now = Date.now();
     const fromTs = now - days * DAY_MS;
 
@@ -169,7 +160,7 @@ export async function computePortfolioMetrics({ days = 30, price = 4.99 } = {}) 
     const brandsOut = {};
     const comparison = [];
     for (const b of brands) {
-        const m = summarizeBrand(perBrand.get(b), brandUsers.get(b), price);
+        const m = summarizeBrand(perBrand.get(b), brandUsers.get(b));
         brandsOut[b] = m;
         comparison.push({
             brand: b,
@@ -198,8 +189,8 @@ export async function computePortfolioMetrics({ days = 30, price = 4.99 } = {}) 
 
     return {
         period: { days, from: new Date(fromTs).toISOString(), to: new Date(now).toISOString() },
-        assumptions: { price, currency: 'EUR', note: 'MRR/margine stimati; install/open anonimi (activation = proxy brand-level)' },
-        all: summarizeBrand(allAgg, allUsers, price),
+        assumptions: { note: 'metriche misurate; install/open anonimi → activation = proxy brand-level; cost = COGS LLM' },
+        all: summarizeBrand(allAgg, allUsers),
         brands: brandsOut,
         comparison
     };

@@ -16,6 +16,7 @@ import { handleGoogleAuth } from '../src/auth-google.mjs';
 import { logSummaryEvent, logClientEvent, logEvent, ALLOWED_EVENT_TYPES, getUserStats, getGlobalStats, getTrendingDomains } from '../src/analytics.mjs';
 import { computePortfolioMetrics } from '../src/dashboard.mjs';
 import { dashboardHtml } from '../src/dashboard-page.mjs';
+import { getSecret } from '../src/secrets.mjs';
 import { getCachedSummary, setCachedSummary, shouldCacheUrl, getCacheStats, cleanExpiredCache } from '../src/cache.mjs';
 import { 
     createCheckoutSession, 
@@ -766,7 +767,21 @@ export async function analyticsEventHandler(event) {
     return createResponse(200, { logged: !!eventId, event_id: eventId, event_type: body.event_type, brand: brandId });
 }
 
-// Dashboard interna (#4): metriche portfolio per brand. Solo admin.
+// Autorizzazione dashboard: chiave admin (header X-Admin-Key o ?key=) OPPURE JWT admin.
+// La chiave (SSM /lemonsqueezer/<env>/dashboard-admin-key) rende la dashboard usabile
+// con una sola URL bookmarkabile, senza login né estrazione di token.
+async function dashboardAuthorized(event) {
+    const provided = event.headers?.['x-admin-key'] || event.headers?.['X-Admin-Key'] || event.queryStringParameters?.key;
+    if (provided) {
+        try { const key = await getSecret('DASHBOARD_ADMIN_KEY'); if (key && provided === key) return true; }
+        catch { /* chiave non configurata */ }
+    }
+    try { const u = await requireAuth(event); if (u && u.role === 'admin') return true; }
+    catch { /* non admin */ }
+    return false;
+}
+
+// Dashboard interna (#4): metriche portfolio per brand. Gated da chiave admin o JWT admin.
 export async function adminMetricsHandler(event) {
     if (event.httpMethod === 'OPTIONS') {
         return { statusCode: 200, headers: getCorsHeaders(event), body: '' };
@@ -774,18 +789,14 @@ export async function adminMetricsHandler(event) {
     if (event.httpMethod !== 'GET') {
         return createResponse(405, apiErrorBody('INTERNAL_ERROR', { error: 'Metodo non supportato. Usa GET.' }));
     }
-    let user;
-    try { user = await requireAuth(event); }
-    catch (e) { return createResponse(401, apiErrorBody('AUTH_REQUIRED')); }
-    if (user.role !== 'admin') {
-        return createResponse(403, { error: 'Accesso riservato agli amministratori', code: 'ADMIN_REQUIRED' });
+    if (!(await dashboardAuthorized(event))) {
+        return createResponse(401, { error: 'Chiave admin mancante o non valida', code: 'ADMIN_REQUIRED' });
     }
     const q = event.queryStringParameters || {};
     const days = Math.min(Math.max(parseInt(q.days || '30', 10) || 30, 1), 365);
-    const price = Number.isFinite(Number(q.price)) && Number(q.price) > 0 ? Number(q.price) : 4.99;
     const brand = q.brand && isValidBrand(q.brand) ? q.brand : null;
 
-    const metrics = await computePortfolioMetrics({ days, price });
+    const metrics = await computePortfolioMetrics({ days });
     if (brand) {
         return createResponse(200, {
             period: metrics.period, assumptions: metrics.assumptions,
