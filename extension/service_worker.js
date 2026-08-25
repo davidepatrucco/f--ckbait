@@ -4,8 +4,9 @@
 try { importScripts('browser-polyfill.js', 'brand-config.js'); } catch (e) { console.warn('brand-config/polyfill non caricati via importScripts (atteso su event-page):', e?.message); }
 const BRAND_ID = (self.__BRAND__ && self.__BRAND__.apiBrand) || 'lemonsqueezer';
 
-// Event listener per l'installazione
-const API_BASE = 'https://4jo5gamel9.execute-api.eu-west-1.amazonaws.com/dev';
+// API base per ambiente: iniettata dal build in __BRAND__.apiBase (dev|staging|prod).
+// Fallback a dev per lo sviluppo unpacked (senza build).
+const API_BASE = (self.__BRAND__ && self.__BRAND__.apiBase) || 'https://4jo5gamel9.execute-api.eu-west-1.amazonaws.com/dev';
 
 // Emette un evento funnel al backend (best-effort, non blocca, no contenuto).
 async function emitClientEvent(eventType, authToken) {
@@ -120,7 +121,7 @@ async function summarizePageData(request, sendResponse) {
             return;
         }
 
-        const response = await fetch('https://4jo5gamel9.execute-api.eu-west-1.amazonaws.com/dev/summarize-url', {
+        const response = await fetch(`${API_BASE}/summarize-url`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -752,7 +753,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
             await showLoadingModal(linkUrl, tab.id);
             
             // 3. CHIAMA L'API CON AUTENTICAZIONE
-            const apiUrl = 'https://4jo5gamel9.execute-api.eu-west-1.amazonaws.com/dev';
+            const apiUrl = API_BASE;
             console.log('Chiamando API:', apiUrl);
             
             // Rispetta le preferenze utente (lingua di output + compressione) anche

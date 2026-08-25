@@ -40,7 +40,17 @@ test → deploy-dev + smoke → deploy-staging + smoke/E2E → deploy-prod (APPR
 - **Tutti e tre gli stack creati e smoke verde** (dev, staging, prod). Prod creato via
   pipeline con approvazione manuale.
 
-## Promozione a prod
-1. Merge su `main` → pipeline esegue dev + staging + smoke.
-2. Actions → run in corso → job `deploy-prod` in `Waiting` → **Review deployments** → approva.
-3. Deploy prod + smoke. Rollback: vedi `docs/runbooks/` (versione Lambda precedente / stack).
+## Estensione per ambiente
+L'estensione legge l'API base da `__BRAND__.apiBase`, iniettato dal build:
+```
+node scripts/build-brand.mjs <brand> --env dev|staging|prod        # dev = default (unpacked)
+node scripts/package-brand.mjs <brand> [--env prod]                # zip store: prod = default
+```
+Fallback a dev se non buildato (sviluppo unpacked). **Prima di pubblicare**: aggiungere
+l'origin dell'estensione pubblicata (`chrome-extension://<id>`) a `ALLOWED_ORIGINS` dell'ambiente.
+
+## Promozione a prod (workflow manuale)
+Prod è disaccoppiato dalla pipeline main. Deploy: Actions → **Deploy backend PROD (manual)**
+→ Run workflow → input `prod` → approva (Environment `production`). I push su main
+arrivano automaticamente solo fino a **staging**. Rollback: vedi `docs/runbooks/`
+(versione Lambda precedente / stack).

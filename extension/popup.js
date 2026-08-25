@@ -2,9 +2,11 @@
 
 import { GOOGLE_WEB_CLIENT_ID } from './oauth-config.js';
 
-// Configurazione
+// Configurazione. API base iniettata dal build in __BRAND__.apiBase (brand-config.js,
+// caricato prima di questo modulo). Fallback dev per lo sviluppo unpacked.
 const CONFIG = {
-    API_URL: 'https://4jo5gamel9.execute-api.eu-west-1.amazonaws.com/dev'
+    API_URL: (typeof window !== 'undefined' && window.__BRAND__ && window.__BRAND__.apiBase)
+        || 'https://4jo5gamel9.execute-api.eu-west-1.amazonaws.com/dev'
 };
 
 const REDIRECT_URI = `https://${chrome.runtime.id}.chromiumapp.org/`;

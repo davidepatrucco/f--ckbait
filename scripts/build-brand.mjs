@@ -41,6 +41,8 @@ export function buildBrand(brandId, options = {}) {
     const outRoot = opts.outRoot || join(ROOT, 'dist');
     const browser = opts.browser || 'chromium';
     if (!SUPPORTED_BROWSERS.includes(browser)) throw new Error(`browser non supportato: ${browser}`);
+    const env = opts.env || 'dev';
+    if (!['dev', 'staging', 'prod'].includes(env)) throw new Error(`env non supportato: ${env}`);
 
     const brandDir = join(ROOT, 'brands', brandId);
     const cfgPath = join(brandDir, 'brand.json');
@@ -68,7 +70,7 @@ export function buildBrand(brandId, options = {}) {
     else throw new Error('manca extension/oauth-config.js (e nessun oauth-config.example.js)');
 
     // 2. brand-config.js generato dal brand pack
-    writeFileSync(join(outDir, 'brand-config.js'), generateBrandConfigJs(cfg));
+    writeFileSync(join(outDir, 'brand-config.js'), generateBrandConfigJs(cfg, env));
 
     // 3. Asset del brand (overlay)
     for (const a of ASSET_FILES) {
@@ -89,19 +91,21 @@ export function buildBrand(brandId, options = {}) {
     const missing = REQUIRED_OUTPUT.filter((f) => !existsSync(join(outDir, f)));
     if (missing.length) throw new Error(`build ${brandId} incompleta, mancano: ${missing.join(', ')}`);
 
-    return { brandId, browser, outDir, name: manifest.name, version: manifest.version };
+    return { brandId, browser, env, outDir, name: manifest.name, version: manifest.version };
 }
 
-// CLI: node scripts/build-brand.mjs <brand> [--browser chromium|firefox]
+// CLI: node scripts/build-brand.mjs <brand> [--browser chromium|firefox] [--env dev|staging|prod]
 if (import.meta.url === `file://${process.argv[1]}`) {
     const args = process.argv.slice(2);
     const brandId = args.find((a) => !a.startsWith('--'));
     const bIdx = args.indexOf('--browser');
     const browser = bIdx >= 0 ? args[bIdx + 1] : 'chromium';
-    if (!brandId) { console.error('uso: node scripts/build-brand.mjs <brand> [--browser chromium|firefox]'); process.exit(1); }
+    const eIdx = args.indexOf('--env');
+    const env = eIdx >= 0 ? args[eIdx + 1] : 'dev';
+    if (!brandId) { console.error('uso: node scripts/build-brand.mjs <brand> [--browser chromium|firefox] [--env dev|staging|prod]'); process.exit(1); }
     try {
-        const res = buildBrand(brandId, { browser });
-        console.log(`✓ build "${res.brandId}" [${res.browser}] -> ${res.outDir} (name: "${res.name}", v${res.version})`);
+        const res = buildBrand(brandId, { browser, env });
+        console.log(`✓ build "${res.brandId}" [${res.browser}/${res.env}] -> ${res.outDir} (name: "${res.name}", v${res.version})`);
     } catch (e) {
         console.error(`✗ ${e.message}`);
         process.exit(1);

@@ -9,9 +9,10 @@ import { buildBrand } from './build-brand.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-export function packageBrand(brandId, browser = 'chromium') {
-    const { outDir, version } = buildBrand(brandId, { browser });
-    const zipPath = join(ROOT, 'dist', `${brandId}-${browser}-${version}.zip`);
+// env default 'prod': un pacchetto per lo store deve puntare alla produzione.
+export function packageBrand(brandId, browser = 'chromium', env = 'prod') {
+    const { outDir, version } = buildBrand(brandId, { browser, env });
+    const zipPath = join(ROOT, 'dist', `${brandId}-${browser}-${env}-${version}.zip`);
     rmSync(zipPath, { force: true });
     // zip del CONTENUTO di dist/<brand>[-browser] (senza la cartella padre)
     execSync(`cd "${outDir}" && zip -r -q "${zipPath}" . -x '*/.DS_Store' -x '.DS_Store'`, { stdio: 'inherit', shell: '/bin/bash' });
@@ -24,10 +25,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     const brandId = args.find((a) => !a.startsWith('--'));
     const bIdx = args.indexOf('--browser');
     const browser = bIdx >= 0 ? args[bIdx + 1] : 'chromium';
-    if (!brandId) { console.error('uso: node scripts/package-brand.mjs <brand> [--browser chromium|firefox]'); process.exit(1); }
+    const eIdx = args.indexOf('--env');
+    const env = eIdx >= 0 ? args[eIdx + 1] : 'prod';
+    if (!brandId) { console.error('uso: node scripts/package-brand.mjs <brand> [--browser chromium|firefox] [--env prod|staging|dev]'); process.exit(1); }
     try {
-        const res = packageBrand(brandId, browser);
-        console.log(`✓ pacchetto "${res.brandId}" [${res.browser}] -> ${res.zipPath}`);
+        const res = packageBrand(brandId, browser, env);
+        console.log(`✓ pacchetto "${res.brandId}" [${res.browser}/${env}] -> ${res.zipPath}`);
     } catch (e) {
         console.error(`✗ ${e.message}`);
         process.exit(1);

@@ -33,6 +33,15 @@ describe('build-brand pipeline', () => {
         assert.match(cfg, /#16A34A/); // Scout primary
     });
 
+    it('inietta apiBase per ambiente in brand-config.js (--env)', () => {
+        const dev = buildBrand('scout', { outRoot: out, env: 'dev' });
+        assert.match(readFileSync(join(dev.outDir, 'brand-config.js'), 'utf8'), /amazonaws\.com\/dev/);
+        const prod = buildBrand('scout', { outRoot: out, env: 'prod' });
+        const cfg = readFileSync(join(prod.outDir, 'brand-config.js'), 'utf8');
+        assert.match(cfg, /amazonaws\.com\/prod/);
+        assert.match(cfg, /"env": "prod"/);
+    });
+
     it('LemonSqueezer build reproduces the shared extension files (regression-zero)', () => {
         const res = buildBrand('lemonsqueezer', out);
         // oauth-config.js è git-ignored (assente in CI) -> escluso dal confronto di parità.
