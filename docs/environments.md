@@ -8,7 +8,7 @@ Tre stack CloudFormation isolati nella stessa region (`eu-west-1`), stesso templ
 |----------|-------|----------|-------|-----|
 | dev | `lemonsqueezer-dev` | `https://4jo5gamel9.execute-api.eu-west-1.amazonaws.com/dev` | sviluppo | `/lemonsqueezer/dev/*` |
 | staging | `lemonsqueezer-staging` | `https://rjayfeyebe.execute-api.eu-west-1.amazonaws.com/staging` | pre-prod / QA | `/lemonsqueezer/staging/*` |
-| prod | `lemonsqueezer-prod` | (creato dalla pipeline) | produzione | `/lemonsqueezer/prod/*` |
+| prod | `lemonsqueezer-prod` | `https://l6ykaxiveh.execute-api.eu-west-1.amazonaws.com/prod` | produzione | `/lemonsqueezer/prod/*` |
 
 Dev resta l'ambiente di sviluppo. staging e prod hanno SSM inizializzati da dev
 (`infra/bootstrap-ssm.sh`); `jwt-secret` è nuovo per ambiente. **Prod è in Stripe TEST-mode**
@@ -34,19 +34,11 @@ test → deploy-dev + smoke → deploy-staging + smoke/E2E → deploy-prod (APPR
 - SSM staging + prod inizializzati (`infra/bootstrap-ssm.sh`).
 - GitHub Environments `staging` e `production` creati (branch protetti; prod con reviewer).
 - Variabili per-environment `ALLOWED_ORIGINS` (placeholder = extension id dev).
-- Stack `lemonsqueezer-staging` creato e smoke verde.
-
-## Passo manuale richiesto (permessi IAM)
-La pipeline dei job staging/prod assume il ruolo OIDC con `sub=...:environment:<name>`:
-va estesa la trust policy + la permission policy del ruolo `lemonsqueezer-github-deploy`.
-Eseguire (utente admin):
-
-```
-bash infra/update-deploy-role-iam.sh
-```
-
-Dopo questo passo, il push del workflow attiva la pipeline completa. Il primo run crea
-lo stack `lemonsqueezer-prod` al momento dell'approvazione del job `deploy-prod`.
+- Ruolo OIDC `lemonsqueezer-github-deploy` esteso via `bash infra/update-deploy-role-iam.sh`
+  (trust: subject `environment:staging`/`environment:production`; permission: ciclo di vita
+  dei ruoli Lambda per-env, `iam:CreateRole/DeleteRole/Attach/Detach/Tag`).
+- **Tutti e tre gli stack creati e smoke verde** (dev, staging, prod). Prod creato via
+  pipeline con approvazione manuale.
 
 ## Promozione a prod
 1. Merge su `main` → pipeline esegue dev + staging + smoke.
