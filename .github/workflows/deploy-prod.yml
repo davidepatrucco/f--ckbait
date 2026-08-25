@@ -1,0 +1,40 @@
+name: Deploy backend PROD (manual)
+
+# Deploy in PRODUZIONE disaccoppiato dalla pipeline main: azione deliberata.
+# Trigger solo manuale (Actions → questo workflow → Run workflow). Protetto dal
+# GitHub Environment 'production' (required reviewer). Non blocca mai i push su main.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Scrivi "prod" per confermare il deploy in produzione'
+        required: true
+        default: ''
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: lemonsqueezer-prod-deploy
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: eu-west-1
+
+jobs:
+  deploy-prod:
+    name: Deploy + smoke (prod)
+    if: ${{ github.event.inputs.confirm == 'prod' }}
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/deploy-env
+        with:
+          environment: prod
+          stack-name: lemonsqueezer-prod
+          allowed-origins: ${{ vars.ALLOWED_ORIGINS }}
+          role-arn: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          region: ${{ env.AWS_REGION }}
