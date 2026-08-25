@@ -86,23 +86,28 @@ export async function logSummaryEvent(eventData) {
 }
 
 /**
- * Registra un evento di funnel inviato dal client (estensione).
+ * Registra un evento di funnel (client o server).
  * Solo metadati: event_type whitelisted, brand, plan; MAI contenuto grezzo.
  * Ritorna null se l'event_type non è nel vocabolario controllato.
  */
-export async function logClientEvent({ eventType, userId, userEmail, userPlan, brandId, url, browser, clientVersion }) {
+export async function logEvent({ eventType, source = 'server', userId, userEmail, userPlan, brandId, url, browser, clientVersion }) {
     if (!ALLOWED_EVENT_TYPES.has(eventType)) return null;
     try {
         const event = buildAnalyticsEvent({
-            eventType, source: 'client', userId, userEmail, userPlan, brandId,
+            eventType, source, userId, userEmail, userPlan, brandId,
             url, browser, clientVersion, success: true
         });
         await docClient.send(new PutCommand({ TableName: ANALYTICS_TABLE, Item: event }));
         return event.eventId;
     } catch (error) {
-        console.error('Error logging client event:', error);
+        console.error('Error logging event:', error);
         return null;
     }
+}
+
+// Funnel dal client (estensione): source='client'.
+export async function logClientEvent(args) {
+    return logEvent({ ...args, source: 'client' });
 }
 
 /**

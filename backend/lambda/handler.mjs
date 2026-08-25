@@ -13,7 +13,8 @@ import { apiErrorBody } from '../src/errors.mjs';
 // Incluso nell'envelope di ogni risposta per correlazione client/log.
 let currentRequestId = null;
 import { handleGoogleAuth } from '../src/auth-google.mjs';
-import { logSummaryEvent, logClientEvent, ALLOWED_EVENT_TYPES, getUserStats, getGlobalStats, getTrendingDomains } from '../src/analytics.mjs';
+import { logSummaryEvent, logClientEvent, logEvent, ALLOWED_EVENT_TYPES, getUserStats, getGlobalStats, getTrendingDomains } from '../src/analytics.mjs';
+import { computePortfolioMetrics } from '../src/dashboard.mjs';
 import { getCachedSummary, setCachedSummary, shouldCacheUrl, getCacheStats, cleanExpiredCache } from '../src/cache.mjs';
 import { 
     createCheckoutSession, 
@@ -764,6 +765,36 @@ export async function analyticsEventHandler(event) {
     return createResponse(200, { logged: !!eventId, event_id: eventId, event_type: body.event_type, brand: brandId });
 }
 
+// Dashboard interna (#4): metriche portfolio per brand. Solo admin.
+export async function adminMetricsHandler(event) {
+    if (event.httpMethod === 'OPTIONS') {
+        return { statusCode: 200, headers: getCorsHeaders(event), body: '' };
+    }
+    if (event.httpMethod !== 'GET') {
+        return createResponse(405, apiErrorBody('INTERNAL_ERROR', { error: 'Metodo non supportato. Usa GET.' }));
+    }
+    let user;
+    try { user = await requireAuth(event); }
+    catch (e) { return createResponse(401, apiErrorBody('AUTH_REQUIRED')); }
+    if (user.role !== 'admin') {
+        return createResponse(403, { error: 'Accesso riservato agli amministratori', code: 'ADMIN_REQUIRED' });
+    }
+    const q = event.queryStringParameters || {};
+    const days = Math.min(Math.max(parseInt(q.days || '30', 10) || 30, 1), 365);
+    const price = Number.isFinite(Number(q.price)) && Number(q.price) > 0 ? Number(q.price) : 4.99;
+    const brand = q.brand && isValidBrand(q.brand) ? q.brand : null;
+
+    const metrics = await computePortfolioMetrics({ days, price });
+    if (brand) {
+        return createResponse(200, {
+            period: metrics.period, assumptions: metrics.assumptions,
+            brand, metrics: metrics.brands[brand],
+            comparison: metrics.comparison.filter(c => c.brand === brand)
+        });
+    }
+    return createResponse(200, metrics);
+}
+
 // Handler per statistiche utente
 export async function userStatsHandler(event) {
     try {
@@ -1013,7 +1044,12 @@ export async function createCheckoutHandler(event) {
         // Brand corrente: checkout crea la subscription del brand giusto (vita commerciale separata).
         const checkoutBrand = resolveBrandId(event.headers?.['x-brand'] || event.headers?.['X-Brand'] || body.brand);
         const checkoutSession = await createCheckoutSession(user.id, user.email, checkoutBrand, planType);
-        
+        // Funnel: avvio checkout (best-effort, metadati soltanto).
+        await logEvent({
+            eventType: 'checkout_started', source: 'server', userId: user.id,
+            userEmail: user.email, userPlan: getEntitlement(user, checkoutBrand).plan, brandId: checkoutBrand
+        });
+
         return createResponse(200, {
             checkout_session: checkoutSession,
             user: {
@@ -1241,6 +1277,8 @@ export async function handler(event, context) {
             return await accountDeleteHandler(event);
         case '/analytics/event':
             return await analyticsEventHandler(event);
+        case '/admin/metrics':
+            return await adminMetricsHandler(event);
         default:
             return createResponse(404, {
                 error: 'Endpoint non trovato',

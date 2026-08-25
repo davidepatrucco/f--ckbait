@@ -6,6 +6,7 @@ import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand, DeleteCo
 import { updateUserPlan } from './dynamodb.mjs';
 import { getBrand, isValidBrand, DEFAULT_BRAND } from './brands.mjs';
 import { SecretsManager } from './secrets.mjs';
+import { logEvent } from './analytics.mjs';
 
 // Configurazione
 const secretsManager = new SecretsManager();
@@ -455,6 +456,12 @@ async function handleCheckoutCompleted(session) {
             stripeSubscriptionId: session.subscription
         });
         console.log('updateUserPlan completed successfully');
+
+        // Funnel: conversione a premium (best-effort, metadati soltanto).
+        await logEvent({
+            eventType: 'subscription_activated', source: 'server',
+            userId, userPlan: 'premium', brandId: brand
+        });
 
         // Salva record subscription
         const subscriptionData = {

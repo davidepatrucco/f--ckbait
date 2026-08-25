@@ -77,6 +77,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     }
 
+    if (request.action === 'trackEvent') {
+        // Evento funnel dal popup/content (best-effort, solo metadati).
+        (async () => {
+            const { authToken } = await chrome.storage.local.get(['authToken']);
+            emitClientEvent(request.eventType, authToken);
+        })();
+        return false;
+    }
+
     if (request.action === 'getYouTubeCaptionTracks') {
         getYouTubeCaptionTracks(sender, sendResponse);
         return true;
@@ -1062,7 +1071,9 @@ async function handleGoogleLogin(request, sender, sendResponse) {
             authToken: data.authToken,
             user: data.user
         });
-        
+        // Funnel: login riuscito (best-effort, metadati soltanto).
+        emitClientEvent('login_completed', data.authToken);
+
         // RIMUOVI il flag loginInProgress
         await chrome.storage.local.remove('loginInProgress');
         

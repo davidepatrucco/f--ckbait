@@ -33,6 +33,9 @@ async function generateCodeChallenge(verifier) {
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('[POPUP] ===== POPUP OPENED =====');
 
+    // Funnel: apertura popup (best-effort; il SW inoltra l'evento al backend).
+    try { chrome.runtime.sendMessage({ action: 'trackEvent', eventType: 'extension_opened' }); } catch (e) { /* best-effort */ }
+
     // Applica il tema del brand (token -> CSS variables, wordmark, tagline).
     // Config iniettata da brand-config.js (globalThis.__BRAND__). Default: LemonSqueezer.
     const BRAND = (typeof window !== 'undefined' && window.__BRAND__) ? window.__BRAND__ : null;

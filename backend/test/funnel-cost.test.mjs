@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { estimateCost } from '../src/openai.mjs';
-import { buildAnalyticsEvent, ALLOWED_EVENT_TYPES, logClientEvent } from '../src/analytics.mjs';
+import { buildAnalyticsEvent, ALLOWED_EVENT_TYPES, logClientEvent, logEvent } from '../src/analytics.mjs';
 
 describe('E13-005 cost estimate (real prices)', () => {
     it('gpt-5-nano: $0.05/1M in + $0.40/1M out', () => {
@@ -38,6 +38,12 @@ describe('E13-006/007 funnel event_type', () => {
     });
     it('logClientEvent rifiuta event_type non whitelisted (nessuna scrittura)', async () => {
         assert.equal(await logClientEvent({ eventType: 'not_allowed', brandId: 'scout' }), null);
+    });
+    it('logEvent (server) rifiuta event_type non whitelisted; vocabolario copre checkout/subscription', async () => {
+        assert.equal(await logEvent({ eventType: 'nope', source: 'server', brandId: 'scout' }), null);
+        for (const t of ['checkout_started', 'subscription_activated', 'extension_opened', 'login_completed']) {
+            assert.ok(ALLOWED_EVENT_TYPES.has(t), `manca ${t}`);
+        }
     });
     it('evento anonimo: userId ASSENTE (non null) per non violare la GSI key', () => {
         const anon = buildAnalyticsEvent({ eventType: 'extension_installed', userId: null, brandId: 'scout' });
