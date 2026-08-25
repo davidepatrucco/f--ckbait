@@ -1,5 +1,6 @@
 // handler.mjs - Entry point per AWS Lambda - Updated 2025-09-28 with stats
-import { summarizeWithOpenAI, getSummaryModel } from '../src/openai.mjs';
+import { summarizeWithOpenAI } from '../src/openai.mjs';
+import { selectSummaryModel } from '../src/model-router.mjs';
 import { validateSubscription } from '../src/subscription.mjs';
 import { checkRateLimit } from '../src/rate-limit.mjs';
 import { fetchWebContent } from '../src/web-fetcher.mjs';
@@ -334,7 +335,6 @@ export async function summarizeUrlHandler(event) {
         const summaryProfile = ['ultra', 'standard', 'detailed'].includes(body.summaryProfile)
             ? body.summaryProfile
             : 'standard';
-        const summaryModel = getSummaryModel(body.summaryModel);
         // squeeze = % del testo originale da mantenere nella sintesi (10/20/50). Default 20.
         const squeeze = [10, 20, 50].includes(Number(body.squeeze)) ? Number(body.squeeze) : 20;
 
@@ -375,6 +375,13 @@ export async function summarizeUrlHandler(event) {
 
         const sourceType = hasTranscript ? 'video' : 'web';
         const brandConfig = getBrand(brandId);
+        // Routing cost-aware: piano dell'utente per (brand) + lunghezza contenuto.
+        // Calcolato qui così la cache key riflette il modello effettivo.
+        const summaryModel = selectSummaryModel({
+            requestedModel: body.summaryModel,
+            plan: getEntitlement(user, brandId).plan,
+            wordCount: text.trim().split(/\s+/).filter(Boolean).length
+        });
         const cacheInput = {
             brandId,
             promptProfile: brandConfig.promptProfile,

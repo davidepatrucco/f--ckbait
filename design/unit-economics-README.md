@@ -18,27 +18,33 @@ modello: qui misuriamo il COGS lato LLM.
 ## Risultati (sample, 2026-08-25, lang it, reasoning_effort minimal)
 Dati grezzi in `design/unit-economics-sample-2026-08-25.{md,json}`.
 
+Prezzi modelli (listino OpenAI ago 2026, in `MODEL_COSTS`): gpt-5-nano $0.05/$0.40 ·
+gpt-5.4-nano $0.20/$1.25 (economy post-deprecazione nano) · gpt-5.6-luna $0.20/$1.20 (premium).
+
 | brand | avg in tok | avg out tok | $/summary nano | $/summary luna |
 |---|---|---|---|---|
-| lemonsqueezer | 1067 | 63 | $0.000078 | $0.002885 |
-| scout | 1250 | 143 | $0.000120 | $0.004213 |
-| signal | 1201 | 302 | $0.000181 | $0.006023 |
-| briefly | 1221 | 433 | $0.000234 | $0.007633 |
-| nobull | 1231 | 443 | $0.000239 | $0.007775 |
+| lemonsqueezer | 1067 | 56 | $0.000076 | $0.000280 |
+| scout | 1250 | 117 | $0.000109 | $0.000390 |
+| signal | 1201 | 333 | $0.000193 | $0.000639 |
+| briefly | 1221 | 458 | $0.000244 | $0.000794 |
+| nobull | 1231 | 470 | $0.000249 | $0.000810 |
 
-Proiezione a 1.000 summary (nano / luna): Lemon $0.078/$2.89 · Scout $0.12/$4.21 ·
-Signal $0.18/$6.02 · Briefly $0.23/$7.63 · NoBull $0.24/$7.78.
+Proiezione a 1.000 summary (nano / luna): Lemon $0.076/$0.28 · Scout $0.11/$0.39 ·
+Signal $0.19/$0.64 · Briefly $0.24/$0.79 · NoBull $0.25/$0.81.
 
 ## Lettura
 - L'ordine di costo (Lemon < Scout < Signal < Briefly < NoBull) è guidato dalla
   **verbosità dell'output schema**: Lemon (bullet) è il più conciso, Briefly/NoBull i più lunghi.
   L'input varia poco (~1000–1250 tok), dominato dal contenuto + overhead prompt del brand.
-- **Il COGS LLM non è il vincolo sul prezzo.** Anche su luna, a €4.99 e 100 summary/utente/mese,
-  il margine lordo LLM è ≥ 84% per tutti i brand; su nano è ~99,5%. I driver economici reali
-  sono infra AWS, fee Stripe (~2,9% + €0,25/transazione) e CAC, non il costo per token.
-- Implicazione per il **cost-aware router** (#3 parte A): il target di costo/summary ha ampio
-  margine; il router serve più a proteggere dai casi estremi (contenuti molto lunghi, retry,
-  fallback premium) e alla migrazione nano→luna, che non a stare sotto una soglia stretta.
+- **Il COGS LLM non è il vincolo sul prezzo.** A €4.99 e 100 summary/utente/mese, il margine
+  lordo LLM è ~99% su nano e ~98–99% su luna. I driver economici reali sono infra AWS, fee
+  Stripe (~2,9% + €0,25/transazione) e CAC, non il costo per token.
+- **Nota prezzo luna**: corretto a $0.20/$1.20 (listino web + aggregatori). Un valore precedente
+  di $2/$12 era 10x troppo alto. Con il prezzo corretto, luna è ~4x nano su input e ~3x su output
+  (post-deprecazione, economy=gpt-5.4-nano ≈ luna).
+- Implicazione **router (#3A)**: il gap economy/premium è modesto; il router serve soprattutto a
+  gestire fallback su errore/qualità e la migrazione nano→gpt-5.4-nano, e a tenere gli utenti ad
+  alto volume sull'economy (vedi sensitivity: su luna i brand verbosi vanno in perdita ~6–8k summary/utente/mese).
 
 ## Caveat
 - Campione di 5 testi/brand: stima di primo ordine. La distribuzione reale (code lunghe:

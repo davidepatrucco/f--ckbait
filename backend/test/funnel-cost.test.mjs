@@ -8,9 +8,9 @@ describe('E13-005 cost estimate (real prices)', () => {
         assert.equal(estimateCost('gpt-5-nano', 1_000_000, 1_000_000), 0.45);
         assert.equal(estimateCost('gpt-5-nano', 0, 0), 0);
     });
-    it('gpt-5.6-luna: $2/1M in + $12/1M out (migrazione post-deprecazione nano)', () => {
-        assert.equal(estimateCost('gpt-5.6-luna', 1_000_000, 1_000_000), 14);
-        assert.equal(estimateCost('gpt-5.6-luna', 500_000, 100_000), Number((1 + 1.2).toFixed(6)));
+    it('gpt-5.6-luna: $0.20/1M in + $1.20/1M out (listino OpenAI ago 2026)', () => {
+        assert.equal(estimateCost('gpt-5.6-luna', 1_000_000, 1_000_000), 1.40);
+        assert.equal(estimateCost('gpt-5.6-luna', 500_000, 100_000), Number((0.1 + 0.12).toFixed(6)));
     });
     it('modello sconosciuto -> 0 (nessun prezzo inventato)', () => {
         assert.equal(estimateCost('mystery-model', 1_000_000, 1_000_000), 0);

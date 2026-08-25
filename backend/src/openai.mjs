@@ -4,6 +4,7 @@ import { getSecretsManager } from './secrets.mjs';
 import { getBrand } from './brands.mjs';
 import { getPromptBuilder } from './prompts/index.mjs';
 import { getSchema } from './schemas/index.mjs';
+import { selectSummaryModel, economyModel, fallbackModel, assertTierSanity } from './model-router.mjs';
 
 // Client OpenAI lazy: non crearlo all'import per permettere i test che rimuovono la variabile
 let openai = null;
@@ -45,24 +46,18 @@ const WORDS_PER_MINUTE = 220;
 const MAX_SUMMARY_WORDS = Number.parseInt(process.env.SUMMARY_MAX_WORDS || '800', 10);
 const countWords = (text) => String(text || '').trim().split(/\s+/).filter(Boolean).length;
 
-// Migrazione modello: gpt-5-nano è deprecato dal 2026-12-10 → dopo quella data il
-// default passa automaticamente a gpt-5.6-luna (override sempre possibile via
-// SUMMARY_MODEL). Così il servizio non si rompe alla deprecazione senza un deploy.
-const NANO_DEPRECATION_MS = Date.parse('2026-12-10T00:00:00Z');
-const AUTO_DEFAULT_MODEL = Date.now() >= NANO_DEPRECATION_MS ? 'gpt-5.6-luna' : 'gpt-5-nano';
-const DEFAULT_SUMMARY_MODEL = process.env.SUMMARY_MODEL || AUTO_DEFAULT_MODEL;
-if (DEFAULT_SUMMARY_MODEL === 'gpt-5-nano' && Date.now() >= NANO_DEPRECATION_MS) {
-    console.warn('[MODEL] gpt-5-nano è deprecato dal 2026-12-10: imposta SUMMARY_MODEL=gpt-5.6-luna');
-}
-const ALLOWED_SUMMARY_MODELS = new Set([DEFAULT_SUMMARY_MODEL, 'gpt-5-nano', 'gpt-5.6-luna']);
+// Model routing (cost-aware) in model-router.mjs: sceglie economy/premium per ruolo.
+// La deprecazione di gpt-5-nano (2026-12-10) sposta l'ECONOMY a gpt-5.4-nano (NON a
+// luna, che è il premium). SUMMARY_MODEL forza il default economy (override globale).
+assertTierSanity();
+const DEFAULT_SUMMARY_MODEL = economyModel();
 
-// Prezzi USD per 1M token (input/output). gpt-5-nano da pricing OpenAI (verificato
-// ago 2026: $0.05/1M input, $0.40/1M output). Override/aggiunte via env
-// MODEL_COSTS_JSON (es. {"gpt-5.6-luna":{"input":2.5,"output":10}}). Modello
-// sconosciuto -> costo 0 (i conteggi token restano accurati).
+// Prezzi USD per 1M token (input/output), da pricing OpenAI (ago 2026). Override/aggiunte
+// via env MODEL_COSTS_JSON. Modello sconosciuto -> costo 0 (i token restano accurati).
 const MODEL_COSTS = {
     'gpt-5-nano': { input: 0.05, output: 0.40 },
-    'gpt-5.6-luna': { input: 2.0, output: 12.0 }
+    'gpt-5.4-nano': { input: 0.20, output: 1.25 },
+    'gpt-5.6-luna': { input: 0.20, output: 1.20 }
 };
 try {
     if (process.env.MODEL_COSTS_JSON) Object.assign(MODEL_COSTS, JSON.parse(process.env.MODEL_COSTS_JSON));
@@ -82,8 +77,10 @@ function readUsage(completion) {
     };
 }
 
+// Compat: onora un override esplicito ammesso, altrimenti il modello economy.
+// Il routing per piano/contenuto avviene in summarizeWithOpenAI via selectSummaryModel.
 export function getSummaryModel(requestedModel) {
-    return ALLOWED_SUMMARY_MODELS.has(requestedModel) ? requestedModel : DEFAULT_SUMMARY_MODEL;
+    return selectSummaryModel({ requestedModel });
 }
 
 export function buildSummaryPlan(content) {
@@ -183,7 +180,13 @@ export async function summarizeWithOpenAI(content) {
         }
         
         const plan = buildSummaryPlan(content);
-        const model = getSummaryModel(content.model);
+        // Routing cost-aware: override esplicito > (Premium + contenuto lungo → premium) > economy.
+        // `let` perché il fallback può escalare al premium su output inutilizzabile.
+        let model = selectSummaryModel({
+            requestedModel: content.model,
+            plan: content.plan,
+            wordCount: countWords(content.text)
+        });
         // Il brand seleziona prompt profile e output schema via config (no if/else brand).
         const brand = getBrand(content.brand);
         const outputSchemaName = brand.outputSchema;
@@ -205,8 +208,15 @@ export async function summarizeWithOpenAI(content) {
         // Accumula i token di TUTTE le completion (retry/compressione inclusi).
         let inTok = 0;
         let outTok = 0;
-        const addUsage = (c) => { const u = readUsage(c); inTok += u.input; outTok += u.output; };
-        const usagePayload = () => ({ input_tokens: inTok, output_tokens: outTok, cost_estimate: estimateCost(model, inTok, outTok) });
+        let costAcc = 0;
+        // Costo accumulato per-tentativo col modello attivo (corretto anche in caso di escalation).
+        const addUsage = (c) => { const u = readUsage(c); inTok += u.input; outTok += u.output; costAcc += estimateCost(model, u.input, u.output); };
+        const usagePayload = () => ({ input_tokens: inTok, output_tokens: outTok, cost_estimate: Number(costAcc.toFixed(6)), model });
+        // Fallback: escala al premium SOLO quando l'output economy è inutilizzabile.
+        const escalateToPremium = (reason) => {
+            const premium = fallbackModel();
+            if (model !== premium) { console.warn('[ROUTER] fallback → premium', { from: model, reason }); model = premium; }
+        };
         const requestCompletion = async (messages, strictSchema = true) => client.chat.completions.create({
             model,
             messages,
@@ -266,8 +276,11 @@ export async function summarizeWithOpenAI(content) {
             addUsage(genCompletion);
             let output = schema.parse(readResponseText(genCompletion));
             if (!output) {
-                // Un retry in JSON mode meno restrittivo.
-                genCompletion = await requestCompletion(messages, false);
+                // Output economy inutilizzabile → escala al premium e riprova in JSON mode.
+                escalateToPremium('structured-parse-failed');
+                genCompletion = schema.responseFormat
+                    ? await client.chat.completions.create({ model, messages, reasoning_effort: 'minimal', response_format: schema.responseFormat })
+                    : await requestCompletion(messages, false);
                 addUsage(genCompletion);
                 output = schema.parse(readResponseText(genCompletion));
             }
@@ -305,6 +318,7 @@ export async function summarizeWithOpenAI(content) {
                 finishReason: completion?.choices?.[0]?.finish_reason,
                 refusal: completion?.choices?.[0]?.message?.refusal || null
             });
+            escalateToPremium('empty-plain');
             completion = await requestCompletion([
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userPrompt }
