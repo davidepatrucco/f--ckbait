@@ -2,18 +2,18 @@
 
 Tre stack CloudFormation isolati nella stessa region (`eu-west-1`), stesso template
 `infra/sam-template-simple.yaml` parametrizzato su `Environment`. Risorse suffissate
-`-<env>` (DynamoDB, Lambda, API Gateway, log). SSM per-ambiente sotto `/lemonsqueezer/<env>/`.
+`-<env>` (DynamoDB, Lambda, API Gateway, log). SSM per-ambiente sotto `/reading-intelligence/<env>/`.
 
 | Ambiente | Stack | API base | Ruolo | SSM |
 |----------|-------|----------|-------|-----|
-| dev | `lemonsqueezer-dev` | `https://4jo5gamel9.execute-api.eu-west-1.amazonaws.com/dev` | sviluppo | `/lemonsqueezer/dev/*` |
-| staging | `lemonsqueezer-staging` | `https://rjayfeyebe.execute-api.eu-west-1.amazonaws.com/staging` | pre-prod / QA | `/lemonsqueezer/staging/*` |
-| prod | `lemonsqueezer-prod` | `https://l6ykaxiveh.execute-api.eu-west-1.amazonaws.com/prod` | produzione | `/lemonsqueezer/prod/*` |
+| dev | `lemonsqueezer-dev` | `https://4jo5gamel9.execute-api.eu-west-1.amazonaws.com/dev` | sviluppo | `/reading-intelligence/dev/*` |
+| staging | `lemonsqueezer-staging` | `https://rjayfeyebe.execute-api.eu-west-1.amazonaws.com/staging` | pre-prod / QA | `/reading-intelligence/staging/*` |
+| prod | `lemonsqueezer-prod` | `https://l6ykaxiveh.execute-api.eu-west-1.amazonaws.com/prod` | produzione | `/reading-intelligence/prod/*` |
 
 Dev resta l'ambiente di sviluppo. staging e prod hanno SSM inizializzati da dev
 (`infra/bootstrap-ssm.sh`); `jwt-secret` è nuovo per ambiente. **Prod è in Stripe TEST-mode**
 finché non si passa a LIVE (E18-005): serve creare prodotti/prezzi Stripe LIVE e aggiornare
-`/lemonsqueezer/prod/stripe-*` + il webhook secret (dipende dalla Function URL prod).
+`/reading-intelligence/prod/stripe-*` + il webhook secret (dipende dalla Function URL prod).
 
 ## Pipeline di promozione (`.github/workflows/deploy-backend.yml`)
 
@@ -51,7 +51,7 @@ SITE_ENV=staging bash apps/website/publish.sh   # staging
 SITE_ENV=dev bash apps/website/publish.sh        # dev
 ```
 Extra opzionali via CloudFront (con A5): password su staging, dominio+HTTPS su prod.
-Il bucket `lemonsqueezer-legal` contiene solo i documenti legali.
+Il bucket `reading-intelligence-legal` contiene solo i documenti legali.
 
 ## Estensione per ambiente
 L'estensione legge l'API base da `__BRAND__.apiBase`, iniettato dal build:

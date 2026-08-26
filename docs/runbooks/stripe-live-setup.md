@@ -26,7 +26,7 @@ Developers → Webhooks → Add endpoint:
 Developers → API keys → **Secret key** LIVE (`sk_live_...`).
 
 ## 4. Parametri SSM prod da impostare
-| Parametro (`/lemonsqueezer/prod/…`) | Valore |
+| Parametro (`/reading-intelligence/prod/…`) | Valore |
 |---|---|
 | `stripe-secret-key` | `sk_live_...` |
 | `stripe-webhook-secret` | `whsec_...` (endpoint del punto 2) |

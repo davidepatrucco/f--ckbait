@@ -12,7 +12,7 @@
 
 ## 0. Sorgente dati
 
-Tabella DynamoDB: `lemonsqueezer-analytics-<env>` (region `eu-west-1`).
+Tabella DynamoDB: `reading-intelligence-analytics-<env>` (region `eu-west-1`).
 
 | Componente | Chiave | Tipo | Note |
 |---|---|---|---|
@@ -88,7 +88,7 @@ Convenzioni:
 
 Esempio (A):
 ```
-Scan lemonsqueezer-analytics-<env>
+Scan reading-intelligence-analytics-<env>
   FilterExpression: brand_id = :b AND success = :ok AND date_partition BETWEEN :from AND :to
   ExpressionAttributeValues:
     :b    = "lemonsqueezer"
@@ -98,7 +98,7 @@ Scan lemonsqueezer-analytics-<env>
 ```
 Verifica "primo assoluto" per utente (via GSI, per-utente):
 ```
-Query lemonsqueezer-analytics-<env>
+Query reading-intelligence-analytics-<env>
   IndexName: UserEventsIndex
   KeyConditionExpression: userId = :u AND #ts < :fromMs
   ExpressionAttributeNames:  { "#ts": "timestamp" }
@@ -118,14 +118,14 @@ Select: COUNT   # se COUNT = 0 → il primo riassunto è nella finestra → atti
 
 Esempio (A):
 ```
-Scan lemonsqueezer-analytics-<env>
+Scan reading-intelligence-analytics-<env>
   FilterExpression: brand_id = :b AND date_partition BETWEEN :from AND :to
   ProjectionExpression: date_partition, success
   ExpressionAttributeValues: { ":b": "scout", ":from": "2026-08-01", ":to": "2026-08-31" }
 ```
 Esempio (B):
 ```
-Query lemonsqueezer-analytics-<env>
+Query reading-intelligence-analytics-<env>
   IndexName: BrandDateIndex
   KeyConditionExpression: brand_id = :b AND date_partition BETWEEN :from AND :to
   ExpressionAttributeValues: { ":b": "scout", ":from": "2026-08-01", ":to": "2026-08-31" }
@@ -149,7 +149,7 @@ Query lemonsqueezer-analytics-<env>
 
 Esempio (A) — utenti paganti attivi nella finestra:
 ```
-Scan lemonsqueezer-analytics-<env>
+Scan reading-intelligence-analytics-<env>
   FilterExpression: brand_id = :b AND date_partition BETWEEN :from AND :to AND #p <> :free
   ExpressionAttributeNames:  { "#p": "plan" }
   ExpressionAttributeValues: { ":b": "lemonsqueezer", ":from": "2026-08-01", ":to": "2026-08-31", ":free": "free" }
@@ -169,7 +169,7 @@ Scan lemonsqueezer-analytics-<env>
 
 Esempio (passo 2, per-utente, giorno target D7):
 ```
-Query lemonsqueezer-analytics-<env>
+Query reading-intelligence-analytics-<env>
   IndexName: UserEventsIndex
   KeyConditionExpression: userId = :u AND #ts BETWEEN :dayStart AND :dayEnd
   ExpressionAttributeNames:  { "#ts": "timestamp" }
@@ -189,7 +189,7 @@ rispetto all'install.
   totale richieste. `cache_hit_rate = cache_hits / (cache_hits + cache_misses)`.
 - **Gap**: questa tabella **non** registra hit/miss di cache. Il flag di cache vive in
   `backend/src/cache.mjs` (`cache_version`, campo `CACHE_VERSION = "summary-v3"`) e nella
-  tabella `lemonsqueezer-summary-cache-<env>`. Non c'è oggi un `cache_hit` boolean
+  tabella `reading-intelligence-summary-cache-<env>`. Non c'è oggi un `cache_hit` boolean
   sull'evento analytics.
 - **Proxy debole calcolabile oggi (A)**: `duration_ms` basso + `chars_output > 0` è
   correlato a un hit, ma **non affidabile**. Da non usare per KPI.
@@ -197,7 +197,7 @@ rispetto all'install.
   `buildAnalyticsEvent`) — modifica al backend, fuori scope di questo scaffold. Dopo la
   modifica:
 ```
-Scan lemonsqueezer-analytics-<env>
+Scan reading-intelligence-analytics-<env>
   FilterExpression: brand_id = :b AND date_partition BETWEEN :from AND :to
   ProjectionExpression: cache_hit
   # rate = count(cache_hit = true) / count(*)
@@ -219,7 +219,7 @@ Scan lemonsqueezer-analytics-<env>
 
 Esempio (A) — somma caratteri per stima:
 ```
-Scan lemonsqueezer-analytics-<env>
+Scan reading-intelligence-analytics-<env>
   FilterExpression: brand_id = :b AND date_partition BETWEEN :from AND :to AND success = :ok
   ProjectionExpression: chars_input, chars_output
   ExpressionAttributeValues: { ":b": "signal", ":from": "2026-08-01", ":to": "2026-08-31", ":ok": true }
@@ -247,7 +247,7 @@ Scan lemonsqueezer-analytics-<env>
 Per ogni step, count di **utenti distinti** con almeno un evento di quel tipo nella
 finestra, per brand:
 ```
-Query lemonsqueezer-analytics-<env>
+Query reading-intelligence-analytics-<env>
   IndexName: BrandEventTypeIndex
   KeyConditionExpression: brand_id = :b AND begins_with(event_type_date, :prefix)
   ExpressionAttributeValues: { ":b": "lemonsqueezer", ":prefix": "analysis_completed#2026-08" }
@@ -263,7 +263,7 @@ funnel sequenziale, intersecare gli insiemi di `userId` per step.
 
 Solo lo step `analysis_completed` è calcolabile dalla tabella:
 ```
-Scan lemonsqueezer-analytics-<env>
+Scan reading-intelligence-analytics-<env>
   FilterExpression: brand_id = :b AND success = :ok AND date_partition BETWEEN :from AND :to
   ProjectionExpression: userId
 # distinct(userId) = utenti che hanno completato ≥1 analisi
