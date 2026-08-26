@@ -24,14 +24,23 @@ const PAGES = ['landing', 'pricing', 'faq'];
 
 class GenerateError extends Error {}
 
+// API base per ambiente (fonte prezzi via GET /pricing). Sito marketing → prod.
+const API_BASES = {
+  dev: 'https://4jo5gamel9.execute-api.eu-west-1.amazonaws.com/dev',
+  staging: 'https://rjayfeyebe.execute-api.eu-west-1.amazonaws.com/staging',
+  prod: 'https://l6ykaxiveh.execute-api.eu-west-1.amazonaws.com/prod'
+};
+
 function parseArgs(argv) {
-  const args = { brands: [], all: false, year: undefined };
+  const args = { brands: [], all: false, year: undefined, env: 'prod' };
   for (const a of argv) {
     if (a === '--all') args.all = true;
     else if (a.startsWith('--year=')) args.year = a.slice('--year='.length);
+    else if (a.startsWith('--env=')) args.env = a.slice('--env='.length);
     else if (a.startsWith('--')) throw new GenerateError(`Unknown flag: ${a}`);
     else args.brands.push(a);
   }
+  if (!API_BASES[args.env]) throw new GenerateError(`Unknown env: ${args.env}`);
   return args;
 }
 
@@ -74,12 +83,14 @@ function loadBrand(brandId) {
 }
 
 // Build the placeholder -> value map. Values are HTML-escaped once, here.
-function buildReplacements(brand, year) {
+function buildReplacements(brand, year, apiBase) {
   const c = (brand.tokens && brand.tokens.colors) || {};
   const wm = brand.wordmark || {};
   const urls = brand.urls || {};
   const store = brand.store || {};
   const map = {
+    apiBase: apiBase || '',
+    brandId: brand.apiBrand || brand.id || '',
     displayName: brand.displayName || brand.id || '',
     storeName: brand.storeName || brand.displayName || '',
     tagline: brand.tagline || '',
@@ -113,9 +124,9 @@ function render(template, replacements) {
   return { out, missing: [...missing] };
 }
 
-function generateBrand(brandId, year) {
+function generateBrand(brandId, year, apiBase) {
   const brand = loadBrand(brandId);
-  const replacements = buildReplacements(brand, year);
+  const replacements = buildReplacements(brand, year, apiBase);
   const outDir = join(DIST_DIR, brandId);
   mkdirSync(outDir, { recursive: true });
 
@@ -156,16 +167,17 @@ function main() {
     );
   }
 
+  const apiBase = API_BASES[args.env];
   let exitCode = 0;
   for (const brandId of targets) {
-    const { written, missing } = generateBrand(brandId, year);
+    const { written, missing } = generateBrand(brandId, year, apiBase);
     for (const f of written) console.log(`wrote ${f}`);
     if (missing.length) {
       console.warn(`WARN [${brandId}] unmapped placeholders left in output: ${missing.join(', ')}`);
       exitCode = 0; // non-fatal, but surfaced
     }
   }
-  console.log(`done (year=${year}) — ${targets.length} brand(s)`);
+  console.log(`done (year=${year}, env=${args.env}) — ${targets.length} brand(s)`);
   process.exit(exitCode);
 }
 

@@ -25,7 +25,8 @@ import {
     getUserSubscription,
     cancelSubscription,
     reactivateSubscription,
-    deleteUserSubscription
+    deleteUserSubscription,
+    getBrandPricing
 } from '../src/payments.mjs';
 import { deleteUser } from '../src/dynamodb.mjs';
 
@@ -807,6 +808,32 @@ export async function adminMetricsHandler(event) {
     return createResponse(200, metrics);
 }
 
+// Prezzi pubblici (single-source): importi reali da Stripe (fallback finché i Price
+// non esistono). Nessun auth; CORS aperto perché letto dal sito marketing cross-origin.
+export async function pricingHandler(event) {
+    const cors = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET,OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type,X-Brand'
+    };
+    if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: cors, body: '' };
+    if (event.httpMethod !== 'GET') return { statusCode: 405, headers: cors, body: JSON.stringify({ error: 'Usa GET' }) };
+    const json = (obj) => ({ statusCode: 200, headers: { ...cors, 'Content-Type': 'application/json' }, body: JSON.stringify(obj) });
+    try {
+        const q = event.queryStringParameters || {};
+        if (q.brand) {
+            if (!isValidBrand(q.brand)) return { statusCode: 400, headers: cors, body: JSON.stringify(apiErrorBody('INVALID_BRAND', { brand: q.brand })) };
+            return json(await getBrandPricing(q.brand));
+        }
+        const brands = {};
+        for (const b of listBrands()) brands[b] = await getBrandPricing(b);
+        return json({ brands });
+    } catch (e) {
+        console.error('Error in pricingHandler:', e);
+        return { statusCode: 500, headers: cors, body: JSON.stringify({ error: 'Errore recupero prezzi' }) };
+    }
+}
+
 // Dashboard interna (#4): shell HTML servita same-origin (i fetch a /admin/metrics
 // non passano da CORS). La pagina chiede il token admin; nessun dato inline.
 export async function adminDashboardHandler(event) {
@@ -1306,6 +1333,8 @@ export async function handler(event, context) {
             return await adminMetricsHandler(event);
         case '/admin/dashboard':
             return await adminDashboardHandler(event);
+        case '/pricing':
+            return await pricingHandler(event);
         default:
             return createResponse(404, {
                 error: 'Endpoint non trovato',

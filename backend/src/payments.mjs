@@ -31,6 +31,10 @@ async function getStripeClient() {
     return stripeClient;
 }
 
+// Fallback di display usato SOLO se il Price non è ancora su Stripe (es. prima di E18-005).
+// Unico posto dove vive un importo hardcoded; Stripe resta la fonte quando i Price esistono.
+const PRICING_FALLBACK = { currency: 'eur', monthly: 199, yearly: 1499 };
+
 /**
  * Prodotti Stripe di uno specifico brand (price id letti dalle chiavi SSM del brand).
  * "Independent commercial lifecycle per brand": ogni brand ha i suoi price id.
@@ -41,12 +45,44 @@ async function getBrandProducts(brandId) {
     const monthlyPriceId = await secretsManager.getSecret(brand.stripe.monthlyPriceKey);
     const yearlyPriceId = await secretsManager.getSecret(brand.stripe.yearlyPriceKey);
     const products = {
-        // amount = display (centesimi €). L'addebito reale è il price_id Stripe.
-        premium_monthly: { price_id: monthlyPriceId, amount: 199, currency: 'eur', interval: 'month' },
-        premium_yearly: { price_id: yearlyPriceId, amount: 1499, currency: 'eur', interval: 'year' }
+        premium_monthly: { price_id: monthlyPriceId, interval: 'month' },
+        premium_yearly: { price_id: yearlyPriceId, interval: 'year' }
     };
     brandProductsCache[brandId] = products;
     return products;
+}
+
+// Cache prezzi (display) con TTL: gli importi vengono da Stripe (fonte unica).
+const pricingCache = new Map(); // brandId -> { at, data }
+const PRICING_TTL_MS = 5 * 60 * 1000;
+
+/**
+ * Prezzi di display per un brand, letti da Stripe (unit_amount reale del Price).
+ * Fallback a PRICING_FALLBACK se il Price non esiste ancora (source='fallback').
+ * Single-source: sito ed estensione leggono da qui (via GET /pricing).
+ */
+export async function getBrandPricing(brandId) {
+    const cached = pricingCache.get(brandId);
+    if (cached && Date.now() - cached.at < PRICING_TTL_MS) return cached.data;
+
+    const products = await getBrandProducts(brandId);
+    const stripe = await getStripeClient();
+    const fromStripe = async (priceId, fallbackAmount, interval) => {
+        try {
+            const p = await stripe.prices.retrieve(priceId);
+            if (p && typeof p.unit_amount === 'number') {
+                return { amount: p.unit_amount, currency: p.currency, interval: p.recurring?.interval || interval, source: 'stripe' };
+            }
+        } catch { /* price inesistente/placeholder */ }
+        return { amount: fallbackAmount, currency: PRICING_FALLBACK.currency, interval, source: 'fallback' };
+    };
+    const [monthly, yearly] = await Promise.all([
+        fromStripe(products.premium_monthly.price_id, PRICING_FALLBACK.monthly, 'month'),
+        fromStripe(products.premium_yearly.price_id, PRICING_FALLBACK.yearly, 'year')
+    ]);
+    const data = { brand: brandId, monthly, yearly };
+    pricingCache.set(brandId, { at: Date.now(), data });
+    return data;
 }
 
 /**
@@ -120,13 +156,16 @@ export async function createCheckoutSession(userId, userEmail, brand = DEFAULT_B
         // Salva sessione temporanea per tracking
         await saveCheckoutSession(userId, session.id, planType);
 
+        // Display (importo/valuta) dalla fonte unica (Stripe via getBrandPricing).
+        const pricing = await getBrandPricing(brand);
+        const disp = planType === 'premium_yearly' ? pricing.yearly : pricing.monthly;
         return {
             sessionId: session.id,
             url: session.url,
             planType,
-            amount: product.amount,
-            currency: product.currency,
-            interval: product.interval
+            amount: disp.amount,
+            currency: disp.currency,
+            interval: disp.interval
         };
 
     } catch (error) {

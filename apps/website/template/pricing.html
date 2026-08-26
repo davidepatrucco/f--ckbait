@@ -68,10 +68,10 @@
       </div>
       <div class="plan featured">
         <h2>Premium</h2>
-        <div class="price">€1.99<small>/mo</small></div>
+        <div class="price"><span id="price-monthly">€—</span><small>/mo</small></div>
         <ul class="feats">
           <li>Uso illimitato</li>
-          <li>oppure €14.99/anno (risparmi ~37%)</li>
+          <li id="price-yearly">o piano annuale</li>
           <li>Supporto prioritario</li>
         </ul>
         <a class="cta" href="{{supportUrl}}">Passa a Premium</a>
@@ -85,5 +85,23 @@
       <div>© {{year}} {{displayName}}. All rights reserved.</div>
     </footer>
   </div>
+  <script>
+    // Prezzi da fonte unica (Stripe via GET /pricing). Se non disponibili, resta il fallback.
+    (function () {
+      var API = "{{apiBase}}", BRAND = "{{brandId}}";
+      if (!API) return;
+      var fmt = function (a, cur) {
+        try { return new Intl.NumberFormat('it-IT', { style: 'currency', currency: (cur || 'eur').toUpperCase() }).format((a || 0) / 100); }
+        catch (e) { return '€' + ((a || 0) / 100).toFixed(2); }
+      };
+      fetch(API + '/pricing?brand=' + encodeURIComponent(BRAND))
+        .then(function (r) { return r.json(); })
+        .then(function (p) {
+          if (p && p.monthly) document.getElementById('price-monthly').textContent = fmt(p.monthly.amount, p.monthly.currency);
+          if (p && p.yearly) document.getElementById('price-yearly').textContent = 'o ' + fmt(p.yearly.amount, p.yearly.currency) + '/anno';
+        })
+        .catch(function () { /* fallback: testo statico */ });
+    })();
+  </script>
 </body>
 </html>
