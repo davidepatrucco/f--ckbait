@@ -3,7 +3,8 @@
 // Il brand seleziona configurazione (prompt, schema output, quota, prezzi).
 // Nessuna logica di business brand-specifica: solo dati di configurazione.
 
-const FREE_LIMIT_DEFAULT = parseInt(process.env.FREE_PLAN_LIMIT || '10', 10);
+// Free = 1 summary/giorno (reset giornaliero, vedi getNextResetDate in auth.mjs).
+const FREE_LIMIT_DEFAULT = parseInt(process.env.FREE_PLAN_LIMIT || '1', 10);
 
 export const DEFAULT_BRAND = 'lemonsqueezer';
 

@@ -18,7 +18,7 @@ export const API_ERRORS = {
     // 422
     YOUTUBE_TRANSCRIPT_REQUIRED: { status: 422, message: 'Trascrizione YouTube non ricevuta dall’estensione' },
     // 429
-    USAGE_LIMIT_EXCEEDED: { status: 429, message: 'Limite mensile raggiunto' },
+    USAGE_LIMIT_EXCEEDED: { status: 429, message: 'Limite giornaliero raggiunto' },
     RATE_LIMITED: { status: 429, message: 'Troppe richieste. Riprova più tardi.' },
     // 5xx
     OUTPUT_SCHEMA_ERROR: { status: 502, message: 'Risposta del modello non valida' },

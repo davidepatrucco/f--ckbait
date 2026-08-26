@@ -41,8 +41,9 @@ async function getBrandProducts(brandId) {
     const monthlyPriceId = await secretsManager.getSecret(brand.stripe.monthlyPriceKey);
     const yearlyPriceId = await secretsManager.getSecret(brand.stripe.yearlyPriceKey);
     const products = {
-        premium_monthly: { price_id: monthlyPriceId, amount: 999, currency: 'eur', interval: 'month' },
-        premium_yearly: { price_id: yearlyPriceId, amount: 9999, currency: 'eur', interval: 'year' }
+        // amount = display (centesimi €). L'addebito reale è il price_id Stripe.
+        premium_monthly: { price_id: monthlyPriceId, amount: 199, currency: 'eur', interval: 'month' },
+        premium_yearly: { price_id: yearlyPriceId, amount: 1499, currency: 'eur', interval: 'year' }
     };
     brandProductsCache[brandId] = products;
     return products;

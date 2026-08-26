@@ -16,7 +16,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 // Configurazione
 const secretsManager = new SecretsManager();
-const FREE_PLAN_LIMIT = parseInt(process.env.FREE_PLAN_LIMIT || '10', 10);
+const FREE_PLAN_LIMIT = parseInt(process.env.FREE_PLAN_LIMIT || '1', 10);
 const PASSWORD_MIN_LENGTH = parseInt(process.env.PASSWORD_MIN_LENGTH || '8', 10);
 
 /**
@@ -257,7 +257,7 @@ export function canUserSummarize(user, brandId = DEFAULT_BRAND) {
     if (effectiveUsed >= ent.usage.limit) {
         return {
             canSummarize: false,
-            reason: 'Limite mensile raggiunto',
+            reason: 'Limite giornaliero raggiunto',
             resetDate: ent.usage.resetDate
         };
     }
@@ -291,12 +291,13 @@ export async function incrementUsage(user, brandId = DEFAULT_BRAND) {
 }
 
 /**
- * Calcola la prossima data di reset (primo giorno del mese successivo)
+ * Prossima data di reset della quota free: mezzanotte UTC del giorno successivo
+ * (quota giornaliera: 1 summary/giorno).
  */
 function getNextResetDate() {
     const now = new Date();
-    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-    return nextMonth.toISOString();
+    const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0));
+    return next.toISOString();
 }
 
 async function hashPassword(password) {

@@ -9,9 +9,9 @@ poi i passi operativi in ordine.
 
 | # | Decisione | Note / raccomandazione | Blocca |
 |---|-----------|------------------------|--------|
-| A1 | **Prezzi per brand** (mensile + annuale) | COGS LLM trascurabile (vedi `design/unit-economics-*`): il prezzo è posizionamento, non costo. Suggerimento di partenza: Lemon/Scout/NoBull €4.99/mo, Briefly €7.99, Signal €9.99; annuale ~10×. **Tua scelta.** | Stripe LIVE, sito pricing, MRR |
-| A2 | **Cosa sblocca il Premium** | MVP: solo quota più alta/illimitata, stesse funzioni. Confermare. | copy sito/store, pricing |
-| A3 | **Quota Free** | Oggi 10/mese per tutti i brand (registry). Confermare o per-brand. | — |
+| A1 | **Prezzi** | ✅ DECISO: **uniforme €1.99/mo · €14.99/anno** per tutti i brand (frictionless, sopra il floor Stripe). Impostato: display `getBrandProducts` + pricing sito. Restano da creare i **price id Stripe LIVE** (Fase 1.2). | Stripe LIVE |
+| A2 | **Cosa sblocca il Premium** | ✅ DECISO (MVP): uso illimitato, stesse funzioni. | — |
+| A3 | **Quota Free** | ✅ DECISO: **1 riassunto/giorno** (reset giornaliero UTC). Implementato (`FREE_PLAN_LIMIT=1` + `getNextResetDate` giornaliero). | — |
 | A4 | **Store del primo lancio** | Consiglio: **Chrome Web Store** per primo (review più rapida), poi Firefox (AMO), Safari (App Store, richiede Xcode) ultimo. | QA, submission |
 | A5 | **Dominio sito + URL ritorno checkout** | Serve un dominio (es. sotto `bifa.digital`) per landing/pricing e per `stripe-success-url`/`stripe-cancel-url`. Legali già su S3. | sito, Stripe |
 | A6 | **Timing go-live prod** | Oggi l'estensione punta a **dev**. Prod va allineato e l'estensione va buildata `--env prod` per la submission. | lancio |
