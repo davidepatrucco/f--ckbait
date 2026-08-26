@@ -46,8 +46,8 @@
     "summary": "Scopri se un contenuto merita il tuo tempo: punteggio di attenzione, novità e affidabilità in un clic, prima di leggere."
   },
   "urls": {
-    "privacy": "https://lemonsqueezer-legal.s3.eu-west-1.amazonaws.com/scout/privacy-policy.html",
-    "terms": "https://lemonsqueezer-legal.s3.eu-west-1.amazonaws.com/scout/terms.html",
+    "privacy": "https://reading-intelligence-legal.s3.eu-west-1.amazonaws.com/scout/privacy-policy.html",
+    "terms": "https://reading-intelligence-legal.s3.eu-west-1.amazonaws.com/scout/terms.html",
     "support": "mailto:contact@bifa.digital"
   }
 }

@@ -8,7 +8,7 @@ const client = new DynamoDBClient({
 });
 const docClient = DynamoDBDocumentClient.from(client);
 
-const SUBSCRIPTIONS_TABLE = process.env.SUBSCRIPTIONS_TABLE || 'lemonsqueezer-subscriptions';
+const SUBSCRIPTIONS_TABLE = process.env.SUBSCRIPTIONS_TABLE || 'reading-intelligence-subscriptions';
 
 // Funzione per validare una subscription (versione semplificata)
 export async function validateSubscription(apiKey) {

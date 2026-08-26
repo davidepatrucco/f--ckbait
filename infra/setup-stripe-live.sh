@@ -3,7 +3,7 @@
 # nessun segreto hardcoded. Imposta SOLO i parametri per cui è fornito un valore.
 # Vedi docs/runbooks/stripe-live-setup.md.
 set -euo pipefail
-ENV="${ENV:-prod}"; REGION="${AWS_REGION:-eu-west-1}"; P="/lemonsqueezer/$ENV"
+ENV="${ENV:-prod}"; REGION="${AWS_REGION:-eu-west-1}"; P="/reading-intelligence/$ENV"
 put(){ if [ -n "${2:-}" ]; then aws ssm put-parameter --name "$P/$1" --type "$3" --value "$2" --overwrite --region "$REGION" >/dev/null && echo "set $P/$1"; fi; }
 put stripe-secret-key "${STRIPE_SECRET_KEY:-}" SecureString
 put stripe-webhook-secret "${STRIPE_WEBHOOK_SECRET:-}" SecureString

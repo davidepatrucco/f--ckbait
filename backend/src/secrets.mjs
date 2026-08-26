@@ -196,7 +196,7 @@ function isLocalEnvironment() {
 }
 
 function getParameterPath(secretName) {
-    const prefix = process.env.PARAMETER_STORE_PREFIX || '/lemonsqueezer/dev';
+    const prefix = process.env.PARAMETER_STORE_PREFIX || '/reading-intelligence/dev';
     return `${prefix}/${secretName.toLowerCase().replace(/_/g, '-')}`;
 }
 
@@ -216,20 +216,20 @@ export function getSetupInstructions() {
         message: "Per configurare i secrets su AWS Parameter Store:",
         commands: [
             `# Configura OpenAI API Key`,
-            `aws ssm put-parameter --name "/lemonsqueezer/${env}/openai-api-key" --value "sk-proj-..." --type "SecureString"`,
+            `aws ssm put-parameter --name "/reading-intelligence/${env}/openai-api-key" --value "sk-proj-..." --type "SecureString"`,
             ``,
             `# Configura JWT Secret`,
-            `aws ssm put-parameter --name "/lemonsqueezer/${env}/jwt-secret" --value "$(openssl rand -hex 32)" --type "SecureString"`,
+            `aws ssm put-parameter --name "/reading-intelligence/${env}/jwt-secret" --value "$(openssl rand -hex 32)" --type "SecureString"`,
             ``,
             `# Configura Stripe Keys`,
-            `aws ssm put-parameter --name "/lemonsqueezer/${env}/stripe-secret-key" --value "sk_test_..." --type "SecureString"`,
-            `aws ssm put-parameter --name "/lemonsqueezer/${env}/stripe-webhook-secret" --value "whsec_..." --type "SecureString"`,
+            `aws ssm put-parameter --name "/reading-intelligence/${env}/stripe-secret-key" --value "sk_test_..." --type "SecureString"`,
+            `aws ssm put-parameter --name "/reading-intelligence/${env}/stripe-webhook-secret" --value "whsec_..." --type "SecureString"`,
             ``,
             `# Opzionali per Stripe`,
-            `aws ssm put-parameter --name "/lemonsqueezer/${env}/stripe-premium-monthly-price-id" --value "price_..." --type "String"`,
-            `aws ssm put-parameter --name "/lemonsqueezer/${env}/stripe-premium-yearly-price-id" --value "price_..." --type "String"`,
-            `aws ssm put-parameter --name "/lemonsqueezer/${env}/stripe-success-url" --value "https://lemonsqueezer.com/success" --type "String"`,
-            `aws ssm put-parameter --name "/lemonsqueezer/${env}/stripe-cancel-url" --value "https://lemonsqueezer.com/cancel" --type "String"`
+            `aws ssm put-parameter --name "/reading-intelligence/${env}/stripe-premium-monthly-price-id" --value "price_..." --type "String"`,
+            `aws ssm put-parameter --name "/reading-intelligence/${env}/stripe-premium-yearly-price-id" --value "price_..." --type "String"`,
+            `aws ssm put-parameter --name "/reading-intelligence/${env}/stripe-success-url" --value "https://lemonsqueezer.com/success" --type "String"`,
+            `aws ssm put-parameter --name "/reading-intelligence/${env}/stripe-cancel-url" --value "https://lemonsqueezer.com/cancel" --type "String"`
         ],
         note: "I parametri SecureString sono automaticamente encrypted con AWS KMS"
     };

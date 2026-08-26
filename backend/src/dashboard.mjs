@@ -22,8 +22,8 @@ import { listBrands } from './brands.mjs';
 
 const client = new DynamoDBClient({ region: process.env.AWS_REGION || 'eu-west-1' });
 const docClient = DynamoDBDocumentClient.from(client, { marshallOptions: { removeUndefinedValues: true } });
-const ANALYTICS_TABLE = process.env.ANALYTICS_TABLE_NAME || 'lemonsqueezer-analytics-dev';
-const USERS_TABLE = process.env.USERS_TABLE_NAME || 'lemonsqueezer-users-dev';
+const ANALYTICS_TABLE = process.env.ANALYTICS_TABLE_NAME || 'reading-intelligence-analytics-dev';
+const USERS_TABLE = process.env.USERS_TABLE_NAME || 'reading-intelligence-users-dev';
 
 const DAY_MS = 86400000;
 

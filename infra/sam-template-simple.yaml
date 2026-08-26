@@ -33,7 +33,7 @@ Globals:
     Environment:
       Variables:
         ENVIRONMENT: !Ref Environment
-        PARAMETER_STORE_PREFIX: !Sub '/lemonsqueezer/${Environment}'
+        PARAMETER_STORE_PREFIX: !Sub '/reading-intelligence/${Environment}'
         USERS_TABLE_NAME: !Ref UsersTable
         SUBSCRIPTIONS_TABLE_NAME: !Ref SubscriptionsTable
         PAYMENTS_TABLE_NAME: !Ref PaymentsTable
@@ -52,7 +52,7 @@ Resources:
   SummarizeFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub 'lemonsqueezer-summarize-${Environment}'
+      FunctionName: !Sub 'reading-intelligence-summarize-${Environment}'
       CodeUri: ../backend/
       Handler: lambda/handler.handler
       Description: 'Main Lambda function for page summarization'
@@ -132,7 +132,7 @@ Resources:
   StripeWebhookFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub 'lemonsqueezer-stripe-webhook-${Environment}'
+      FunctionName: !Sub 'reading-intelligence-stripe-webhook-${Environment}'
       CodeUri: ../backend/
       Handler: lambda/handler.stripeWebhookHandler
       Description: 'Stripe webhook handler with raw body'
@@ -142,7 +142,7 @@ Resources:
       Environment:
         Variables:
           ENVIRONMENT: !Ref Environment
-          PARAMETER_STORE_PREFIX: !Sub '/lemonsqueezer/${Environment}'
+          PARAMETER_STORE_PREFIX: !Sub '/reading-intelligence/${Environment}'
           USERS_TABLE_NAME: !Ref UsersTable
           SUBSCRIPTIONS_TABLE_NAME: !Ref SubscriptionsTable
           PAYMENTS_TABLE_NAME: !Ref PaymentsTable
@@ -165,20 +165,20 @@ Resources:
   SummarizeFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub '/aws/lambda/lemonsqueezer-summarize-${Environment}'
+      LogGroupName: !Sub '/aws/lambda/reading-intelligence-summarize-${Environment}'
       RetentionInDays: 14
 
   StripeWebhookFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub '/aws/lambda/lemonsqueezer-stripe-webhook-${Environment}'
+      LogGroupName: !Sub '/aws/lambda/reading-intelligence-stripe-webhook-${Environment}'
       RetentionInDays: 14
 
   # DynamoDB Tables
   UsersTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub 'lemonsqueezer-users-${Environment}'
+      TableName: !Sub 'reading-intelligence-users-${Environment}'
       AttributeDefinitions:
         - AttributeName: id
           AttributeType: S
@@ -194,7 +194,7 @@ Resources:
   SubscriptionsTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub 'lemonsqueezer-subscriptions-${Environment}'
+      TableName: !Sub 'reading-intelligence-subscriptions-${Environment}'
       AttributeDefinitions:
         - AttributeName: userId
           AttributeType: S
@@ -212,7 +212,7 @@ Resources:
   PaymentsTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub 'lemonsqueezer-payments-${Environment}'
+      TableName: !Sub 'reading-intelligence-payments-${Environment}'
       AttributeDefinitions:
         - AttributeName: paymentId
           AttributeType: S
@@ -235,7 +235,7 @@ Resources:
   PaymentSessionsTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub 'lemonsqueezer-payments-${Environment}_sessions'
+      TableName: !Sub 'reading-intelligence-payments-${Environment}_sessions'
       AttributeDefinitions:
         - AttributeName: session_id
           AttributeType: S
@@ -255,7 +255,7 @@ Resources:
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
-      TableName: !Sub 'lemonsqueezer-cache-${Environment}'
+      TableName: !Sub 'reading-intelligence-cache-${Environment}'
       AttributeDefinitions:
         - AttributeName: url
           AttributeType: S
@@ -273,7 +273,7 @@ Resources:
   SummaryCacheTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub 'lemonsqueezer-summary-cache-${Environment}'
+      TableName: !Sub 'reading-intelligence-summary-cache-${Environment}'
       AttributeDefinitions:
         - AttributeName: cache_key
           AttributeType: S
@@ -290,7 +290,7 @@ Resources:
   RateLimitTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub 'lemonsqueezer-rate-limit-${Environment}'
+      TableName: !Sub 'reading-intelligence-rate-limit-${Environment}'
       AttributeDefinitions:
         - AttributeName: userId
           AttributeType: S
@@ -307,7 +307,7 @@ Resources:
   AnalyticsTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub 'lemonsqueezer-analytics-${Environment}'
+      TableName: !Sub 'reading-intelligence-analytics-${Environment}'
       AttributeDefinitions:
         - AttributeName: eventId
           AttributeType: S

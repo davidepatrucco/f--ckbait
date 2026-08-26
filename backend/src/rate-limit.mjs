@@ -8,7 +8,7 @@ const client = new DynamoDBClient({
 });
 const docClient = DynamoDBDocumentClient.from(client);
 
-const RATE_LIMIT_TABLE = process.env.RATE_LIMIT_TABLE || 'lemonsqueezer-rate-limits';
+const RATE_LIMIT_TABLE = process.env.RATE_LIMIT_TABLE || 'reading-intelligence-rate-limits';
 
 // Configurazione rate limiting
 const RATE_LIMITS = {

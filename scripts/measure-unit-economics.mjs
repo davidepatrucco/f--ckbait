@@ -14,7 +14,7 @@
 //
 // Uso:
 //   OPENAI_API_KEY=... node scripts/measure-unit-economics.mjs --source sample --lang it
-//   node scripts/measure-unit-economics.mjs --source analytics --table lemonsqueezer-analytics-dev
+//   node scripts/measure-unit-economics.mjs --source analytics --table reading-intelligence-analytics-dev
 
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -32,7 +32,7 @@ function arg(name, def) {
 }
 const SOURCE = arg('source', 'sample');
 const LANG = arg('lang', 'it');
-const TABLE = arg('table', 'lemonsqueezer-analytics-dev');
+const TABLE = arg('table', 'reading-intelligence-analytics-dev');
 const REGION = arg('region', process.env.AWS_REGION || 'eu-west-1');
 const PRICE = Number(arg('price', '4.99'));      // ipotesi prezzo mensile premium
 const VOLUME = Number(arg('volume', '100'));      // ipotesi summary/utente/mese

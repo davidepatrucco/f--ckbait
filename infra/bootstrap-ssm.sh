@@ -10,19 +10,19 @@
 set -euo pipefail
 
 REGION="${AWS_REGION:-eu-west-1}"
-SRC="/lemonsqueezer/dev"
+SRC="/reading-intelligence/dev"
 TARGETS=("staging" "prod")
 
 names=$(aws ssm get-parameters-by-path --path "$SRC" --recursive --region "$REGION" \
   --query 'Parameters[].Name' --output text)
 
 for env in "${TARGETS[@]}"; do
-  echo "== bootstrap /lemonsqueezer/$env =="
+  echo "== bootstrap /reading-intelligence/$env =="
   for full in $names; do
     leaf="${full##*/}"
     type=$(aws ssm get-parameter --name "$full" --region "$REGION" \
       --query 'Parameter.Type' --output text)
-    dst="/lemonsqueezer/$env/$leaf"
+    dst="/reading-intelligence/$env/$leaf"
 
     if [ "$leaf" = "jwt-secret" ]; then
       # chiave di firma nuova per ambiente (mai riusare quella dev)

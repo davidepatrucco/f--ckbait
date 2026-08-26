@@ -769,7 +769,7 @@ export async function analyticsEventHandler(event) {
 }
 
 // Autorizzazione dashboard: chiave admin (header X-Admin-Key o ?key=) OPPURE JWT admin.
-// La chiave (SSM /lemonsqueezer/<env>/dashboard-admin-key) rende la dashboard usabile
+// La chiave (SSM /reading-intelligence/<env>/dashboard-admin-key) rende la dashboard usabile
 // con una sola URL bookmarkabile, senza login né estrazione di token.
 async function dashboardAuthorized(event) {
     const provided = event.headers?.['x-admin-key'] || event.headers?.['X-Admin-Key'] || event.queryStringParameters?.key;

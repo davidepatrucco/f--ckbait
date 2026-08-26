@@ -46,8 +46,8 @@
     "summary": "Il contesto che ti manca: brief esecutivo con cosa è successo, perché conta, background e cosa monitorare, in un clic."
   },
   "urls": {
-    "privacy": "https://lemonsqueezer-legal.s3.eu-west-1.amazonaws.com/briefly/privacy-policy.html",
-    "terms": "https://lemonsqueezer-legal.s3.eu-west-1.amazonaws.com/briefly/terms.html",
+    "privacy": "https://reading-intelligence-legal.s3.eu-west-1.amazonaws.com/briefly/privacy-policy.html",
+    "terms": "https://reading-intelligence-legal.s3.eu-west-1.amazonaws.com/briefly/terms.html",
     "support": "mailto:contact@bifa.digital"
   }
 }
