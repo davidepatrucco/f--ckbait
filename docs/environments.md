@@ -40,6 +40,19 @@ test → deploy-dev + smoke → deploy-staging + smoke/E2E → deploy-prod (APPR
 - **Tutti e tre gli stack creati e smoke verde** (dev, staging, prod). Prod creato via
   pipeline con approvazione manuale.
 
+## Siti marketing (per ambiente)
+Statici, un indirizzo S3 per ambiente sul bucket **`reading-intelligence-sites`** (pubblico):
+`https://reading-intelligence-sites.s3.eu-west-1.amazonaws.com/<env>/<brand>/{landing,pricing,faq}.html`.
+Ogni sito legge i prezzi dal `/pricing` del proprio ambiente (single-source Stripe).
+Pubblicazione (mai editare S3 a mano — fonte: `apps/website/template/` + `brands/`):
+```
+bash apps/website/publish.sh                    # prod
+SITE_ENV=staging bash apps/website/publish.sh   # staging
+SITE_ENV=dev bash apps/website/publish.sh        # dev
+```
+Extra opzionali via CloudFront (con A5): password su staging, dominio+HTTPS su prod.
+Il bucket `lemonsqueezer-legal` contiene solo i documenti legali.
+
 ## Estensione per ambiente
 L'estensione legge l'API base da `__BRAND__.apiBase`, iniettato dal build:
 ```
