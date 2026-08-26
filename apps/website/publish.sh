@@ -3,8 +3,10 @@
 # NON modificare i file su S3 a mano — la fonte è apps/website/template/ + brands/<brand>/.
 # Env override: SITE_ENV (default prod), SITE_BUCKET, SITE_PREFIX, AWS_REGION.
 set -euo pipefail
+# Un indirizzo S3 per ambiente: sites/<env>/<brand>/. Ogni sito punta al backend
+# del proprio ambiente (prezzi da /pricing di quell'ambiente).
 ENV="${SITE_ENV:-prod}"; REGION="${AWS_REGION:-eu-west-1}"
-BUCKET="${SITE_BUCKET:-lemonsqueezer-legal}"; PREFIX="${SITE_PREFIX:-sites}"
+BUCKET="${SITE_BUCKET:-lemonsqueezer-legal}"; PREFIX="${SITE_PREFIX:-sites/$ENV}"
 node apps/website/generate-site.mjs --all --env="$ENV"
 for b in lemonsqueezer scout signal briefly nobull; do
   for page in landing pricing faq; do
