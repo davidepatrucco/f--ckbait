@@ -77,7 +77,7 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: !Ref AnalyticsTable
         - SSMParameterReadPolicy:
-            ParameterName: !Sub 'lemonsqueezer/${Environment}/*'
+            ParameterName: !Sub 'reading-intelligence/${Environment}/*'
       Events:
         SummarizeAPI:
           Type: Api
@@ -156,7 +156,7 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: !Ref PaymentSessionsTable
         - SSMParameterReadPolicy:
-            ParameterName: !Sub 'lemonsqueezer/${Environment}/*'
+            ParameterName: !Sub 'reading-intelligence/${Environment}/*'
       FunctionUrlConfig:
         AuthType: NONE
         InvokeMode: BUFFERED
