@@ -3,8 +3,8 @@
 **Nome (store):** Briefly — The context you're missing
 **Categoria:** Productivity
 **Tagline:** The full picture, briefly.
-**Privacy:** https://lemonsqueezer-legal.s3.eu-west-1.amazonaws.com/briefly/privacy-policy.html
-**Termini:** https://lemonsqueezer-legal.s3.eu-west-1.amazonaws.com/briefly/terms.html
+**Privacy:** https://reading-intelligence-legal.s3.eu-west-1.amazonaws.com/briefly/privacy-policy.html
+**Termini:** https://reading-intelligence-legal.s3.eu-west-1.amazonaws.com/briefly/terms.html
 **Supporto:** mailto:contact@bifa.digital
 
 ## Descrizione breve (≤132 caratteri)

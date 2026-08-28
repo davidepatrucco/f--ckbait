@@ -3,8 +3,8 @@
 **Nome (store):** Signal — What actually matters
 **Categoria:** Productivity
 **Tagline:** Signal over noise. Decide faster.
-**Privacy:** https://lemonsqueezer-legal.s3.eu-west-1.amazonaws.com/signal/privacy-policy.html
-**Termini:** https://lemonsqueezer-legal.s3.eu-west-1.amazonaws.com/signal/terms.html
+**Privacy:** https://reading-intelligence-legal.s3.eu-west-1.amazonaws.com/signal/privacy-policy.html
+**Termini:** https://reading-intelligence-legal.s3.eu-west-1.amazonaws.com/signal/terms.html
 **Supporto:** mailto:contact@bifa.digital
 
 ## Descrizione breve (≤132 caratteri)

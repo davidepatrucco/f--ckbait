@@ -17,7 +17,7 @@ const client = new DynamoDBClient({
 });
 const docClient = DynamoDBDocumentClient.from(client);
 
-const PAYMENTS_TABLE = process.env.PAYMENTS_TABLE_NAME || 'tldr-payments';
+const PAYMENTS_TABLE = process.env.PAYMENTS_TABLE_NAME || 'reading-intelligence-payments-dev';
 
 // Client Stripe (chiave segreta globale) + prodotti per-brand (price id per brand).
 let stripeClient;

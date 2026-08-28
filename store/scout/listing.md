@@ -3,8 +3,8 @@
 **Nome (store):** Scout — Worth reading?
 **Categoria:** Productivity
 **Tagline:** Worth your time? Know before you read.
-**Privacy:** https://lemonsqueezer-legal.s3.eu-west-1.amazonaws.com/scout/privacy-policy.html
-**Termini:** https://lemonsqueezer-legal.s3.eu-west-1.amazonaws.com/scout/terms.html
+**Privacy:** https://reading-intelligence-legal.s3.eu-west-1.amazonaws.com/scout/privacy-policy.html
+**Termini:** https://reading-intelligence-legal.s3.eu-west-1.amazonaws.com/scout/terms.html
 **Supporto:** mailto:contact@bifa.digital
 
 ## Descrizione breve (≤132 caratteri)

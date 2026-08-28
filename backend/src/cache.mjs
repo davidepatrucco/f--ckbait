@@ -10,7 +10,7 @@ const client = new DynamoDBClient({
 });
 const docClient = DynamoDBDocumentClient.from(client);
 
-const CACHE_TABLE = process.env.CACHE_TABLE_NAME || 'tldr-cache';
+const CACHE_TABLE = process.env.CACHE_TABLE_NAME || 'reading-intelligence-summary-cache-dev';
 const CACHE_TTL_HOURS = parseInt(process.env.CACHE_TTL_HOURS || '24', 10); // 24 ore default
 
 // v3: invalida i riassunti generati prima dei fix su estrazione client, parsing

@@ -67,12 +67,12 @@ async function checkAndUpdateRateLimit(apiKey, window, config, brand = '') {
         const result = await docClient.send(new UpdateCommand({
             TableName: RATE_LIMIT_TABLE,
             Key: {
-                id: key
+                userId: key
             },
             UpdateExpression: 'ADD #count :inc SET #ttl = :ttl, #lastUpdated = :now',
             ExpressionAttributeNames: {
                 '#count': 'count',
-                '#ttl': 'ttl',
+                '#ttl': 'resetTime',
                 '#lastUpdated': 'lastUpdated'
             },
             ExpressionAttributeValues: {
@@ -153,7 +153,7 @@ export async function getRateLimitStatus(apiKey) {
             const result = await docClient.send(new GetCommand({
                 TableName: RATE_LIMIT_TABLE,
                 Key: {
-                    id: key
+                    userId: key
                 }
             }));
             
@@ -186,7 +186,7 @@ export async function resetRateLimits(apiKey) {
                 await docClient.send(new UpdateCommand({
                     TableName: RATE_LIMIT_TABLE,
                     Key: {
-                        id: key
+                        userId: key
                     },
                     UpdateExpression: 'SET #count = :zero',
                     ExpressionAttributeNames: {

@@ -3,8 +3,8 @@
 **Nome (store):** NoBull — How much is hype?
 **Categoria:** Productivity
 **Tagline:** Cut the hype. Keep the facts.
-**Privacy:** https://lemonsqueezer-legal.s3.eu-west-1.amazonaws.com/nobull/privacy-policy.html
-**Termini:** https://lemonsqueezer-legal.s3.eu-west-1.amazonaws.com/nobull/terms.html
+**Privacy:** https://reading-intelligence-legal.s3.eu-west-1.amazonaws.com/nobull/privacy-policy.html
+**Termini:** https://reading-intelligence-legal.s3.eu-west-1.amazonaws.com/nobull/terms.html
 **Supporto:** mailto:contact@bifa.digital
 
 ## Descrizione breve (≤132 caratteri)

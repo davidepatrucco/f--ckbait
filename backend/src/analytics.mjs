@@ -14,7 +14,7 @@ const docClient = DynamoDBDocumentClient.from(client, {
     marshallOptions: { removeUndefinedValues: true }
 });
 
-const ANALYTICS_TABLE = process.env.ANALYTICS_TABLE_NAME || 'tldr-analytics';
+const ANALYTICS_TABLE = process.env.ANALYTICS_TABLE_NAME || 'reading-intelligence-analytics-dev';
 
 /**
  * Costruisce l'evento analytics (funzione pura, testabile).

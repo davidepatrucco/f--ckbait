@@ -10,7 +10,7 @@ const client = new DynamoDBClient({
 });
 const docClient = DynamoDBDocumentClient.from(client);
 
-const TABLE_NAME = process.env.USERS_TABLE_NAME || 'tldr-users';
+const TABLE_NAME = process.env.USERS_TABLE_NAME || 'reading-intelligence-users-dev';
 
 /**
  * Trova utente per ID

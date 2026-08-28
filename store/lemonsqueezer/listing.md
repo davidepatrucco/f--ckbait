@@ -3,8 +3,8 @@
 **Nome (store):** LemonSqueezer — TL;DR
 **Categoria:** Productivity
 **Tagline:** Skip the noise. Get the point.
-**Privacy:** https://lemonsqueezer-legal.s3.eu-west-1.amazonaws.com/privacy-policy.html
-**Termini:** https://lemonsqueezer-legal.s3.eu-west-1.amazonaws.com/terms.html
+**Privacy:** https://reading-intelligence-legal.s3.eu-west-1.amazonaws.com/privacy-policy.html
+**Termini:** https://reading-intelligence-legal.s3.eu-west-1.amazonaws.com/terms.html
 **Supporto:** mailto:contact@bifa.digital
 
 ## Descrizione breve (≤132 caratteri)
