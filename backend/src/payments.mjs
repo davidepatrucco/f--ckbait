@@ -21,7 +21,10 @@ const PAYMENTS_TABLE = process.env.PAYMENTS_TABLE_NAME || 'tldr-payments';
 
 // Client Stripe (chiave segreta globale) + prodotti per-brand (price id per brand).
 let stripeClient;
-const brandProductsCache = {};
+// TTL sui price_id (come pricingCache): dopo un aggiornamento SSM (es. E18-005) il
+// container non serve price_id stantii per il checkout oltre la finestra.
+const brandProductsCache = new Map(); // brandId -> { at, products }
+const BRAND_PRODUCTS_TTL_MS = 5 * 60 * 1000;
 
 async function getStripeClient() {
     if (!stripeClient) {
@@ -40,7 +43,8 @@ const PRICING_FALLBACK = { currency: 'eur', monthly: 199, yearly: 1499 };
  * "Independent commercial lifecycle per brand": ogni brand ha i suoi price id.
  */
 async function getBrandProducts(brandId) {
-    if (brandProductsCache[brandId]) return brandProductsCache[brandId];
+    const cached = brandProductsCache.get(brandId);
+    if (cached && Date.now() - cached.at < BRAND_PRODUCTS_TTL_MS) return cached.products;
     const brand = getBrand(brandId);
     const monthlyPriceId = await secretsManager.getSecret(brand.stripe.monthlyPriceKey);
     const yearlyPriceId = await secretsManager.getSecret(brand.stripe.yearlyPriceKey);
@@ -48,7 +52,7 @@ async function getBrandProducts(brandId) {
         premium_monthly: { price_id: monthlyPriceId, interval: 'month' },
         premium_yearly: { price_id: yearlyPriceId, interval: 'year' }
     };
-    brandProductsCache[brandId] = products;
+    brandProductsCache.set(brandId, { at: Date.now(), products });
     return products;
 }
 

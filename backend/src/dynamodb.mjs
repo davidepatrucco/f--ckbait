@@ -2,7 +2,7 @@
 
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
-import { DEFAULT_BRAND } from './brands.mjs';
+import { DEFAULT_BRAND, getFreeLimit } from './brands.mjs';
 
 // Configurazione DynamoDB
 const client = new DynamoDBClient({
@@ -80,7 +80,7 @@ export async function createUser(userdata) {
                     [initBrand]: {
                         plan: userdata.plan || 'free',
                         usage_used: userdata.usage?.used || 0,
-                        usage_limit: userdata.usage?.limit || 10,
+                        usage_limit: userdata.usage?.limit || getFreeLimit(initBrand),
                         usage_reset_date: userdata.usage?.resetDate || null,
                         subscription_status: 'none',
                         stripe_customer_id: null,
@@ -159,7 +159,7 @@ export async function incrementBrandUsage(userId, brandId, { seed, resetIfExpire
         await ensureBrandEntitlement(userId, brandId, {
             plan: seed?.plan || 'free',
             usage_used: seed?.usage_used || 0,
-            usage_limit: seed?.usage_limit || 10,
+            usage_limit: seed?.usage_limit || getFreeLimit(brandId),
             usage_reset_date: seed?.usage_reset_date || resetDate,
             subscription_status: seed?.subscription_status || 'none',
             stripe_customer_id: seed?.stripe_customer_id || null,
@@ -201,7 +201,7 @@ export async function updateUserPlan(userId, brandId, newPlan, extra = {}) {
         await ensureBrandEntitlement(userId, brandId, {
             plan: 'free',
             usage_used: 0,
-            usage_limit: 10,
+            usage_limit: getFreeLimit(brandId),
             usage_reset_date: null,
             subscription_status: 'none',
             stripe_customer_id: null,
@@ -272,7 +272,7 @@ export function formatUserFromDynamoDB(dynamoUser) {
             [DEFAULT_BRAND]: {
                 plan: dynamoUser.plan || 'free',
                 usage_used: dynamoUser.usage_used || 0,
-                usage_limit: dynamoUser.usage_limit || 10,
+                usage_limit: dynamoUser.usage_limit || getFreeLimit(DEFAULT_BRAND),
                 usage_reset_date: dynamoUser.usage_reset_date || null,
                 subscription_status: dynamoUser.subscription_status || 'none',
                 stripe_customer_id: dynamoUser.stripe_customer_id || null,
@@ -296,7 +296,7 @@ export function formatUserFromDynamoDB(dynamoUser) {
         plan: def.plan || 'free',
         usage: {
             used: def.usage_used || 0,
-            limit: def.usage_limit || 10,
+            limit: def.usage_limit || getFreeLimit(DEFAULT_BRAND),
             resetDate: def.usage_reset_date || null
         }
     };

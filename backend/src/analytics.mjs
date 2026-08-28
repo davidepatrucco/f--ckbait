@@ -29,6 +29,14 @@ export const ALLOWED_EVENT_TYPES = new Set([
     'paywall_viewed', 'checkout_started', 'subscription_activated'
 ]);
 
+// Sottoinsieme inviabile dal CLIENT via /analytics/event. Esclude i tipi server-only
+// (summary_*, checkout_started, subscription_activated): altrimenti un client anonimo
+// potrebbe falsificare conversioni/MRR nella dashboard.
+export const CLIENT_ALLOWED_EVENT_TYPES = new Set([
+    'extension_installed', 'extension_opened', 'page_detected',
+    'login_completed', 'sidepanel_opened', 'result_copied', 'source_opened', 'paywall_viewed'
+]);
+
 export function buildAnalyticsEvent(eventData) {
     const now = new Date();
     return {
@@ -105,8 +113,9 @@ export async function logEvent({ eventType, source = 'server', userId, userEmail
     }
 }
 
-// Funnel dal client (estensione): source='client'.
+// Funnel dal client (estensione): source='client'. Solo tipi client-consentiti.
 export async function logClientEvent(args) {
+    if (!CLIENT_ALLOWED_EVENT_TYPES.has(args?.eventType)) return null;
     return logEvent({ ...args, source: 'client' });
 }
 

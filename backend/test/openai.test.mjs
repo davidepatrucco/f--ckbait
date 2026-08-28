@@ -26,7 +26,9 @@ describe('OpenAI Module Tests', () => {
         assert.equal(videoPlan.savingsPercent, 75);
         assert.equal(buildSummaryPlan({ text: 'one two three' }).profile, 'standard');
         assert.equal(typeof getSummaryModel(), 'string');
-        assert.equal(getSummaryModel('gpt-5.6-luna'), 'gpt-5.6-luna');
+        // override economy onorato; premium senza piano → economy (no bypass); ignoto → economy
+        assert.equal(getSummaryModel('gpt-5-nano'), 'gpt-5-nano');
+        assert.equal(getSummaryModel('gpt-5.6-luna'), getSummaryModel());
         assert.equal(getSummaryModel('not-a-model'), getSummaryModel());
     });
     test('should validate input parameters', async () => {

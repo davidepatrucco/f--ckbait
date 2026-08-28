@@ -61,8 +61,13 @@ export function assertTierSanity(now = Date.now()) {
  */
 export function selectSummaryModel({ requestedModel, plan, wordCount = 0, now = Date.now() } = {}) {
     const { economy, premium } = tierModels(now);
-    if (requestedModel && allowedModels(now).has(requestedModel)) return requestedModel;
     const isPremiumPlan = typeof plan === 'string' && plan !== 'free' && plan !== '';
+    // Override esplicito onorato solo se il piano vi ha diritto: un utente free NON può
+    // forzare il modello premium (bypass del cost router). Economy è sempre concesso.
+    if (requestedModel && allowedModels(now).has(requestedModel)) {
+        if (requestedModel !== premium || isPremiumPlan) return requestedModel;
+        // free che richiede il premium → ignora l'override, prosegue su economy
+    }
     if (isPremiumPlan && wordCount >= PREMIUM_WORDCOUNT) return premium;
     return economy;
 }

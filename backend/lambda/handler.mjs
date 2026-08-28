@@ -13,7 +13,7 @@ import { apiErrorBody } from '../src/errors.mjs';
 // Incluso nell'envelope di ogni risposta per correlazione client/log.
 let currentRequestId = null;
 import { handleGoogleAuth } from '../src/auth-google.mjs';
-import { logSummaryEvent, logClientEvent, logEvent, ALLOWED_EVENT_TYPES, getUserStats, getGlobalStats, getTrendingDomains } from '../src/analytics.mjs';
+import { logSummaryEvent, logClientEvent, logEvent, ALLOWED_EVENT_TYPES, CLIENT_ALLOWED_EVENT_TYPES, getUserStats, getGlobalStats, getTrendingDomains } from '../src/analytics.mjs';
 import { computePortfolioMetrics } from '../src/dashboard.mjs';
 import { dashboardHtml } from '../src/dashboard-page.mjs';
 import { getSecret } from '../src/secrets.mjs';
@@ -742,8 +742,8 @@ export async function analyticsEventHandler(event) {
     let body;
     try { body = JSON.parse(event.body || '{}'); } catch { return createResponse(400, apiErrorBody('INVALID_JSON')); }
 
-    if (!ALLOWED_EVENT_TYPES.has(body.event_type)) {
-        return createResponse(400, apiErrorBody('INVALID_REQUEST', { error: 'event_type non valido', allowed: [...ALLOWED_EVENT_TYPES] }));
+    if (!CLIENT_ALLOWED_EVENT_TYPES.has(body.event_type)) {
+        return createResponse(400, apiErrorBody('INVALID_REQUEST', { error: 'event_type non valido o non consentito dal client', allowed: [...CLIENT_ALLOWED_EVENT_TYPES] }));
     }
     const rawBrand = event.headers?.['x-brand'] || event.headers?.['X-Brand'] || body.brand;
     if (rawBrand && !isValidBrand(rawBrand)) {
@@ -819,14 +819,17 @@ export async function pricingHandler(event) {
     if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: cors, body: '' };
     if (event.httpMethod !== 'GET') return { statusCode: 405, headers: cors, body: JSON.stringify({ error: 'Usa GET' }) };
     const json = (obj) => ({ statusCode: 200, headers: { ...cors, 'Content-Type': 'application/json' }, body: JSON.stringify(obj) });
+    // Non esporre `source` (stripe|fallback) nel payload pubblico.
+    const pub = (p) => ({ brand: p.brand, monthly: pubPlan(p.monthly), yearly: pubPlan(p.yearly) });
+    const pubPlan = (x) => ({ amount: x.amount, currency: x.currency, interval: x.interval });
     try {
         const q = event.queryStringParameters || {};
         if (q.brand) {
             if (!isValidBrand(q.brand)) return { statusCode: 400, headers: cors, body: JSON.stringify(apiErrorBody('INVALID_BRAND', { brand: q.brand })) };
-            return json(await getBrandPricing(q.brand));
+            return json(pub(await getBrandPricing(q.brand)));
         }
         const brands = {};
-        for (const b of listBrands()) brands[b] = await getBrandPricing(b);
+        for (const b of listBrands()) brands[b] = pub(await getBrandPricing(b));
         return json({ brands });
     } catch (e) {
         console.error('Error in pricingHandler:', e);

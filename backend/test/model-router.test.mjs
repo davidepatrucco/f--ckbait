@@ -41,8 +41,14 @@ describe('E?-router: selezione per piano/contenuto', () => {
         assert.equal(selectSummaryModel({ wordCount: 999999, now: BEFORE }), 'gpt-5-nano');
         assert.equal(selectSummaryModel({ plan: '', wordCount: 999999, now: BEFORE }), 'gpt-5-nano');
     });
-    it('override esplicito ammesso è onorato; sconosciuto è ignorato', () => {
-        assert.equal(selectSummaryModel({ requestedModel: 'gpt-5.6-luna', plan: 'free', now: BEFORE }), 'gpt-5.6-luna');
+    it('override: free NON forza il premium; premium sì; economy override sempre ok', () => {
+        // free che chiede il premium → ignorato (no COGS bypass) → economy
+        assert.equal(selectSummaryModel({ requestedModel: 'gpt-5.6-luna', plan: 'free', now: BEFORE }), 'gpt-5-nano');
+        // premium che chiede il premium → onorato
+        assert.equal(selectSummaryModel({ requestedModel: 'gpt-5.6-luna', plan: 'premium', now: BEFORE }), 'gpt-5.6-luna');
+        // override a un modello economy è concesso anche ai free
+        assert.equal(selectSummaryModel({ requestedModel: 'gpt-5.4-nano', plan: 'free', now: BEFORE }), 'gpt-5.4-nano');
+        // sconosciuto → ignorato
         assert.equal(selectSummaryModel({ requestedModel: 'gpt-4o-mystery', plan: 'free', now: BEFORE }), 'gpt-5-nano');
         assert.ok(allowedModels(BEFORE).has('gpt-5.4-nano'));
     });

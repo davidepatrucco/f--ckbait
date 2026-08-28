@@ -8,7 +8,10 @@ const client = new DynamoDBClient({
 });
 const docClient = DynamoDBDocumentClient.from(client);
 
-const RATE_LIMIT_TABLE = process.env.RATE_LIMIT_TABLE || 'reading-intelligence-rate-limits';
+// Il template passa RATE_LIMIT_TABLE_NAME (convenzione *_TABLE_NAME come gli altri
+// moduli). RATE_LIMIT_TABLE resta come override legacy. Fallback = pattern reale
+// (con -<env>), NON 'rate-limits' che non è nella policy IAM → AccessDenied → 429.
+const RATE_LIMIT_TABLE = process.env.RATE_LIMIT_TABLE_NAME || process.env.RATE_LIMIT_TABLE || 'reading-intelligence-rate-limit-dev';
 
 // Configurazione rate limiting
 const RATE_LIMITS = {
