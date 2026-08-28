@@ -48,30 +48,37 @@ function emptyBrandAgg() {
     return {
         installs: 0, opens: 0, logins: 0, checkoutStarted: 0, subscriptionActivated: 0,
         summaries: 0, costTotal: 0,
-        userSummaryDays: new Map(), // userId → Set(dayIndex) dei summary
+        userSummaryDays: new Map(),  // userId → Set(dayIndex) dei summary
+        userSummaryCount: new Map(), // userId → n° summary (per repeat/summaries-per-user)
     };
 }
 
 // Retention Dk sulla coorte "primo summary": % utenti con un summary a (primoGiorno + k).
-export function retention(userSummaryDays, k) {
+// Window-adjusted: la coorte include solo chi ha `first + k` osservabile nella finestra
+// (first ≤ nowDay − k), altrimenti D7/D30 sarebbero sistematicamente ~0.
+export function retention(userSummaryDays, k, nowDay = Math.floor(Date.now() / 86400000)) {
     let cohort = 0, retained = 0;
     for (const days of userSummaryDays.values()) {
         if (!days.size) continue;
         const first = Math.min(...days);
+        if (first > nowDay - k) continue; // giorno +k non ancora osservabile → fuori coorte
         cohort++;
         if (days.has(first + k)) retained++;
     }
     return { cohort, retainedPct: cohort ? Number(((retained / cohort) * 100).toFixed(1)) : null };
 }
 
-function summarizeBrand(agg, users) {
+function summarizeBrand(agg, users, nowDay) {
     const activeUsers = agg.userSummaryDays.size;
-    const repeatUsers = [...agg.userSummaryDays.values()].filter(s => s.size > 1).length;
+    // repeat = utenti con >1 summary (conteggio reale, non >1 giorno).
+    const repeatUsers = [...agg.userSummaryCount.values()].filter(c => c > 1).length;
+    // summary attribuibili a utenti (coerente col denominatore activeUsers).
+    const userSummaries = [...agg.userSummaryCount.values()].reduce((s, c) => s + c, 0);
     const totalUsers = users.total;
     const premiumUsers = users.premium;
-    const d1 = retention(agg.userSummaryDays, 1);
-    const d7 = retention(agg.userSummaryDays, 7);
-    const d30 = retention(agg.userSummaryDays, 30);
+    const d1 = retention(agg.userSummaryDays, 1, nowDay);
+    const d7 = retention(agg.userSummaryDays, 7, nowDay);
+    const d30 = retention(agg.userSummaryDays, 30, nowDay);
     const costPerSummary = agg.summaries ? agg.costTotal / agg.summaries : 0;
     const costPerActiveUser = activeUsers ? agg.costTotal / activeUsers : 0;
     const paidPct = totalUsers ? Number(((premiumUsers / totalUsers) * 100).toFixed(1)) : null;
@@ -83,7 +90,7 @@ function summarizeBrand(agg, users) {
         },
         engagement: {
             summaries: agg.summaries, activeUsers,
-            summariesPerUser: activeUsers ? Number((agg.summaries / activeUsers).toFixed(2)) : 0,
+            summariesPerUser: activeUsers ? Number((userSummaries / activeUsers).toFixed(2)) : 0,
             repeatPct: activeUsers ? Number(((repeatUsers / activeUsers) * 100).toFixed(1)) : null
         },
         retention: { d1: d1.retainedPct, d7: d7.retainedPct, d30: d30.retainedPct, cohort: d1.cohort },
@@ -138,6 +145,7 @@ export async function computePortfolioMetrics({ days = 30 } = {}) {
                     if (!agg.userSummaryDays.has(ev.userId)) agg.userSummaryDays.set(ev.userId, new Set());
                     const di = dayIndex(ev.date_partition) || Math.floor(Number(ev.timestamp || now) / DAY_MS);
                     agg.userSummaryDays.get(ev.userId).add(di);
+                    agg.userSummaryCount.set(ev.userId, (agg.userSummaryCount.get(ev.userId) || 0) + 1);
                 }
                 break;
             }
@@ -157,10 +165,11 @@ export async function computePortfolioMetrics({ days = 30 } = {}) {
         }
     }
 
+    const nowDay = Math.floor(now / DAY_MS);
     const brandsOut = {};
     const comparison = [];
     for (const b of brands) {
-        const m = summarizeBrand(perBrand.get(b), brandUsers.get(b));
+        const m = summarizeBrand(perBrand.get(b), brandUsers.get(b), nowDay);
         brandsOut[b] = m;
         comparison.push({
             brand: b,
@@ -183,14 +192,15 @@ export async function computePortfolioMetrics({ days = 30 } = {}) {
         for (const [uid, set] of a.userSummaryDays) {
             const key = b + ':' + uid; // stesso utente su brand diversi = coorti separate
             allAgg.userSummaryDays.set(key, set);
+            allAgg.userSummaryCount.set(key, a.userSummaryCount.get(uid) || 0);
         }
         const bu = brandUsers.get(b); allUsers.total += bu.total; allUsers.premium += bu.premium;
     }
 
     return {
         period: { days, from: new Date(fromTs).toISOString(), to: new Date(now).toISOString() },
-        assumptions: { note: 'metriche misurate; install/open anonimi → activation = proxy brand-level; cost = COGS LLM' },
-        all: summarizeBrand(allAgg, allUsers),
+        assumptions: { note: 'metriche misurate; install/open anonimi → activation = proxy brand-level (può eccedere 100%); retention window-adjusted; cost = COGS LLM' },
+        all: summarizeBrand(allAgg, allUsers, nowDay),
         brands: brandsOut,
         comparison
     };

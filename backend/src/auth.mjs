@@ -8,6 +8,7 @@ import {
     createUser,
     updateLastLogin,
     incrementBrandUsage,
+    decrementBrandUsage,
     formatUserFromDynamoDB
 } from './dynamodb.mjs';
 import { getFreeLimit, DEFAULT_BRAND } from './brands.mjs';
@@ -285,9 +286,21 @@ export async function incrementUsage(user, brandId = DEFAULT_BRAND) {
             stripe_subscription_id: ent.stripeSubscriptionId
         },
         resetIfExpired: expired,
-        resetDate: getNextResetDate()
+        resetDate: getNextResetDate(),
+        // Guardia atomica anti-race: non superare il limite (lancia USAGE_LIMIT_REACHED).
+        limit: ent.usage.limit
     });
     return formatUserFromDynamoDB(updated);
+}
+
+/**
+ * Rimborsa un utilizzo prenotato (refund) quando il summary a valle fallisce.
+ * No-op per i premium (non consumano quota).
+ */
+export async function refundUsage(user, brandId = DEFAULT_BRAND) {
+    const ent = getEntitlement(user, brandId);
+    if (ent.plan === 'premium') return;
+    await decrementBrandUsage(user.id, brandId);
 }
 
 /**

@@ -47,7 +47,7 @@ export function buildAnalyticsEvent(eventData) {
         userId: eventData.userId || undefined,
         timestamp: now.getTime(), // Number (epoch ms) per la GSI
         created_at: now.toISOString(), // ISO leggibile per display/raggruppamenti
-        event_type: ALLOWED_EVENT_TYPES.has(eventData.eventType) ? eventData.eventType : 'summary_completed',
+        event_type: ALLOWED_EVENT_TYPES.has(eventData.eventType) ? eventData.eventType : (eventData.eventType ? 'unknown' : 'summary_completed'),
         source: eventData.source === 'client' ? 'client' : 'server',
         brand_id: eventData.brandId || 'lemonsqueezer',
         email: eventData.userEmail,

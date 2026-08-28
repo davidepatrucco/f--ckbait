@@ -33,8 +33,9 @@ describe('E13-006/007 funnel event_type', () => {
         assert.equal(e.event_type, 'login_completed');
         assert.equal(e.source, 'client');
     });
-    it('eventType non valido -> fallback summary_completed', () => {
-        assert.equal(buildAnalyticsEvent({ eventType: 'nope' }).event_type, 'summary_completed');
+    it("eventType non valido -> 'unknown' (non rietichettato come summary_completed); assente -> summary_completed", () => {
+        assert.equal(buildAnalyticsEvent({ eventType: 'nope' }).event_type, 'unknown');
+        assert.equal(buildAnalyticsEvent({}).event_type, 'summary_completed');
     });
     it('logClientEvent rifiuta event_type non whitelisted (nessuna scrittura)', async () => {
         assert.equal(await logClientEvent({ eventType: 'not_allowed', brandId: 'scout' }), null);

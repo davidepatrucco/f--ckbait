@@ -107,7 +107,7 @@ setup_parameters() {
     STACK_NAME="lemonsqueezer-${ENVIRONMENT}"
     
     # S3 bucket per SAM
-    SAM_BUCKET="lemonsqueezer-sam-${ENVIRONMENT}-$(date +%s)"
+    SAM_BUCKET="reading-intelligence-sam-${ENVIRONMENT}-$(date +%s)"
     
     log "Configurazione finale:"
     log "  Environment: $ENVIRONMENT"

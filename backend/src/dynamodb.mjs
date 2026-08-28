@@ -151,7 +151,7 @@ async function ensureBrandEntitlement(userId, brandId, init) {
  * Incrementa il contatore di utilizzo per uno specifico brand.
  * Gestisce inizializzazione lazy dell'entitlement e reset mensile.
  */
-export async function incrementBrandUsage(userId, brandId, { seed, resetIfExpired, resetDate }) {
+export async function incrementBrandUsage(userId, brandId, { seed, resetIfExpired, resetDate, limit }) {
     try {
         // `seed` = entitlement corrente (per utenti legacy proviene dagli attributi
         // piatti via shim, così il conteggio non riparte da zero). Se l'entitlement
@@ -167,6 +167,7 @@ export async function incrementBrandUsage(userId, brandId, { seed, resetIfExpire
         });
 
         let UpdateExpression;
+        let ConditionExpression;
         const ExpressionAttributeValues = { ':one': 1 };
         if (resetIfExpired) {
             // Nuovo periodo: azzera e conta questo utilizzo come 1.
@@ -175,20 +176,53 @@ export async function incrementBrandUsage(userId, brandId, { seed, resetIfExpire
         } else {
             UpdateExpression = 'SET entitlements.#b.usage_used = if_not_exists(entitlements.#b.usage_used, :zero) + :one';
             ExpressionAttributeValues[':zero'] = 0;
+            // Guardia atomica anti-race: non superare il limite anche con richieste
+            // concorrenti. Se già al limite → ConditionalCheckFailed → USAGE_LIMIT_REACHED.
+            if (typeof limit === 'number') {
+                ConditionExpression = 'attribute_not_exists(entitlements.#b.usage_used) OR entitlements.#b.usage_used < :limit';
+                ExpressionAttributeValues[':limit'] = limit;
+            }
         }
 
         const response = await docClient.send(new UpdateCommand({
             TableName: TABLE_NAME,
             Key: { id: userId },
             UpdateExpression,
+            ...(ConditionExpression ? { ConditionExpression } : {}),
             ExpressionAttributeNames: { '#b': brandId },
             ExpressionAttributeValues,
             ReturnValues: 'ALL_NEW'
         }));
         return response.Attributes;
     } catch (error) {
+        if (error.name === 'ConditionalCheckFailedException') {
+            const e = new Error('USAGE_LIMIT_REACHED');
+            e.code = 'USAGE_LIMIT_REACHED';
+            throw e;
+        }
         console.error('Error incrementing brand usage:', error);
         throw new Error('Errore aggiornamento utilizzo');
+    }
+}
+
+/**
+ * Rimborsa un utilizzo (refund) se il summary a valle fallisce dopo la prenotazione.
+ * Best-effort: non scende sotto 0 (ConditionExpression); ignora l'errore di condizione.
+ */
+export async function decrementBrandUsage(userId, brandId) {
+    try {
+        await docClient.send(new UpdateCommand({
+            TableName: TABLE_NAME,
+            Key: { id: userId },
+            UpdateExpression: 'SET entitlements.#b.usage_used = entitlements.#b.usage_used - :one',
+            ConditionExpression: 'entitlements.#b.usage_used > :zero',
+            ExpressionAttributeNames: { '#b': brandId },
+            ExpressionAttributeValues: { ':one': 1, ':zero': 0 }
+        }));
+    } catch (error) {
+        if (error.name !== 'ConditionalCheckFailedException') {
+            console.error('Error refunding brand usage:', error);
+        }
     }
 }
 

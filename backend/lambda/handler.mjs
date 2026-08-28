@@ -4,7 +4,7 @@ import { selectSummaryModel } from '../src/model-router.mjs';
 import { validateSubscription } from '../src/subscription.mjs';
 import { checkRateLimit } from '../src/rate-limit.mjs';
 import { fetchWebContent } from '../src/web-fetcher.mjs';
-import { loginWithGoogle, loginWithEmail, registerWithEmail, verifyAuthToken, requireAuth, canUserSummarize, incrementUsage, getEntitlement } from '../src/auth.mjs';
+import { loginWithGoogle, loginWithEmail, registerWithEmail, verifyAuthToken, requireAuth, canUserSummarize, incrementUsage, refundUsage, getEntitlement } from '../src/auth.mjs';
 import { resolveBrandId, isValidBrand, getBrand, listBrands } from '../src/brands.mjs';
 import { ARCHITECTURE_VERSION, API_VERSION, ENVIRONMENT } from '../src/config.mjs';
 import { apiErrorBody } from '../src/errors.mjs';
@@ -17,6 +17,15 @@ import { logSummaryEvent, logClientEvent, logEvent, ALLOWED_EVENT_TYPES, CLIENT_
 import { computePortfolioMetrics } from '../src/dashboard.mjs';
 import { dashboardHtml } from '../src/dashboard-page.mjs';
 import { getSecret } from '../src/secrets.mjs';
+import { timingSafeEqual } from 'node:crypto';
+
+// Confronto a tempo costante di due stringhe (per la chiave admin).
+function safeEqual(a, b) {
+    if (typeof a !== 'string' || typeof b !== 'string') return false;
+    const ab = Buffer.from(a), bb = Buffer.from(b);
+    if (ab.length !== bb.length) return false;
+    return timingSafeEqual(ab, bb);
+}
 import { getCachedSummary, setCachedSummary, shouldCacheUrl, getCacheStats, cleanExpiredCache } from '../src/cache.mjs';
 import { 
     createCheckoutSession, 
@@ -401,6 +410,20 @@ export async function summarizeUrlHandler(event) {
             description: hasTranscript ? videoDescription : '',
             comments: hasTranscript ? videoComments : []
         };
+        // Prenotazione atomica della quota PRIMA di OpenAI (anti-race + anti-abuso costo):
+        // se già al limite → 429; refund se il summary a valle fallisce.
+        try {
+            user = await incrementUsage(user, brandId);
+        } catch (e) {
+            if (e.code === 'USAGE_LIMIT_REACHED') {
+                const entLim = getEntitlement(user, brandId);
+                return createResponse(429, apiErrorBody('USAGE_LIMIT_EXCEEDED', {
+                    error: 'Limite giornaliero raggiunto', brand: brandId, plan: 'free', resetDate: entLim.usage.resetDate
+                }));
+            }
+            throw e;
+        }
+
         // Cache solo per lo schema summary (Lemon): gli schemi strutturati (es. Scout)
         // hanno un payload diverso e per ora non vengono cache-ati.
         const cacheable = shouldCacheUrl(body.url) && brandConfig.outputSchema === 'summary';
@@ -409,7 +432,7 @@ export async function summarizeUrlHandler(event) {
             const cachedSummary = await getCachedSummary(cacheInput);
             if (cachedSummary) {
                 console.log('✅ [CACHE] Content hash hit:', { elapsedMs: Date.now() - cacheStartTime });
-                user = await incrementUsage(user, brandId);
+                // Quota già prenotata sopra; il cache-hit consuma la prenotazione.
                 const entHit = getEntitlement(user, brandId);
                 return createResponse(200, {
                     summary: cachedSummary.summary,
@@ -431,35 +454,42 @@ export async function summarizeUrlHandler(event) {
         
         const openaiStartTime = Date.now();
         console.log('🤖 [TIMING] Starting OpenAI call...');
-        const summary = await summarizeWithOpenAI({
-            url: body.url,
-            title: title,
-            text: text,
-            language: body.lang || 'it',
-            brand: brandId,
-            sourceType,
-            summaryProfile,
-            squeeze,
-            model: summaryModel,
-            videoDurationSeconds: hasTranscript ? videoDurationSeconds : undefined,
-            description: hasTranscript ? videoDescription : undefined,
-            comments: hasTranscript ? videoComments : undefined
-        });
+        let summary;
+        try {
+            summary = await summarizeWithOpenAI({
+                url: body.url,
+                title: title,
+                text: text,
+                language: body.lang || 'it',
+                brand: brandId,
+                sourceType,
+                summaryProfile,
+                squeeze,
+                model: summaryModel,
+                videoDurationSeconds: hasTranscript ? videoDurationSeconds : undefined,
+                description: hasTranscript ? videoDescription : undefined,
+                comments: hasTranscript ? videoComments : undefined
+            });
+        } catch (err) {
+            // Summary fallito dopo la prenotazione → refund della quota.
+            await refundUsage(user, brandId);
+            throw err;
+        }
         const openaiTime = Date.now() - openaiStartTime;
         console.log('⚡ [TIMING] OpenAI call took:', openaiTime, 'ms');
-        
+
         console.log('Summary object received:', JSON.stringify(summary, null, 2));
-        
+
         if (!summary || (!summary.text && !summary.output)) {
             console.error('Summary object is invalid:', summary);
+            await refundUsage(user, brandId); // refund: prenotazione non onorata
             return createResponse(500, {
                 error: 'Risposta OpenAI non valida',
                 code: 'INVALID_OPENAI_RESPONSE'
             });
         }
 
-        // Incrementa contatore utilizzo (per-brand)
-        user = await incrementUsage(user, brandId);
+        // Quota già prenotata prima di OpenAI; qui riflettiamo solo lo stato aggiornato.
         const entitlement = getEntitlement(user, brandId);
 
         // 💾 SALVA IN CACHE SE POSSIBILE (solo schema summary)
@@ -774,7 +804,7 @@ export async function analyticsEventHandler(event) {
 async function dashboardAuthorized(event) {
     const provided = event.headers?.['x-admin-key'] || event.headers?.['X-Admin-Key'] || event.queryStringParameters?.key;
     if (provided) {
-        try { const key = await getSecret('DASHBOARD_ADMIN_KEY'); if (key && provided === key) return true; }
+        try { const key = await getSecret('DASHBOARD_ADMIN_KEY'); if (key && safeEqual(provided, key)) return true; }
         catch { /* chiave non configurata */ }
     }
     try { const u = await requireAuth(event); if (u && u.role === 'admin') return true; }

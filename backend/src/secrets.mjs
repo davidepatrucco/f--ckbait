@@ -228,8 +228,8 @@ export function getSetupInstructions() {
             `# Opzionali per Stripe`,
             `aws ssm put-parameter --name "/reading-intelligence/${env}/stripe-premium-monthly-price-id" --value "price_..." --type "String"`,
             `aws ssm put-parameter --name "/reading-intelligence/${env}/stripe-premium-yearly-price-id" --value "price_..." --type "String"`,
-            `aws ssm put-parameter --name "/reading-intelligence/${env}/stripe-success-url" --value "https://lemonsqueezer.com/success" --type "String"`,
-            `aws ssm put-parameter --name "/reading-intelligence/${env}/stripe-cancel-url" --value "https://lemonsqueezer.com/cancel" --type "String"`
+            `aws ssm put-parameter --name "/reading-intelligence/${env}/stripe-success-url" --value "https://<your-domain>/success" --type "String"`,
+            `aws ssm put-parameter --name "/reading-intelligence/${env}/stripe-cancel-url" --value "https://<your-domain>/cancel" --type "String"`
         ],
         note: "I parametri SecureString sono automaticamente encrypted con AWS KMS"
     };
