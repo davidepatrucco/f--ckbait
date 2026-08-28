@@ -13,8 +13,12 @@ Store: **Chrome Web Store** (prima), **Firefox AMO**, **Safari App Store** (Xcod
 
 ---
 
+## Pacchetti (tutti in una volta)
+`node scripts/package-all.mjs` genera i 10 zip prod (5 brand × Chromium+Firefox) in `dist/`.
+Versione da `extension/manifest.json` (single source, condivisa). `dist/` è git-ignored.
+
 ## 1. Chrome Web Store (Chromium: Chrome/Edge/Brave/Arc/Opera) — per brand
-1. **Pacchetto**: `node scripts/package-brand.mjs <brand>` → `dist/<brand>-chromium-prod-<versione>.zip` (env=prod di default).
+1. **Pacchetto**: `node scripts/package-brand.mjs <brand>` (o `package-all.mjs` per tutti) → `dist/<brand>-chromium-prod-<versione>.zip` (env=prod di default).
 2. [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole) → **New item** → carica lo zip.
 3. **Scheda** (da `store/<brand>/listing.md`): nome, descrizione breve (≤132), descrizione dettagliata, categoria (Productivity), lingua.
 4. **Immagini**: icona 128, **screenshot 1280×800** (min 1, consigliati 4 — vedi shot-list nel listing), tile/promo opzionali.
