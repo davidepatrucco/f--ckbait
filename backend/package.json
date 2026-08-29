@@ -21,6 +21,7 @@
     "jsdom": "^23.2.0",
     "jsonwebtoken": "^9.0.2",
     "openai": "^4.52.0",
+    "pdfjs-dist": "^4.10.38",
     "stripe": "^14.23.0",
     "uuid": "^10.0.0"
   },

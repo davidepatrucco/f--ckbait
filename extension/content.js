@@ -1130,6 +1130,59 @@
         return document.body;
     }
 
+    // ---- Reddit: estrattore dedicato (post + commenti principali) via API .json ----
+    // Reddit espone <permalink>.json pubblicamente per i subreddit pubblici. Il fetch
+    // dal content script su reddit.com è same-origin, quindi non è bloccato da CORS.
+    function isRedditUrl(url = window.location.href) {
+        try { return /(^|\.)reddit\.com$/.test(new URL(url).hostname.replace(/^www\./, '')); }
+        catch { return false; }
+    }
+
+    async function getRedditContent() {
+        const u = new URL(window.location.href);
+        // Solo pagine-commenti di un post (path con /comments/).
+        if (!/\/comments\//.test(u.pathname)) return null;
+        const jsonUrl = `${u.origin}${u.pathname.replace(/\/$/, '')}.json?limit=100&sort=top&raw_json=1`;
+        const res = await fetch(jsonUrl, { credentials: 'omit', headers: { 'Accept': 'application/json' } });
+        if (!res.ok) throw new Error(`Reddit .json HTTP ${res.status}`);
+        const data = await res.json();
+        const post = data?.[0]?.data?.children?.[0]?.data;
+        if (!post) return null;
+        const parts = [];
+        parts.push(`Titolo: ${post.title || ''}`);
+        if (post.selftext) parts.push(post.selftext.trim());
+        else if (post.url && !/reddit\.com/.test(post.url)) parts.push(`Link: ${post.url}`);
+        // Top commenti (ordine 'top'), salta 'more'/stickied/AutoModerator; max ~40.
+        const comments = (data?.[1]?.data?.children || [])
+            .map((c) => c?.data).filter((c) => c && c.body && c.author !== 'AutoModerator' && !c.stickied)
+            .slice(0, 40)
+            .map((c) => `• (${c.score ?? 0}) ${c.body.replace(/\s+/g, ' ').trim()}`);
+        if (comments.length) { parts.push('', 'Commenti principali:', ...comments); }
+        let text = parts.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+        if (text.length > 120000) text = text.slice(0, 120000);
+        const title = (post.title || document.title || 'Discussione Reddit').trim();
+        return { text, title };
+    }
+
+    // ---- Paywall detection ----
+    // Ritorna true solo con segnali robusti, per non falsare articoli brevi legittimi:
+    //  - schema.org / meta isAccessibleForFree = false (segnale forte, usato da molte testate)
+    //  - contenitore paywall presente E testo estratto molto corto.
+    function detectPaywall(extractedText) {
+        try {
+            const ldFalse = [...document.querySelectorAll('script[type="application/ld+json"]')]
+                .some((s) => /"isAccessibleForFree"\s*:\s*(false|"false")/i.test(s.textContent || ''));
+            const metaFalse = !!document.querySelector(
+                'meta[name="isAccessibleForFree" i][content="false" i], meta[property="isAccessibleForFree" i][content="false" i]'
+            );
+            if (ldFalse || metaFalse) return true;
+            const paywallEl = document.querySelector(
+                '[class*="paywall" i],[id*="paywall" i],[data-paywall],[class*="subscribe-wall" i],.tp-modal,.fc-message-root'
+            );
+            return !!paywallEl && (extractedText || '').length < 300;
+        } catch { return false; }
+    }
+
     // Estrae testo e titolo dalla pagina corrente per inviarli al backend.
     // Sposta l'estrazione dal Lambda (dove JSDOM+Readability su pagine grandi
     // superava i 29s di API Gateway -> HTTP 504) al browser, dov'è nativa e veloce.
@@ -1144,10 +1197,10 @@
             const h1 = document.querySelector('h1')?.innerText;
             let title = (ogTitle || document.title || h1 || '').replace(/\s+/g, ' ').trim();
 
-            return { text, title };
+            return { text, title, paywalled: detectPaywall(text) };
         } catch (error) {
             console.warn('[CONTENT] Estrazione testo pagina fallita, fallback al fetch server:', error);
-            return { text: '', title: '' };
+            return { text: '', title: '', paywalled: false };
         }
     }
 
@@ -1155,6 +1208,7 @@
     // Gli errori interni (OpenAI, bullet, HTTP, stack trace) non devono arrivare in UI.
     function toUserFacingError(raw) {
         const msg = String(raw || '');
+        if (/^PAYWALL$/.test(msg)) return 'Questa pagina è dietro un paywall: il contenuto non è accessibile senza un abbonamento al provider. Accedi al sito e riprova.';
         if (/limite|premium|upgrade/i.test(msg)) return msg;
         if (/autenticat|login|AUTH_REQUIRED/i.test(msg)) return 'Devi effettuare il login per usare LemonSqueezer.';
         if (/troppo breve|sufficiente|INSUFFICIENT|INVALID_TRANSCRIPT/i.test(msg)) return 'Questa pagina non contiene abbastanza testo da riassumere.';
@@ -1215,10 +1269,29 @@
                 // Riassunto della pagina corrente: estrai il testo dal DOM renderizzato.
                 // Per un link diverso (menu contestuale) il DOM di questa pagina non
                 // corrisponde all'URL, quindi si lascia che il backend faccia il fetch.
-                const page = extractReadablePageContent();
-                if (page.text && page.text.length >= 50) {
-                    requestBody.text = page.text;
-                    if (page.title) requestBody.title = page.title;
+                let handled = false;
+                // Reddit: estrattore dedicato (post + commenti) via API .json.
+                if (isRedditUrl(request.url)) {
+                    try {
+                        const reddit = await getRedditContent();
+                        if (reddit && reddit.text.length >= 50) {
+                            requestBody.text = reddit.text;
+                            requestBody.title = reddit.title;
+                            handled = true;
+                        }
+                    } catch (e) { console.warn('[CONTENT] Reddit estrazione fallita, fallback generico:', e); }
+                }
+                if (!handled) {
+                    const page = extractReadablePageContent();
+                    // Paywall: contenuto non accessibile e testo insufficiente → messaggio chiaro.
+                    if (page.paywalled && (!page.text || page.text.length < 50)) {
+                        updateModalWithError({ error: 'PAYWALL' });
+                        return;
+                    }
+                    if (page.text && page.text.length >= 50) {
+                        requestBody.text = page.text;
+                        if (page.title) requestBody.title = page.title;
+                    }
                 }
             }
 

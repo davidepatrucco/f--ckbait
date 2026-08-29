@@ -6,6 +6,24 @@ import { lookup } from 'node:dns/promises';
 
 // Config
 const MAX_TEXT_CHARS = parseInt(process.env.MAX_TEXT_CHARS || '6000', 10);
+
+// Estrae il testo da un PDF (buffer) con pdfjs-dist (build legacy per Node, no worker).
+// Cap a 50 pagine / 200k char per restare nei 29s di API Gateway.
+async function extractPdfText(buffer) {
+    const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    const doc = await pdfjs.getDocument({
+        data: new Uint8Array(buffer), isEvalSupported: false, useSystemFonts: true
+    }).promise;
+    const maxPages = Math.min(doc.numPages, 50);
+    let out = '';
+    for (let i = 1; i <= maxPages; i++) {
+        const page = await doc.getPage(i);
+        const content = await page.getTextContent();
+        out += content.items.map((it) => (it.str || '')).join(' ') + '\n';
+        if (out.length > 200000) break;
+    }
+    return out.replace(/\s+/g, ' ').trim();
+}
 // Sopra questa dimensione HTML si salta JSDOM+Readability (troppo lento su Lambda)
 // e si usa il path cheerio veloce. ~350KB ≈ ≤12s su Lambda, dentro i 29s.
 const MAX_HTML_FOR_READABILITY = parseInt(process.env.MAX_HTML_FOR_READABILITY || '350000', 10);
@@ -176,6 +194,17 @@ export async function fetchWebContent(url) {
         
         // Verifica content-type
         const contentType = response.headers.get('content-type') || '';
+        // PDF: estrazione testo dedicata (report/paper pubblici). Ramo prima del check HTML.
+        const isPdf = contentType.includes('application/pdf') || /\.pdf($|\?)/i.test(validUrl.pathname + validUrl.search);
+        if (isPdf) {
+            const buf = Buffer.from(await response.arrayBuffer());
+            const pdfText = await extractPdfText(buf);
+            if (!pdfText || pdfText.length < 50) {
+                throw new Error('PDF senza testo estraibile (probabile scansione/immagine).');
+            }
+            const pdfTitle = decodeURIComponent((validUrl.pathname.split('/').pop() || 'PDF').replace(/\.pdf$/i, '')) || 'PDF';
+            return { text: pdfText.slice(0, MAX_TEXT_CHARS), title: pdfTitle };
+        }
         if (!contentType.includes('text/html')) {
             throw new Error('Il contenuto non è HTML');
         }
