@@ -6,6 +6,9 @@ import { lookup } from 'node:dns/promises';
 
 // Config
 const MAX_TEXT_CHARS = parseInt(process.env.MAX_TEXT_CHARS || '40000', 10);
+// Oltre questa soglia il contenuto è troppo lungo per un riassunto affidabile:
+// meglio un messaggio chiaro che un riassunto parziale (niente chunking per ora).
+const TOO_LONG_CHARS = parseInt(process.env.TOO_LONG_CHARS || '80000', 10);
 
 // Estrae il testo da un PDF (buffer) con pdfjs-dist (build legacy per Node, no worker).
 // Cap a 50 pagine / 200k char per restare nei 29s di API Gateway.
@@ -202,6 +205,9 @@ export async function fetchWebContent(url) {
             if (!pdfText || pdfText.length < 50) {
                 throw new Error('PDF senza testo estraibile (probabile scansione/immagine).');
             }
+            if (pdfText.length > TOO_LONG_CHARS) {
+                throw new Error('TOO_LONG: PDF troppo lungo per un riassunto affidabile');
+            }
             const pdfTitle = decodeURIComponent((validUrl.pathname.split('/').pop() || 'PDF').replace(/\.pdf$/i, '')) || 'PDF';
             return { text: pdfText.slice(0, MAX_TEXT_CHARS), title: pdfTitle };
         }
@@ -233,6 +239,11 @@ export async function fetchWebContent(url) {
         let text = extractTextFromHtml(html, validUrl.toString());
         const extractEnd = Date.now();
         console.log(`Extracted title and text (extraction time: ${extractEnd - extractStart} ms)`);
+
+        // Troppo lungo: messaggio chiaro invece di un riassunto parziale inaffidabile.
+        if (text.length > TOO_LONG_CHARS) {
+            throw new Error('TOO_LONG: contenuto troppo lungo per un riassunto affidabile');
+        }
 
         // Trim text to a max length to reduce tokens
         if (text.length > MAX_TEXT_CHARS) {

@@ -52,6 +52,47 @@ chrome.runtime.onStartup.addListener(() => {
     console.log('LemonSqueezer avviato');
 });
 
+// PDF: riassume l'URL lato backend (server-fetch + parsing) e mostra il risultato in
+// una scheda dedicata (il viewer PDF di Chrome non permette content script/modale).
+async function handlePdfSummarize(request, sendResponse) {
+    const friendly = (m, status) => {
+        if (status === 429) return 'Limite riassunti raggiunto. Upgrade a Premium per continuare.';
+        if (/TOO_LONG/i.test(m)) return 'Questo PDF è troppo lungo per un riassunto affidabile.';
+        if (/senza testo estraibile|scansione/i.test(m)) return 'Questo PDF non contiene testo selezionabile (probabile scansione/immagine).';
+        if (/BOT_CHALLENGE|non accessibile/i.test(m)) return 'Documento non accessibile.';
+        if (/autenticat|AUTH_REQUIRED/i.test(m)) return 'Devi effettuare il login per usare l’estensione.';
+        return m || 'Non è stato possibile riassumere il PDF.';
+    };
+    try {
+        const { authToken } = await chrome.storage.local.get(['authToken']);
+        if (!authToken) {
+            await chrome.storage.local.set({ pendingSummary: { error: 'Devi effettuare il login per usare l’estensione.' } });
+            await chrome.tabs.create({ url: chrome.runtime.getURL('summary.html') });
+            sendResponse({ success: false, error: 'not-authenticated' });
+            return;
+        }
+        const body = { url: request.url, lang: request.lang || 'it' };
+        if ([10, 20, 50].includes(Number(request.squeeze))) body.squeeze = Number(request.squeeze);
+        const res = await fetch(`${API_BASE}/summarize-url`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}`, 'X-Brand': BRAND_ID },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+            await chrome.storage.local.set({ pendingSummary: { error: friendly(data?.error || '', res.status) } });
+        } else {
+            await chrome.storage.local.set({ pendingSummary: { data, url: request.url } });
+        }
+        await chrome.tabs.create({ url: chrome.runtime.getURL('summary.html') });
+        sendResponse({ success: res.ok });
+    } catch (e) {
+        await chrome.storage.local.set({ pendingSummary: { error: 'Errore di rete. Riprova.' } });
+        try { await chrome.tabs.create({ url: chrome.runtime.getURL('summary.html') }); } catch { /* ignore */ }
+        sendResponse({ success: false, error: e.message });
+    }
+}
+
 // Event listener per i messaggi dal popup o content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'getPageContent') {
@@ -69,6 +110,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'summarizeUrl') {
         // Gestisce la richiesta di riassunto di un URL
         handleSummarizeUrl(request, sender, sendResponse);
+        return true;
+    }
+
+    if (request.action === 'summarizePdf') {
+        // PDF: il viewer non ospita content script → riassumi URL-only e apri scheda risultati.
+        handlePdfSummarize(request, sendResponse);
         return true;
     }
     

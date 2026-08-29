@@ -1261,18 +1261,19 @@
         try {
             const MAX_TEXT = 40000; // ~7k parole: copre gran parte di articoli/report lunghi (COGS trascurabile)
             const el = pickMainElement();
-            let text = (el && el.innerText ? el.innerText : '').replace(/\s+/g, ' ').trim();
-            const truncated = text.length > MAX_TEXT;
-            if (truncated) text = text.slice(0, MAX_TEXT);
+            const raw = (el && el.innerText ? el.innerText : '').replace(/\s+/g, ' ').trim();
+            const rawLen = raw.length;
+            const truncated = rawLen > MAX_TEXT;
+            const text = truncated ? raw.slice(0, MAX_TEXT) : raw;
 
             const ogTitle = document.querySelector('meta[property="og:title"]')?.content;
             const h1 = document.querySelector('h1')?.innerText;
             let title = (ogTitle || document.title || h1 || '').replace(/\s+/g, ' ').trim();
 
-            return { text, title, truncated };
+            return { text, title, truncated, rawLen };
         } catch (error) {
             console.warn('[CONTENT] Estrazione testo pagina fallita, fallback al fetch server:', error);
-            return { text: '', title: '', truncated: false };
+            return { text: '', title: '', truncated: false, rawLen: 0 };
         }
     }
 
@@ -1284,6 +1285,7 @@
         if (/^LOGIN_WALL$/.test(msg)) return 'Questo contenuto richiede l\'accesso al sito. Effettua il login nella pagina e riprova.';
         if (/^CONSENT_WALL$/.test(msg)) return 'Chiudi il banner dei cookie/consenso della pagina e riprova.';
         if (/^CANVAS_DOC$/.test(msg)) return 'Questo documento (es. Google Docs/Office online) non è leggibile dall\'estensione. Esportalo in PDF o apri la versione pubblicata (HTML).';
+        if (/TOO_LONG/.test(msg)) return 'Questo contenuto è troppo lungo per un riassunto affidabile. Prova con una sezione o una pagina più breve.';
         if (/^BOT_CHALLENGE$/.test(msg) || /just a moment|checking your browser|challenge/i.test(msg)) return 'La pagina è protetta da un controllo anti-bot. Aprila nel browser e riprova.';
         if (/INVALID_OPENAI_RESPONSE|non utilizzabile|Risposta OpenAI non valida/i.test(msg)) return 'Non è stato possibile riassumere questo contenuto (potrebbe non contenere testo utile o non essere ammesso dalle policy).';
         if (/limite|premium|upgrade/i.test(msg)) return msg;
@@ -1375,6 +1377,12 @@
                     if ((!page.text || page.text.length < 50) && !detectBlockedContent(page.text)) {
                         await new Promise((r) => setTimeout(r, 1200));
                         page = extractReadablePageContent();
+                    }
+                    // Contenuto troppo lungo: niente riassunto parziale inaffidabile → messaggio.
+                    const TOO_LONG_CHARS = 80000; // ~14k parole
+                    if (page.rawLen > TOO_LONG_CHARS) {
+                        updateModalWithError({ error: 'TOO_LONG' });
+                        return;
                     }
                     // Casi noti non riassumibili (paywall / login / consent / doc canvas) → messaggio chiaro.
                     const blocked = detectBlockedContent(page.text);

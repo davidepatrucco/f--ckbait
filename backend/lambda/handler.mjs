@@ -372,7 +372,15 @@ export async function summarizeUrlHandler(event) {
         } else {
             console.log('🌐 [TIMING] Starting fetch for URL:', body.url);
             const fetchStartTime = Date.now();
-            ({ text, title } = await fetchWebContent(body.url));
+            try {
+                ({ text, title } = await fetchWebContent(body.url));
+            } catch (fetchErr) {
+                const m = String(fetchErr?.message || '');
+                // Casi noti: messaggio chiaro al client (non un 500 generico).
+                if (/TOO_LONG/.test(m)) return createResponse(400, { error: 'TOO_LONG', code: 'CONTENT_TOO_LONG' });
+                if (/BOT_CHALLENGE/.test(m)) return createResponse(400, { error: 'BOT_CHALLENGE', code: 'BOT_CHALLENGE' });
+                throw fetchErr;
+            }
             fetchTime = Date.now() - fetchStartTime;
             console.log('⚡ [TIMING] Web fetch took:', fetchTime, 'ms');
         }

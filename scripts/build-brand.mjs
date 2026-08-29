@@ -15,9 +15,9 @@ const EXT = join(ROOT, 'extension');
 // File condivisi copiati in ogni build (whitelist: niente _old/test/example).
 // oauth-config.js è gestito a parte perché è git-ignored (assente in CI): fallback
 // a oauth-config.example.js così build/test funzionano senza il file reale.
-const SHARED_FILES = ['manifest.json', 'popup.html', 'popup.js', 'service_worker.js', 'content.js', 'browser-polyfill.js'];
+const SHARED_FILES = ['manifest.json', 'popup.html', 'popup.js', 'service_worker.js', 'content.js', 'browser-polyfill.js', 'summary.html', 'summary.js'];
 const ASSET_FILES = ['icon.svg', 'icon-16.png', 'icon-48.png', 'icon-128.png'];
-const REQUIRED_OUTPUT = ['manifest.json', 'popup.html', 'popup.js', 'service_worker.js', 'content.js', 'browser-polyfill.js', 'brand-config.js',
+const REQUIRED_OUTPUT = ['manifest.json', 'popup.html', 'popup.js', 'service_worker.js', 'content.js', 'browser-polyfill.js', 'brand-config.js', 'summary.html', 'summary.js',
     'assets/icon-16.png', 'assets/icon-48.png', 'assets/icon-128.png'];
 
 const SUPPORTED_BROWSERS = ['chromium', 'firefox'];

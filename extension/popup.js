@@ -684,6 +684,19 @@ if (!email || !password) {
                 return;
             }
             
+            // PDF: il viewer non ospita content script → riassumi via backend (URL-only)
+            // e mostra il risultato in una scheda dedicata aperta dal service worker.
+            if (/\.pdf($|\?|#)/i.test(tab.url || '')) {
+                chrome.runtime.sendMessage({
+                    action: 'summarizePdf',
+                    url: tab.url,
+                    lang: languageSelect?.value || 'it',
+                    squeeze: Number(squeezeSelect?.value) || 20
+                });
+                window.close(); // il risultato apre in una nuova scheda
+                return;
+            }
+
             console.log('[POPUP] Aprendo modale nel tab:', tab.url);
 
             const request = {
