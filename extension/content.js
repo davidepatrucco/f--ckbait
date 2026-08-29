@@ -1184,6 +1184,39 @@
         } catch { return false; }
     }
 
+    // ---- Hacker News: estrattore dedicato (story + commenti) via API Algolia HN ----
+    function isHackerNewsUrl(url = window.location.href) {
+        try {
+            const u = new URL(url);
+            return u.hostname.replace(/^www\./, '') === 'news.ycombinator.com' &&
+                u.pathname === '/item' && Boolean(u.searchParams.get('id'));
+        } catch { return false; }
+    }
+    async function getHackerNewsContent() {
+        const id = new URL(window.location.href).searchParams.get('id');
+        if (!id) return null;
+        const res = await fetch(`https://hn.algolia.com/api/v1/items/${id}`, { headers: { Accept: 'application/json' } });
+        if (!res.ok) throw new Error(`HN API HTTP ${res.status}`);
+        const item = await res.json();
+        const strip = (h) => h ? new DOMParser().parseFromString(h, 'text/html').body.textContent.replace(/\s+/g, ' ').trim() : '';
+        const parts = [`Titolo: ${item.title || ''}`];
+        if (item.url) parts.push(`Link: ${item.url}`);
+        if (item.text) parts.push(strip(item.text));
+        const flat = [];
+        const walk = (nodes, depth) => {
+            for (const c of (nodes || [])) {
+                if (flat.length >= 60) return;
+                if (c && c.text) flat.push(`${'  '.repeat(depth)}• ${strip(c.text)}`);
+                if (depth < 1) walk(c.children, depth + 1);
+            }
+        };
+        walk(item.children, 0);
+        if (flat.length) parts.push('', 'Commenti principali:', ...flat);
+        let text = parts.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+        if (text.length > 120000) text = text.slice(0, 120000);
+        return { text, title: item.title || 'Hacker News' };
+    }
+
     // ---- Casi noti: documento non leggibile / login wall / consent banner ----
     // Documenti canvas-rendered (nessun testo nel DOM): editor Google Docs/Sheets/Slides,
     // Office online. NB: i Google Doc "pubblicati" (/pub) sono HTML → NON bloccati.
@@ -1226,7 +1259,7 @@
     // superava i 29s di API Gateway -> HTTP 504) al browser, dov'è nativa e veloce.
     function extractReadablePageContent() {
         try {
-            const MAX_TEXT = 8000;
+            const MAX_TEXT = 40000; // ~7k parole: copre gran parte di articoli/report lunghi (COGS trascurabile)
             const el = pickMainElement();
             let text = (el && el.innerText ? el.innerText : '').replace(/\s+/g, ' ').trim();
             const truncated = text.length > MAX_TEXT;
@@ -1324,6 +1357,17 @@
                             handled = true;
                         }
                     } catch (e) { console.warn('[CONTENT] Reddit estrazione fallita, fallback generico:', e); }
+                }
+                // Hacker News: estrattore dedicato (story + commenti) via API.
+                if (!handled && isHackerNewsUrl(request.url)) {
+                    try {
+                        const hn = await getHackerNewsContent();
+                        if (hn && hn.text.length >= 50) {
+                            requestBody.text = hn.text;
+                            requestBody.title = hn.title;
+                            handled = true;
+                        }
+                    } catch (e) { console.warn('[CONTENT] HN estrazione fallita, fallback generico:', e); }
                 }
                 if (!handled) {
                     let page = extractReadablePageContent();

@@ -5,7 +5,7 @@ import { isIP } from 'node:net';
 import { lookup } from 'node:dns/promises';
 
 // Config
-const MAX_TEXT_CHARS = parseInt(process.env.MAX_TEXT_CHARS || '6000', 10);
+const MAX_TEXT_CHARS = parseInt(process.env.MAX_TEXT_CHARS || '40000', 10);
 
 // Estrae il testo da un PDF (buffer) con pdfjs-dist (build legacy per Node, no worker).
 // Cap a 50 pagine / 200k char per restare nei 29s di API Gateway.

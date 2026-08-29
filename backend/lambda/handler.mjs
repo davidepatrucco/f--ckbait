@@ -365,7 +365,7 @@ export async function summarizeUrlHandler(event) {
                 : [];
             console.log('Using client-provided video transcript:', { textLength: text.length, descriptionLength: videoDescription.length, comments: videoComments.length });
         } else if (hasPageText) {
-            const MAX_CLIENT_TEXT = 20000;
+            const MAX_CLIENT_TEXT = 50000;
             text = body.text.trim().slice(0, MAX_CLIENT_TEXT);
             title = typeof body.title === 'string' && body.title.trim() ? body.title.trim() : 'Contenuto web';
             console.log('Using client-extracted page text:', { textLength: text.length });
