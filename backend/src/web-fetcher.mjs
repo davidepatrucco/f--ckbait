@@ -218,7 +218,13 @@ export async function fetchWebContent(url) {
         if (!html || html.length < 100) {
             throw new Error('Contenuto HTML troppo breve');
         }
-        
+
+        // Anti-bot / challenge (Cloudflare, ecc.): il fetch server riceve la pagina di
+        // sfida, non il contenuto. Segnala con un codice mappabile a un messaggio chiaro.
+        if (/BOT_CHALLENGE|cf-browser-verification|Checking your browser|Just a moment\.\.\.|Enable JavaScript and cookies to continue|Attention Required/i.test(html.slice(0, 4000))) {
+            throw new Error('BOT_CHALLENGE: pagina protetta da controllo anti-bot');
+        }
+
         console.log(`Fetched ${html.length} characters of HTML`);
         
         // Estrai titolo e testo

@@ -525,6 +525,7 @@
                     <a href="${data.originalUrl}" target="_blank">${data.originalUrl}</a>
                 </div>
             </div>
+            ${data.truncated ? '<div style="background:#FFF7E6;border:1px solid #FFE1A8;color:#8a6d3b;border-radius:6px;padding:8px 10px;font-size:12px;margin-bottom:12px;">⚠️ Contenuto molto lungo: il riassunto si basa sulla prima parte della pagina.</div>' : ''}
             <div class="lemonsqueezer-summary-content">
                 ${(data.summary || '').replace(/\n/g, '<br>')}
             </div>
@@ -1183,6 +1184,43 @@
         } catch { return false; }
     }
 
+    // ---- Casi noti: documento non leggibile / login wall / consent banner ----
+    // Documenti canvas-rendered (nessun testo nel DOM): editor Google Docs/Sheets/Slides,
+    // Office online. NB: i Google Doc "pubblicati" (/pub) sono HTML → NON bloccati.
+    function isCanvasDoc() {
+        try {
+            const h = location.hostname.replace(/^www\./, '');
+            if (h === 'docs.google.com' && /\/(document|spreadsheets|presentation)\/d\/.*\/edit/.test(location.pathname)) return true;
+            if (/(^|\.)officeapps\.live\.com$/.test(h) || /(^|\.)onedrive\.live\.com$/.test(h)) return true;
+            return false;
+        } catch { return false; }
+    }
+    // Banner consenso/cookie (CMP) VISIBILE che copre il contenuto, con testo corto.
+    function detectConsentWall(extractedText) {
+        if ((extractedText || '').length >= 400) return false;
+        const cmp = document.querySelector(
+            '#onetrust-banner-sdk,.ot-sdk-container,#didomi-host,.qc-cmp2-container,.cc-window,#usercentrics-root,[id*="cookie-consent" i],[class*="cookie-consent" i],[aria-label*="consent" i]'
+        );
+        if (!cmp) return false;
+        const r = cmp.getBoundingClientRect();
+        return r.width > 0 && r.height > 0; // presente e renderizzato
+    }
+    // Login wall sui social/app JS-heavy: solo se il testo estratto è insufficiente,
+    // per non bloccare un thread/post che è comunque leggibile.
+    function detectLoginWall(extractedText) {
+        const h = location.hostname.replace(/^www\./, '');
+        const social = /(^|\.)(x\.com|twitter\.com|linkedin\.com|facebook\.com|instagram\.com|threads\.net)$/.test(h);
+        return social && (extractedText || '').length < 200;
+    }
+    // Ritorna un codice-motivo se il contenuto NON è riassumibile, altrimenti null.
+    function detectBlockedContent(extractedText) {
+        if (isCanvasDoc()) return 'CANVAS_DOC';
+        if (detectPaywall(extractedText)) return 'PAYWALL';
+        if (detectConsentWall(extractedText)) return 'CONSENT_WALL';
+        if (detectLoginWall(extractedText)) return 'LOGIN_WALL';
+        return null;
+    }
+
     // Estrae testo e titolo dalla pagina corrente per inviarli al backend.
     // Sposta l'estrazione dal Lambda (dove JSDOM+Readability su pagine grandi
     // superava i 29s di API Gateway -> HTTP 504) al browser, dov'è nativa e veloce.
@@ -1191,16 +1229,17 @@
             const MAX_TEXT = 8000;
             const el = pickMainElement();
             let text = (el && el.innerText ? el.innerText : '').replace(/\s+/g, ' ').trim();
-            if (text.length > MAX_TEXT) text = text.slice(0, MAX_TEXT);
+            const truncated = text.length > MAX_TEXT;
+            if (truncated) text = text.slice(0, MAX_TEXT);
 
             const ogTitle = document.querySelector('meta[property="og:title"]')?.content;
             const h1 = document.querySelector('h1')?.innerText;
             let title = (ogTitle || document.title || h1 || '').replace(/\s+/g, ' ').trim();
 
-            return { text, title, paywalled: detectPaywall(text) };
+            return { text, title, truncated };
         } catch (error) {
             console.warn('[CONTENT] Estrazione testo pagina fallita, fallback al fetch server:', error);
-            return { text: '', title: '', paywalled: false };
+            return { text: '', title: '', truncated: false };
         }
     }
 
@@ -1209,6 +1248,11 @@
     function toUserFacingError(raw) {
         const msg = String(raw || '');
         if (/^PAYWALL$/.test(msg)) return 'Questa pagina è dietro un paywall: il contenuto non è accessibile senza un abbonamento al provider. Accedi al sito e riprova.';
+        if (/^LOGIN_WALL$/.test(msg)) return 'Questo contenuto richiede l\'accesso al sito. Effettua il login nella pagina e riprova.';
+        if (/^CONSENT_WALL$/.test(msg)) return 'Chiudi il banner dei cookie/consenso della pagina e riprova.';
+        if (/^CANVAS_DOC$/.test(msg)) return 'Questo documento (es. Google Docs/Office online) non è leggibile dall\'estensione. Esportalo in PDF o apri la versione pubblicata (HTML).';
+        if (/^BOT_CHALLENGE$/.test(msg) || /just a moment|checking your browser|challenge/i.test(msg)) return 'La pagina è protetta da un controllo anti-bot. Aprila nel browser e riprova.';
+        if (/INVALID_OPENAI_RESPONSE|non utilizzabile|Risposta OpenAI non valida/i.test(msg)) return 'Non è stato possibile riassumere questo contenuto (potrebbe non contenere testo utile o non essere ammesso dalle policy).';
         if (/limite|premium|upgrade/i.test(msg)) return msg;
         if (/autenticat|login|AUTH_REQUIRED/i.test(msg)) return 'Devi effettuare il login per usare LemonSqueezer.';
         if (/troppo breve|sufficiente|INSUFFICIENT|INVALID_TRANSCRIPT/i.test(msg)) return 'Questa pagina non contiene abbastanza testo da riassumere.';
@@ -1282,15 +1326,22 @@
                     } catch (e) { console.warn('[CONTENT] Reddit estrazione fallita, fallback generico:', e); }
                 }
                 if (!handled) {
-                    const page = extractReadablePageContent();
-                    // Paywall: contenuto non accessibile e testo insufficiente → messaggio chiaro.
-                    if (page.paywalled && (!page.text || page.text.length < 50)) {
-                        updateModalWithError({ error: 'PAYWALL' });
+                    let page = extractReadablePageContent();
+                    // SPA non ancora renderizzata: se il testo è insufficiente, attendi e riprova una volta.
+                    if ((!page.text || page.text.length < 50) && !detectBlockedContent(page.text)) {
+                        await new Promise((r) => setTimeout(r, 1200));
+                        page = extractReadablePageContent();
+                    }
+                    // Casi noti non riassumibili (paywall / login / consent / doc canvas) → messaggio chiaro.
+                    const blocked = detectBlockedContent(page.text);
+                    if (blocked && (!page.text || page.text.length < 200)) {
+                        updateModalWithError({ error: blocked });
                         return;
                     }
                     if (page.text && page.text.length >= 50) {
                         requestBody.text = page.text;
                         if (page.title) requestBody.title = page.title;
+                        if (page.truncated) requestBody.truncated = true;
                     }
                 }
             }
@@ -1329,6 +1380,8 @@
 
             // Normalizza e fornisce fallback per campi mancanti
             const data = Object.assign({}, dataRaw);
+            // Contenuto troncato lato client: segnalalo nella modale.
+            if (requestBody.truncated) data.truncated = true;
 
             // originalUrl: fallback alla request.url (il tab corrente)
             if (!data.originalUrl) data.originalUrl = request.url || window.location.href;
