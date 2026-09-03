@@ -1,7 +1,7 @@
 // Prompt profile: summary.standard (LemonSqueezer).
 // Estratto verbatim da openai.mjs (regression-zero). Nucleo = pagina/trascrizione
 // (+ descrizione video); i commenti diventano un singolo bullet finale localizzato.
-import { outputLanguageName } from './languages.mjs';
+import { outputLanguageName, languageQualityNote } from './languages.mjs';
 import { UNTRUSTED_NOTE, fenceUntrusted } from './untrusted.mjs';
 
 const COMMENTS_LABEL = { it: 'Commenti', en: 'Comments', es: 'Comentarios', fr: 'Commentaires', de: 'Kommentare' };
@@ -16,7 +16,7 @@ export function buildPrompt(content, language = 'it', plan) {
         ? content.comments.filter((c) => typeof c === 'string' && c.trim()).slice(0, 40) : [];
     const hasComments = comments.length > 0;
 
-    const systemPrompt = `Sei un riassuntore editoriale rigoroso. Scrivi in ${outputLanguage}. Usa solo informazioni presenti nella fonte; elimina pubblicità, menu, footer, ripetizioni e dettagli marginali. ${UNTRUSTED_NOTE}`;
+    const systemPrompt = `Sei un riassuntore editoriale rigoroso. ${languageQualityNote(outputLanguage)} Usa solo informazioni presenti nella fonte; elimina pubblicità, menu, footer, ripetizioni e dettagli marginali. ${UNTRUSTED_NOTE}`;
 
     let userPrompt = `Titolo: ${content.title}
 URL: ${content.url}

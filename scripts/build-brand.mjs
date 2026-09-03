@@ -84,6 +84,11 @@ export function buildBrand(brandId, options = {}) {
     manifest.name = cfg.storeName || cfg.displayName;
     if (cfg.store && cfg.store.summary) manifest.description = cfg.store.summary;
     if (manifest.action) manifest.action.default_title = cfg.storeName || cfg.displayName;
+    // key pinnata (opzionale): rende stabile l'extension id nel load-unpacked, così il
+    // redirect OAuth https://<id>.chromiumapp.org/ è registrabile una volta. Solo Chromium
+    // (Firefox usa browser_specific_settings.gecko.id). Sullo store la key viene comunque
+    // sovrascritta: serve solo per la distribuzione diretta pre-lancio.
+    if (cfg.extensionKey && browser === 'chromium') manifest.key = cfg.extensionKey;
     applyBrowserManifest(manifest, browser, brandId);
     writeFileSync(join(outDir, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 

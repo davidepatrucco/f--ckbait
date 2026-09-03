@@ -1,6 +1,7 @@
 {
   "id": "lemonsqueezer",
   "apiBrand": "lemonsqueezer",
+  "extensionKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAs3cnG2PXYI0Tdd2nxi8gax4NDaCd8JzR8oqfsCpHBtAj7em87nL+UwM1Qm022roQrOSe4egHonJbXpL6Q5OngbbskJ7rJAyUIlDs3uQWNCdiG0D3QhUgRawNHV5MUv/xNmwoPYmZmYeoDKsxfPzjT3N8hyRHju7aBGzokBeheABg8ouUmcyPe9hsoPcaXEadBD5uqjvjKTvqjvhI2mIS1m7cpiOMaaMZwY4nD6wboRivvvBp145Y2FZmFwWz4GTu2c6uWpdZVM7xmwJsdytPABuI8+SoJZvxezJpx/UND6cSeAQ1FAux1qNr/Q6d8o/S4u+dCBAf18kfQ3WtMx34YQIDAQAB",
   "displayName": "LemonSqueezer",
   "storeName": "LemonSqueezer — TL;DR",
   "tagline": "Skip the noise. Get the point.",

@@ -537,7 +537,7 @@
             const footer = document.createElement('div');
             footer.className = 'lemonsqueezer-modal-footer';
             footer.innerHTML = `
-                <button class="lemonsqueezer-btn-secondary" id="lemonsqueezer-copy-summary">
+                <button class="lemonsqueezer-btn-primary" id="lemonsqueezer-copy-summary">
                     <span class="lemonsqueezer-btn-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                             <rect x="9" y="9" width="10" height="10" rx="2"></rect>
@@ -545,15 +545,6 @@
                         </svg>
                     </span>
                     Copia
-                </button>
-                <button class="lemonsqueezer-btn-primary" id="lemonsqueezer-open-link">
-                    <span class="lemonsqueezer-btn-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"></path>
-                            <path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"></path>
-                        </svg>
-                    </span>
-                    Apri link
                 </button>
             `;
             modal.querySelector('.lemonsqueezer-modal-content').appendChild(footer);
@@ -1075,8 +1066,7 @@
     // Funzione helper per setup event listeners del footer
     function setupFooterEventListeners(data) {
         const copyBtn = document.getElementById('lemonsqueezer-copy-summary');
-        const openBtn = document.getElementById('lemonsqueezer-open-link');
-        
+
         if (copyBtn) {
             copyBtn.addEventListener('click', () => {
                 navigator.clipboard.writeText(data.summary).then(() => {
@@ -1089,12 +1079,6 @@
             });
         }
         
-        if (openBtn) {
-            openBtn.addEventListener('click', () => {
-                window.open(data.originalUrl, '_blank');
-                document.getElementById('lemonsqueezer-modal').remove();
-            });
-        }
     }
     
     // Funzione per mostrare il modal con il riassunto (backward compatibility)
