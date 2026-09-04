@@ -1371,6 +1371,7 @@ export async function transcribeHandler(event) {
         } catch (err) {
             const map = {
                 INVALID_MEDIA_URL: [400, 'URL del media non valido'],
+                BLOCKED_URL: [400, 'URL non consentito (indirizzo privato o locale).'],
                 UNSUPPORTED_MEDIA: [415, 'Formato non supportato: serve un video/audio con sorgente diretta (mp4, webm, m4a…). Streaming protetti o DRM non sono accessibili.'],
                 MEDIA_TOO_LARGE: [413, 'Media troppo grande per la sintesi (limite ~24MB per ora).'],
                 MEDIA_FETCH_FAILED: [502, 'Impossibile scaricare il media dalla sorgente.'],

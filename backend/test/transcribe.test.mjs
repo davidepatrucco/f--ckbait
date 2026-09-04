@@ -32,9 +32,10 @@ test('extOf — parsing estensione', () => {
     assert.equal(_test.extOf('https://x/novideo'), '');
 });
 
-test('downloadMedia — guard SSRF rifiuta indirizzi privati', async () => {
-    await assert.rejects(() => downloadMedia('http://127.0.0.1/clip.mp4'), /privati|locali|pubblic/i);
-    await assert.rejects(() => downloadMedia('http://[::1]/clip.mp4'), /privati|locali|pubblic/i);
+test('downloadMedia — guard SSRF rifiuta indirizzi privati (code BLOCKED_URL)', async () => {
+    await assert.rejects(() => downloadMedia('http://127.0.0.1/clip.mp4'), (e) => e.code === 'BLOCKED_URL');
+    await assert.rejects(() => downloadMedia('http://[::1]/clip.mp4'), (e) => e.code === 'BLOCKED_URL');
+    await assert.rejects(() => downloadMedia('http://169.254.169.254/latest/meta-data/'), (e) => e.code === 'BLOCKED_URL');
 });
 
 test('downloadMedia — protocollo non http(s) rifiutato', async () => {

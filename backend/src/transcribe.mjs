@@ -65,7 +65,11 @@ export async function downloadMedia(mediaUrl) {
     let url;
     try { url = new URL(mediaUrl); } catch { const e = new Error('URL non valido'); e.code = 'INVALID_MEDIA_URL'; throw e; }
     if (!['http:', 'https:'].includes(url.protocol)) { const e = new Error('Protocollo non supportato'); e.code = 'INVALID_MEDIA_URL'; throw e; }
-    await assertPublicUrl(url); // SSRF: lancia su host locali/privati
+    try {
+        await assertPublicUrl(url); // SSRF: host locali/privati
+    } catch (err) {
+        const e = new Error(err.message || 'Indirizzo non consentito'); e.code = 'BLOCKED_URL'; throw e;
+    }
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
