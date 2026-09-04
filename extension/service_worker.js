@@ -158,6 +158,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         summarizePageData(request, sendResponse);
         return true;
     }
+    if (request.action === 'transcribeMedia') {
+        transcribeMedia(request, sendResponse);
+        return true;
+    }
 });
 
 async function summarizePageData(request, sendResponse) {
@@ -190,6 +194,38 @@ async function summarizePageData(request, sendResponse) {
     } catch (error) {
         console.error('[SUMMARY API] Errore fetch dal service worker:', error);
         sendResponse({ success: false, error: `Backend non raggiungibile: ${error.message}` });
+    }
+}
+
+// Trascrizione video generico: il content script fornisce l'URL del media diretto,
+// il backend (premium-only) lo trascrive. Il testo torna al content script, che lo
+// re-invia come transcript a /summarize-url (path video). Il fetch parte dal SW per
+// evitare il CORS della pagina visitata.
+async function transcribeMedia(request, sendResponse) {
+    try {
+        const { authToken } = await chrome.storage.local.get(['authToken']);
+        if (!authToken) {
+            sendResponse({ success: false, status: 401, code: 'AUTH_REQUIRED', error: 'Utente non autenticato' });
+            return;
+        }
+        const response = await fetch(`${API_BASE}/transcribe`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`,
+                'X-Brand': BRAND_ID
+            },
+            body: JSON.stringify({ mediaUrl: request.mediaUrl, lang: request.lang || 'it' })
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            sendResponse({ success: false, status: response.status, code: payload.code || 'TRANSCRIBE_ERROR', error: payload.error || `HTTP ${response.status}` });
+            return;
+        }
+        sendResponse({ success: true, status: response.status, transcript: payload.transcript, code: payload.code || 'OK' });
+    } catch (error) {
+        console.error('[TRANSCRIBE] Errore fetch dal service worker:', error);
+        sendResponse({ success: false, code: 'MEDIA_FETCH_FAILED', error: `Backend non raggiungibile: ${error.message}` });
     }
 }
 

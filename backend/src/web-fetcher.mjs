@@ -46,7 +46,7 @@ function isPrivateAddress(address) {
     return true;
 }
 
-async function assertPublicUrl(validUrl) {
+export async function assertPublicUrl(validUrl) {
     const hostname = validUrl.hostname.toLowerCase().replace(/^\[|\]$/g, '');
     if (hostname === 'localhost' || hostname.endsWith('.localhost')) {
         throw new Error('Gli URL locali non sono consentiti');

@@ -4,6 +4,7 @@ import { selectSummaryModel } from '../src/model-router.mjs';
 import { validateSubscription } from '../src/subscription.mjs';
 import { checkRateLimit } from '../src/rate-limit.mjs';
 import { fetchWebContent } from '../src/web-fetcher.mjs';
+import { transcribeMedia } from '../src/transcribe.mjs';
 import { loginWithGoogle, loginWithEmail, registerWithEmail, verifyAuthToken, requireAuth, canUserSummarize, incrementUsage, refundUsage, getEntitlement } from '../src/auth.mjs';
 import { resolveBrandId, isValidBrand, getBrand, listBrands } from '../src/brands.mjs';
 import { ARCHITECTURE_VERSION, API_VERSION, ENVIRONMENT } from '../src/config.mjs';
@@ -1324,6 +1325,68 @@ export async function cancelSubscriptionHandler(event) {
     }
 }
 
+// Trascrizione video/audio generico (Tier-1 MVP). Riceve un URL media diretto, lo
+// trascrive (OpenAI) e restituisce il testo, che l'estensione re-invia a /summarize-url
+// nel path video. Premium-only: la trascrizione ha COGS elevati (non sotto la quota free).
+export async function transcribeHandler(event) {
+    try {
+        if (event.httpMethod === 'OPTIONS') {
+            return { statusCode: 200, headers: getCorsHeaders(event), body: '' };
+        }
+        if (event.httpMethod !== 'POST') {
+            return createResponse(405, { error: 'Metodo non supportato. Usa POST.' });
+        }
+
+        let user;
+        try {
+            user = await requireAuth(event);
+        } catch (authError) {
+            return createResponse(401, { error: authError.message, code: 'AUTH_REQUIRED' });
+        }
+
+        let body;
+        try { body = JSON.parse(event.body); } catch { return createResponse(400, { error: 'Body non valido', code: 'INVALID_JSON' }); }
+        if (!body.mediaUrl || typeof body.mediaUrl !== 'string') {
+            return createResponse(400, { error: 'mediaUrl è richiesto', code: 'MISSING_MEDIA_URL' });
+        }
+
+        const rawBrand = event.headers?.['x-brand'] || event.headers?.['X-Brand'] || body.brand;
+        if (rawBrand !== undefined && rawBrand !== null && rawBrand !== '' && !isValidBrand(rawBrand)) {
+            return createResponse(400, apiErrorBody('INVALID_BRAND', { brand: rawBrand }));
+        }
+        const brandId = resolveBrandId(rawBrand);
+
+        // Gate premium: la trascrizione audio è riservata al piano premium (costo per minuto).
+        if (getEntitlement(user, brandId).plan !== 'premium') {
+            return createResponse(403, {
+                error: 'La sintesi dei video è riservata al piano premium.',
+                code: 'PREMIUM_REQUIRED',
+                brand: brandId
+            });
+        }
+
+        try {
+            const { text, model } = await transcribeMedia(body.mediaUrl);
+            return createResponse(200, { transcript: text, model, code: 'OK' });
+        } catch (err) {
+            const map = {
+                INVALID_MEDIA_URL: [400, 'URL del media non valido'],
+                UNSUPPORTED_MEDIA: [415, 'Formato non supportato: serve un video/audio con sorgente diretta (mp4, webm, m4a…). Streaming protetti o DRM non sono accessibili.'],
+                MEDIA_TOO_LARGE: [413, 'Media troppo grande per la sintesi (limite ~24MB per ora).'],
+                MEDIA_FETCH_FAILED: [502, 'Impossibile scaricare il media dalla sorgente.'],
+                NO_SPEECH: [422, 'Nessun parlato riconosciuto nel media.'],
+                TRANSCRIPTION_FAILED: [502, 'Trascrizione non riuscita, riprova.']
+            };
+            const [status, message] = map[err.code] || [500, 'Errore di trascrizione.'];
+            console.error('transcribeHandler error:', err.code || err.message);
+            return createResponse(status, { error: message, code: err.code || 'TRANSCRIBE_ERROR' });
+        }
+    } catch (error) {
+        console.error('Error in transcribeHandler:', error);
+        return createResponse(500, { error: 'Errore interno', code: 'INTERNAL_ERROR' });
+    }
+}
+
 // Handler principale (router)
 export async function handler(event, context) {
     currentRequestId = event?.requestContext?.requestId || context?.awsRequestId || null;
@@ -1336,6 +1399,8 @@ export async function handler(event, context) {
             return await summarizeHandler(event);
         case '/summarize-url':
             return await summarizeUrlHandler(event);
+        case '/transcribe':
+            return await transcribeHandler(event);
         case '/auth/google':
             return await handleGoogleAuth(event);
         case '/auth/login':

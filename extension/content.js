@@ -1261,10 +1261,47 @@
         }
     }
 
+    // Video generico (non-YouTube): trova il <video> principale con sorgente diretta
+    // http(s) (mp4/webm/…). Esclude blob:/MSE (streaming/DRM, non scaricabili lato server)
+    // e video troppo piccoli (probabili sfondi/anteprime, non il contenuto). Ritorna
+    // { mediaUrl, title } oppure null.
+    function findDirectVideoMedia() {
+        try {
+            let best = null; let bestArea = 0;
+            for (const v of document.querySelectorAll('video')) {
+                const src = v.currentSrc || v.src || '';
+                if (!/^https?:\/\//i.test(src)) continue; // esclude blob:/data:/vuoto
+                const r = v.getBoundingClientRect();
+                const area = r.width * r.height;
+                if (area > bestArea) { best = src; bestArea = area; }
+            }
+            if (!best || bestArea < 320 * 180) return null;
+            const title = document.querySelector('meta[property="og:title"]')?.content || document.title || 'Video';
+            return { mediaUrl: best, title: String(title).replace(/\s+/g, ' ').trim() };
+        } catch { return null; }
+    }
+
+    // True se esiste un <video> nella pagina (anche solo blob/MSE): serve a dare un
+    // messaggio migliore quando c'è un video ma la sorgente non è scaricabile.
+    function hasAnyVideoElement() {
+        try {
+            for (const v of document.querySelectorAll('video')) {
+                const r = v.getBoundingClientRect();
+                if (r.width * r.height >= 320 * 180) return true;
+            }
+        } catch { /* noop */ }
+        return false;
+    }
+
     // Converte messaggi di errore tecnici in messaggi comprensibili all'utente.
     // Gli errori interni (OpenAI, bullet, HTTP, stack trace) non devono arrivare in UI.
     function toUserFacingError(raw) {
         const msg = String(raw || '');
+        if (/^PREMIUM_REQUIRED$/.test(msg)) return 'La sintesi dei video è riservata al piano Premium.';
+        if (/^UNSUPPORTED_MEDIA$/.test(msg)) return 'Video non supportato: la sorgente non è accessibile (streaming protetto, DRM o formato non diretto).';
+        if (/^MEDIA_TOO_LARGE$/.test(msg)) return 'Video troppo grande per la sintesi al momento. Prova con un contenuto più breve.';
+        if (/^NO_SPEECH$/.test(msg)) return 'Nessun parlato riconosciuto nel video.';
+        if (/^(TRANSCRIBE_ERROR|TRANSCRIPTION_FAILED|MEDIA_FETCH_FAILED)$/.test(msg)) return 'Non è stato possibile trascrivere il video. Riprova tra poco.';
         if (/^PAYWALL$/.test(msg)) return 'Questa pagina è dietro un paywall: il contenuto non è accessibile senza un abbonamento al provider. Accedi al sito e riprova.';
         if (/^LOGIN_WALL$/.test(msg)) return 'Questo contenuto richiede l\'accesso al sito. Effettua il login nella pagina e riprova.';
         if (/^CONSENT_WALL$/.test(msg)) return 'Chiudi il banner dei cookie/consenso della pagina e riprova.';
@@ -1362,22 +1399,43 @@
                         await new Promise((r) => setTimeout(r, 1200));
                         page = extractReadablePageContent();
                     }
-                    // Contenuto troppo lungo: niente riassunto parziale inaffidabile → messaggio.
-                    const TOO_LONG_CHARS = 80000; // ~14k parole
-                    if (page.rawLen > TOO_LONG_CHARS) {
-                        updateModalWithError({ error: 'TOO_LONG' });
-                        return;
-                    }
-                    // Casi noti non riassumibili (paywall / login / consent / doc canvas) → messaggio chiaro.
-                    const blocked = detectBlockedContent(page.text);
-                    if (blocked && (!page.text || page.text.length < 200)) {
-                        updateModalWithError({ error: blocked });
-                        return;
-                    }
-                    if (page.text && page.text.length >= 50) {
-                        requestBody.text = page.text;
-                        if (page.title) requestBody.title = page.title;
-                        if (page.truncated) requestBody.truncated = true;
+                    // Pagina prevalentemente video (poco testo): tenta la trascrizione server
+                    // del media generico (non-YouTube). Solo con testo scarso, così gli
+                    // articoli con un video embedded restano riassunti come testo.
+                    const media = (!page.text || page.text.length < 400) ? findDirectVideoMedia() : null;
+                    if (media) {
+                        const t = await chrome.runtime.sendMessage({ action: 'transcribeMedia', mediaUrl: media.mediaUrl, lang: requestBody.lang });
+                        if (t?.success && typeof t.transcript === 'string' && t.transcript.length >= 50) {
+                            // /summarize-url (path video) accetta 50..120000 caratteri.
+                            requestBody.transcript = t.transcript.slice(0, 120000);
+                            requestBody.title = media.title || page.title || document.title || 'Video';
+                        } else {
+                            updateModalWithError({ error: t?.code || 'TRANSCRIBE_ERROR' });
+                            return;
+                        }
+                    } else {
+                        // Contenuto troppo lungo: niente riassunto parziale inaffidabile → messaggio.
+                        const TOO_LONG_CHARS = 80000; // ~14k parole
+                        if (page.rawLen > TOO_LONG_CHARS) {
+                            updateModalWithError({ error: 'TOO_LONG' });
+                            return;
+                        }
+                        // C'è un video ma senza sorgente diretta (blob/MSE/DRM) e poco testo → messaggio dedicato.
+                        if ((!page.text || page.text.length < 200) && hasAnyVideoElement()) {
+                            updateModalWithError({ error: 'UNSUPPORTED_MEDIA' });
+                            return;
+                        }
+                        // Casi noti non riassumibili (paywall / login / consent / doc canvas) → messaggio chiaro.
+                        const blocked = detectBlockedContent(page.text);
+                        if (blocked && (!page.text || page.text.length < 200)) {
+                            updateModalWithError({ error: blocked });
+                            return;
+                        }
+                        if (page.text && page.text.length >= 50) {
+                            requestBody.text = page.text;
+                            if (page.title) requestBody.title = page.title;
+                            if (page.truncated) requestBody.truncated = true;
+                        }
                     }
                 }
             }

@@ -10,7 +10,7 @@ import { selectSummaryModel, economyModel, fallbackModel, assertTierSanity } fro
 let openai = null;
 let isInitialized = false;
 
-async function getOpenAIClient() {
+export async function getOpenAIClient() {
     if (openai && isInitialized) return openai;
     
     // Se è ambiente di test/locale, usa variabile d'ambiente
