@@ -3,8 +3,13 @@ import { summarizeWithOpenAI } from '../src/openai.mjs';
 import { selectSummaryModel } from '../src/model-router.mjs';
 import { validateSubscription } from '../src/subscription.mjs';
 import { checkRateLimit } from '../src/rate-limit.mjs';
-import { fetchWebContent } from '../src/web-fetcher.mjs';
+import { fetchWebContent, assertPublicUrl } from '../src/web-fetcher.mjs';
 import { transcribeMedia } from '../src/transcribe.mjs';
+import { createJob, getJob, updateJob, publicJobView } from '../src/transcribe-jobs.mjs';
+import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
+
+// Client Lambda per invocare il worker di trascrizione (InvocationType Event).
+const lambdaClient = new LambdaClient({ region: process.env.AWS_REGION || 'eu-west-1' });
 import { loginWithGoogle, loginWithEmail, registerWithEmail, verifyAuthToken, requireAuth, canUserSummarize, incrementUsage, refundUsage, getEntitlement } from '../src/auth.mjs';
 import { resolveBrandId, isValidBrand, getBrand, listBrands } from '../src/brands.mjs';
 import { ARCHITECTURE_VERSION, API_VERSION, ENVIRONMENT } from '../src/config.mjs';
@@ -1388,6 +1393,100 @@ export async function transcribeHandler(event) {
     }
 }
 
+// POST /transcribe-job — avvia la trascrizione asincrona di un video lungo/HLS.
+// Ritorna subito 202 + jobId: la pipeline (ffmpeg + trascrizione a segmenti) non
+// starebbe nei 29s di API Gateway. Premium-only come il path sincrono.
+export async function transcribeJobStartHandler(event) {
+    try {
+        if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: getCorsHeaders(event), body: '' };
+        if (event.httpMethod !== 'POST') return createResponse(405, { error: 'Metodo non supportato. Usa POST.' });
+
+        let user;
+        try { user = await requireAuth(event); } catch (e) { return createResponse(401, { error: e.message, code: 'AUTH_REQUIRED' }); }
+
+        let body;
+        try { body = JSON.parse(event.body); } catch { return createResponse(400, { error: 'Body non valido', code: 'INVALID_JSON' }); }
+        if (!body.mediaUrl || typeof body.mediaUrl !== 'string') {
+            return createResponse(400, { error: 'mediaUrl è richiesto', code: 'MISSING_MEDIA_URL' });
+        }
+
+        const rawBrand = event.headers?.['x-brand'] || event.headers?.['X-Brand'] || body.brand;
+        if (rawBrand !== undefined && rawBrand !== null && rawBrand !== '' && !isValidBrand(rawBrand)) {
+            return createResponse(400, apiErrorBody('INVALID_BRAND', { brand: rawBrand }));
+        }
+        const brandId = resolveBrandId(rawBrand);
+
+        if (getEntitlement(user, brandId).plan !== 'premium') {
+            return createResponse(403, { error: 'La sintesi dei video è riservata al piano premium.', code: 'PREMIUM_REQUIRED', brand: brandId });
+        }
+
+        // Guard SSRF prima di accettare il job (evita di accodare lavoro inutile).
+        let url;
+        try { url = new URL(body.mediaUrl); } catch { return createResponse(400, { error: 'URL del media non valido', code: 'INVALID_MEDIA_URL' }); }
+        if (!['http:', 'https:'].includes(url.protocol)) return createResponse(400, { error: 'URL del media non valido', code: 'INVALID_MEDIA_URL' });
+        try {
+            await assertPublicUrl(url);
+        } catch {
+            return createResponse(400, { error: 'URL non consentito (indirizzo privato o locale).', code: 'BLOCKED_URL' });
+        }
+
+        const workerName = process.env.TRANSCRIBE_WORKER_FUNCTION;
+        if (!workerName) {
+            console.error('TRANSCRIBE_WORKER_FUNCTION non configurato');
+            return createResponse(503, { error: 'Trascrizione asincrona non disponibile.', code: 'ASYNC_UNAVAILABLE' });
+        }
+
+        const job = await createJob({
+            userId: user.id,
+            brandId,
+            mediaUrl: body.mediaUrl,
+            mediaKind: body.mediaKind === 'hls' ? 'hls' : 'file',
+            lang: body.lang || 'it'
+        });
+
+        // Invocazione asincrona: la risposta non attende il worker.
+        try {
+            await lambdaClient.send(new InvokeCommand({
+                FunctionName: workerName,
+                InvocationType: 'Event',
+                Payload: Buffer.from(JSON.stringify({ jobId: job.jobId, mediaUrl: body.mediaUrl, lang: body.lang || 'it', userId: user.id }))
+            }));
+        } catch (invokeErr) {
+            console.error('invoke worker fallito:', invokeErr?.message);
+            await updateJob(job.jobId, { status: 'error', code: 'ASYNC_UNAVAILABLE' }).catch(() => {});
+            return createResponse(503, { error: 'Trascrizione asincrona non disponibile.', code: 'ASYNC_UNAVAILABLE' });
+        }
+
+        return createResponse(202, { jobId: job.jobId, status: job.status, code: 'ACCEPTED' });
+    } catch (error) {
+        console.error('Error in transcribeJobStartHandler:', error);
+        return createResponse(500, { error: 'Errore interno', code: 'INTERNAL_ERROR' });
+    }
+}
+
+// GET /transcribe-job?id=... — stato del job (polling del client).
+export async function transcribeJobStatusHandler(event) {
+    try {
+        if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: getCorsHeaders(event), body: '' };
+        if (event.httpMethod !== 'GET') return createResponse(405, { error: 'Metodo non supportato. Usa GET.' });
+
+        let user;
+        try { user = await requireAuth(event); } catch (e) { return createResponse(401, { error: e.message, code: 'AUTH_REQUIRED' }); }
+
+        const jobId = event.queryStringParameters?.id;
+        if (!jobId) return createResponse(400, { error: 'Parametro id richiesto', code: 'MISSING_JOB_ID' });
+
+        const job = await getJob(jobId);
+        // Ownership: un job di un altro utente è indistinguibile da uno inesistente.
+        if (!job || job.userId !== user.id) return createResponse(404, { error: 'Job non trovato', code: 'JOB_NOT_FOUND' });
+
+        return createResponse(200, publicJobView(job));
+    } catch (error) {
+        console.error('Error in transcribeJobStatusHandler:', error);
+        return createResponse(500, { error: 'Errore interno', code: 'INTERNAL_ERROR' });
+    }
+}
+
 // Handler principale (router)
 export async function handler(event, context) {
     currentRequestId = event?.requestContext?.requestId || context?.awsRequestId || null;
@@ -1402,6 +1501,10 @@ export async function handler(event, context) {
             return await summarizeUrlHandler(event);
         case '/transcribe':
             return await transcribeHandler(event);
+        case '/transcribe-job':
+            return event.httpMethod === 'GET'
+                ? await transcribeJobStatusHandler(event)
+                : await transcribeJobStartHandler(event);
         case '/auth/google':
             return await handleGoogleAuth(event);
         case '/auth/login':

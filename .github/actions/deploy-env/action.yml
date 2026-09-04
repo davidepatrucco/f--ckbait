@@ -36,6 +36,25 @@ runs:
     - name: Build backend
       shell: bash
       run: sam build --template-file infra/sam-template-simple.yaml
+    - name: Resolve ffmpeg layer
+      id: ffmpeg
+      shell: bash
+      run: |
+        # Ultima versione pubblicata da infra/build-ffmpeg-layer.sh. Se il layer non
+        # esiste si passa una stringa vuota: il worker viene deployato senza ffmpeg e
+        # la trascrizione asincrona risponde ASYNC_UNAVAILABLE (degrado, non errore).
+        arn=$(aws lambda list-layer-versions \
+          --layer-name reading-intelligence-ffmpeg \
+          --region "${{ inputs.region }}" \
+          --query 'LayerVersions[0].LayerVersionArn' \
+          --output text 2>/dev/null || echo '')
+        if [ "$arn" = "None" ] || [ -z "$arn" ]; then
+          echo "layer ffmpeg non trovato: trascrizione asincrona disabilitata"
+          arn=''
+        else
+          echo "layer ffmpeg: $arn"
+        fi
+        echo "arn=$arn" >> "$GITHUB_OUTPUT"
     - name: Deploy ${{ inputs.environment }}
       shell: bash
       run: >-
@@ -51,6 +70,7 @@ runs:
         --parameter-overrides
         "Environment=${{ inputs.environment }}"
         "AllowedOrigins=${{ inputs.allowed-origins }}"
+        "FfmpegLayerArn=${{ steps.ffmpeg.outputs.arn }}"
     - name: Resolve API URL
       id: url
       shell: bash

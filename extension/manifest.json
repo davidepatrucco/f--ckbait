@@ -35,7 +35,7 @@
   "content_scripts": [
     {
       "matches": ["http://*/*", "https://*/*"],
-      "js": ["browser-polyfill.js", "brand-config.js", "content.js"],
+      "js": ["browser-polyfill.js", "brand-config.js", "source-decision.js", "content.js"],
       "run_at": "document_idle"
     }
   ]

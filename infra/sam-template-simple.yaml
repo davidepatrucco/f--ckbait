@@ -22,6 +22,16 @@ Parameters:
     MinValue: 100
     MaxValue: 4000
     Description: Hard upper bound for a generated summary, regardless of source length.
+  FfmpegLayerArn:
+    Type: String
+    Default: ''
+    Description: >-
+      ARN of the Lambda layer providing /opt/bin/ffmpeg, used by the async
+      transcription worker (long videos, HLS). If empty the worker is deployed
+      without ffmpeg and async transcription reports ASYNC_UNAVAILABLE.
+
+Conditions:
+  HasFfmpegLayer: !Not [!Equals [!Ref FfmpegLayerArn, '']]
 
 Globals:
   Function:
@@ -61,6 +71,8 @@ Resources:
           CACHE_TABLE_NAME: !Ref SummaryCacheTable
           SUMMARY_MODEL: !Ref SummaryModel
           SUMMARY_MAX_WORDS: !Ref SummaryMaxWords
+          TRANSCRIBE_JOBS_TABLE_NAME: !Ref TranscribeJobsTable
+          TRANSCRIBE_WORKER_FUNCTION: !Ref TranscribeWorkerFunction
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref UsersTable
@@ -76,6 +88,10 @@ Resources:
             TableName: !Ref RateLimitTable
         - DynamoDBCrudPolicy:
             TableName: !Ref AnalyticsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TranscribeJobsTable
+        - LambdaInvokePolicy:
+            FunctionName: !Ref TranscribeWorkerFunction
         - SSMParameterReadPolicy:
             ParameterName: !Sub 'reading-intelligence/${Environment}/*'
       Events:
@@ -127,6 +143,32 @@ Resources:
             RestApiId: !Ref LemonSqueezerAPI
             Path: /{proxy+}
             Method: ANY
+
+  # Worker per la trascrizione asincrona (video lunghi, HLS): invocato in modo
+  # asincrono da POST /transcribe-job. Timeout e memoria alti perché esegue ffmpeg
+  # (estrazione audio + segmentazione) e poi trascrive i segmenti in parallelo.
+  # Nessun evento API: non è raggiungibile dall'esterno.
+  TranscribeWorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'reading-intelligence-transcribe-worker-${Environment}'
+      CodeUri: ../backend/
+      Handler: lambda/transcribe-worker.handler
+      Description: 'Async audio transcription worker (ffmpeg + chunked STT)'
+      Timeout: 900
+      MemorySize: 3008
+      EphemeralStorage:
+        Size: 2048
+      Layers: !If [HasFfmpegLayer, [!Ref FfmpegLayerArn], !Ref 'AWS::NoValue']
+      Environment:
+        Variables:
+          TRANSCRIBE_JOBS_TABLE_NAME: !Ref TranscribeJobsTable
+          FFMPEG_PATH: '/opt/bin/ffmpeg'
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TranscribeJobsTable
+        - SSMParameterReadPolicy:
+            ParameterName: !Sub 'reading-intelligence/${Environment}/*'
 
   # Lambda Function URL for Stripe Webhook (bypass API Gateway)
   StripeWebhookFunction:
@@ -261,6 +303,25 @@ Resources:
           AttributeType: S
       KeySchema:
         - AttributeName: url
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+
+  # Stato dei job di trascrizione asincrona. Il transcript è cache di breve durata
+  # (TTL 24h), non archivio: il riassunto vive nella cache dei riassunti.
+  TranscribeJobsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'reading-intelligence-transcribe-jobs-${Environment}'
+      AttributeDefinitions:
+        - AttributeName: jobId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: jobId
           KeyType: HASH
       TimeToLiveSpecification:
         AttributeName: ttl

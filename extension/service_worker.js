@@ -1,7 +1,8 @@
 // service_worker.js - Service Worker per l'estensione LemonSqueezer
 
 // Config del brand (iniettata da brand-config.js). Determina l'header X-Brand.
-try { importScripts('browser-polyfill.js', 'brand-config.js'); } catch (e) { console.warn('brand-config/polyfill non caricati via importScripts (atteso su event-page):', e?.message); }
+// source-decision.js fornisce parseVtt (usato per i sottotitoli scaricati qui).
+try { importScripts('browser-polyfill.js', 'brand-config.js', 'source-decision.js'); } catch (e) { console.warn('brand-config/polyfill non caricati via importScripts (atteso su event-page):', e?.message); }
 const BRAND_ID = (self.__BRAND__ && self.__BRAND__.apiBrand) || 'lemonsqueezer';
 
 // API base per ambiente: iniettata dal build in __BRAND__.apiBase (dev|staging|prod).
@@ -162,7 +163,103 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         transcribeMedia(request, sendResponse);
         return true;
     }
+    if (request.action === 'fetchCaptions') {
+        fetchCaptions(request, sendResponse);
+        return true;
+    }
+    if (request.action === 'startTranscribeJob') {
+        startTranscribeJob(request, sendResponse);
+        return true;
+    }
+    if (request.action === 'transcribeJobStatus') {
+        transcribeJobStatus(request, sendResponse);
+        return true;
+    }
 });
+
+// Scarica una traccia sottotitoli (WebVTT/SRT) e la converte in testo.
+// Il fetch parte dal service worker: gli URL sono cross-origin (CDN del video) e
+// un fetch dal content script erediterebbe l'origine della pagina. Nessun costo
+// LLM: i sottotitoli SONO già la trascrizione, quindi questo path è gratuito.
+async function fetchCaptions(request, sendResponse) {
+    try {
+        const url = request.trackUrl;
+        if (!url || !/^https?:\/\//i.test(url)) {
+            sendResponse({ success: false, code: 'INVALID_TRACK_URL' });
+            return;
+        }
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 15000);
+        let res;
+        try {
+            res = await fetch(url, { signal: controller.signal, credentials: 'omit' });
+        } finally {
+            clearTimeout(timer);
+        }
+        if (!res.ok) {
+            // 403 tipico degli URL firmati scaduti (es. CDN Substack con Expires).
+            sendResponse({ success: false, status: res.status, code: 'VIDEO_CAPTIONS_FAILED' });
+            return;
+        }
+        const raw = await res.text();
+        const parser = self.RI_SOURCE && self.RI_SOURCE.parseVtt;
+        const text = parser ? parser(raw) : '';
+        if (!text || text.length < 50) {
+            sendResponse({ success: false, code: 'VIDEO_CAPTIONS_FAILED' });
+            return;
+        }
+        sendResponse({ success: true, text });
+    } catch (error) {
+        console.warn('[CAPTIONS] fetch fallito:', error?.message);
+        sendResponse({ success: false, code: 'VIDEO_CAPTIONS_FAILED', error: error?.message });
+    }
+}
+
+// Avvia un job di trascrizione asincrono (video lunghi / HLS): il backend ritorna
+// subito un jobId (i 29s di API Gateway non bastano per un video lungo).
+async function startTranscribeJob(request, sendResponse) {
+    try {
+        const { authToken } = await chrome.storage.local.get(['authToken']);
+        if (!authToken) {
+            sendResponse({ success: false, status: 401, code: 'AUTH_REQUIRED' });
+            return;
+        }
+        const res = await fetch(`${API_BASE}/transcribe-job`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}`, 'X-Brand': BRAND_ID },
+            body: JSON.stringify({ mediaUrl: request.mediaUrl, lang: request.lang || 'it' })
+        });
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            sendResponse({ success: false, status: res.status, code: payload.code || 'TRANSCRIBE_ERROR', error: payload.error });
+            return;
+        }
+        sendResponse({ success: true, jobId: payload.jobId, status: payload.status || 'pending' });
+    } catch (error) {
+        sendResponse({ success: false, code: 'TRANSCRIBE_ERROR', error: error?.message });
+    }
+}
+
+async function transcribeJobStatus(request, sendResponse) {
+    try {
+        const { authToken } = await chrome.storage.local.get(['authToken']);
+        if (!authToken) {
+            sendResponse({ success: false, status: 401, code: 'AUTH_REQUIRED' });
+            return;
+        }
+        const res = await fetch(`${API_BASE}/transcribe-job?id=${encodeURIComponent(request.jobId)}`, {
+            headers: { 'Authorization': `Bearer ${authToken}`, 'X-Brand': BRAND_ID }
+        });
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            sendResponse({ success: false, status: res.status, code: payload.code || 'TRANSCRIBE_ERROR' });
+            return;
+        }
+        sendResponse({ success: true, status: payload.status, transcript: payload.transcript, progress: payload.progress, code: payload.code });
+    } catch (error) {
+        sendResponse({ success: false, code: 'TRANSCRIBE_ERROR', error: error?.message });
+    }
+}
 
 async function summarizePageData(request, sendResponse) {
     try {

@@ -15,9 +15,9 @@ const EXT = join(ROOT, 'extension');
 // File condivisi copiati in ogni build (whitelist: niente _old/test/example).
 // oauth-config.js è gestito a parte perché è git-ignored (assente in CI): fallback
 // a oauth-config.example.js così build/test funzionano senza il file reale.
-const SHARED_FILES = ['manifest.json', 'popup.html', 'popup.js', 'service_worker.js', 'content.js', 'browser-polyfill.js', 'summary.html', 'summary.js'];
+const SHARED_FILES = ['manifest.json', 'popup.html', 'popup.js', 'service_worker.js', 'content.js', 'browser-polyfill.js', 'summary.html', 'summary.js', 'source-decision.js'];
 const ASSET_FILES = ['icon.svg', 'icon-16.png', 'icon-48.png', 'icon-128.png'];
-const REQUIRED_OUTPUT = ['manifest.json', 'popup.html', 'popup.js', 'service_worker.js', 'content.js', 'browser-polyfill.js', 'brand-config.js', 'summary.html', 'summary.js',
+const REQUIRED_OUTPUT = ['manifest.json', 'popup.html', 'popup.js', 'service_worker.js', 'content.js', 'browser-polyfill.js', 'brand-config.js', 'summary.html', 'summary.js', 'source-decision.js',
     'assets/icon-16.png', 'assets/icon-48.png', 'assets/icon-128.png'];
 
 const SUPPORTED_BROWSERS = ['chromium', 'firefox'];
@@ -28,7 +28,9 @@ const SUPPORTED_BROWSERS = ['chromium', 'firefox'];
 function applyBrowserManifest(manifest, browser, brandId) {
     if (browser !== 'firefox') return manifest;
     const swFile = manifest.background?.service_worker || 'service_worker.js';
-    manifest.background = { scripts: ['browser-polyfill.js', 'brand-config.js', swFile] };
+    // Firefox usa un event page: importScripts non è disponibile, quindi le dipendenze
+    // (incluso source-decision.js per parseVtt) vanno dichiarate qui.
+    manifest.background = { scripts: ['browser-polyfill.js', 'brand-config.js', 'source-decision.js', swFile] };
     manifest.browser_specific_settings = {
         gecko: { id: `${brandId}@bifa.digital`, strict_min_version: '121.0' }
     };

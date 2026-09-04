@@ -416,6 +416,60 @@
         // ma la lascio per compatibilità con il codice esistente
     }
     
+    // Note non bloccanti (degrado): spiegano perché la fonte scelta è quella e non un'altra.
+    const NOTE_MESSAGES = {
+        VIDEO_AVAILABLE: 'Questa pagina contiene anche un video.',
+        VIDEO_NOT_ACCESSIBLE: 'Il video di questa pagina non è accessibile (streaming protetto o senza sottotitoli): ho riassunto il testo.',
+        VIDEO_NEEDS_PREMIUM: 'La sintesi del video richiede il piano Premium: ho riassunto il testo della pagina.',
+        VIDEO_TOO_LONG: 'Il video è troppo lungo per essere trascritto: ho riassunto il testo della pagina.',
+        VIDEO_SKIPPED_LIVE: 'È in corso una diretta (contenuto parziale): ho riassunto il testo della pagina.',
+        CAPTIONS_FAILED: 'Non è stato possibile scaricare i sottotitoli del video.',
+        STT_FAILED: 'Non è stato possibile trascrivere l’audio del video.',
+        CAPTIONS_TRANSLATED: 'Sottotitoli in un’altra lingua: il riassunto è tradotto.',
+        TRANSCRIPT_TRUNCATED: 'Video molto lungo: il riassunto si basa sulla prima parte della trascrizione.'
+    };
+
+    // Etichetta di trasparenza: dice SEMPRE quale fonte è stata riassunta (buco A).
+    function sourceBadgeHtml(data) {
+        if (!data || !data.__source) return '';
+        const isVideo = data.__source === 'video';
+        const label = isVideo ? '🎬 Riassunto del <b>video</b>' : '📄 Riassunto del <b>testo</b> della pagina';
+        const alt = data.__alternative || {};
+        const canSwitch = isVideo ? alt.text : alt.video;
+        const switchLabel = isVideo ? 'Riassumi il testo' : 'Riassumi il video';
+        const btn = canSwitch
+            ? `<button id="lemonsqueezer-switch-source" data-target="${isVideo ? 'text' : 'video'}" style="background:none;border:none;color:#0969da;cursor:pointer;font-size:12px;text-decoration:underline;padding:0;">${switchLabel}</button>`
+            : '';
+        return `<div class="lemonsqueezer-source-badge" style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:#F2F4F7;border-radius:6px;padding:6px 10px;font-size:12px;margin-bottom:10px;">
+            <span>${label}</span>${btn}
+        </div>`;
+    }
+
+    function sourceNotesHtml(notes) {
+        const list = (Array.isArray(notes) ? notes : []).filter((n) => NOTE_MESSAGES[n]);
+        if (!list.length) return '';
+        return list.map((n) => `<div style="background:#FFF7E6;border:1px solid #FFE1A8;color:#8a6d3b;border-radius:6px;padding:8px 10px;font-size:12px;margin-bottom:8px;">⚠️ ${NOTE_MESSAGES[n]}</div>`).join('');
+    }
+
+    // Switch di fonte: rilancia il riassunto forzando l'altra fonte.
+    function setupSourceSwitch(data) {
+        const btn = document.getElementById('lemonsqueezer-switch-source');
+        if (!btn) return;
+        btn.addEventListener('click', () => {
+            const target = btn.getAttribute('data-target');
+            openSummaryModal({
+                url: data.originalUrl || window.location.href,
+                lang: lastSummaryRequest.lang,
+                summaryProfile: lastSummaryRequest.summaryProfile,
+                squeeze: lastSummaryRequest.squeeze,
+                forceSource: target
+            });
+        });
+    }
+
+    // Ultimi parametri usati: servono al pulsante di switch per rilanciare identico.
+    let lastSummaryRequest = {};
+
     // Funzione per aggiornare la modale con il risultato
     function updateModalWithResult(data) {
         const modalBody = document.getElementById('lemonsqueezer-modal-body');
@@ -525,11 +579,14 @@
                     <a href="${data.originalUrl}" target="_blank">${data.originalUrl}</a>
                 </div>
             </div>
+            ${sourceBadgeHtml(data)}
+            ${sourceNotesHtml(data.__notes)}
             ${data.truncated ? '<div style="background:#FFF7E6;border:1px solid #FFE1A8;color:#8a6d3b;border-radius:6px;padding:8px 10px;font-size:12px;margin-bottom:12px;">⚠️ Contenuto molto lungo: il riassunto si basa sulla prima parte della pagina.</div>' : ''}
             <div class="lemonsqueezer-summary-content">
                 ${(data.summary || '').replace(/\n/g, '<br>')}
             </div>
         `;
+        setupSourceSwitch(data);
         
         // Aggiungi footer se non esiste
         const modal = document.getElementById('lemonsqueezer-modal');
@@ -554,27 +611,42 @@
         }
     }
     
-    // Funzione per aggiornare la modale con un errore
+    // Casi previsti e non riassumibili: sono AVVISI (stato atteso), non errori tecnici.
+    const WARNING_CODES = new Set([
+        'PAYWALL', 'LOGIN_WALL', 'CONSENT_WALL', 'CANVAS_DOC', 'BOT_CHALLENGE', 'TOO_LONG',
+        'LIVE_STREAM', 'VIDEO_NOT_ACCESSIBLE', 'VIDEO_TOO_LONG_NO_CAPTIONS', 'UNSUPPORTED_MEDIA',
+        'PREMIUM_REQUIRED', 'MEDIA_TOO_LARGE', 'NO_SPEECH', 'INSUFFICIENT_CONTENT'
+    ]);
+
+    // Funzione per aggiornare la modale con un errore o un avviso
     function updateModalWithError(data) {
         const modalBody = document.getElementById('lemonsqueezer-modal-body');
         if (!modalBody) return;
-        
+
+        const code = String((data && data.error) || '');
+        const isWarning = WARNING_CODES.has(code);
+        const icon = isWarning
+            ? '<circle cx="12" cy="12" r="9"></circle><path d="M12 8v5"></path><path d="M12 16h.01"></path>'
+            : '<circle cx="12" cy="12" r="9"></circle><path d="M15 9l-6 6"></path><path d="M9 9l6 6"></path>';
+
         modalBody.innerHTML = `
             <div class="lemonsqueezer-error">
-                <div class="lemonsqueezer-error-icon" aria-hidden="true">
+                <div class="lemonsqueezer-error-icon" aria-hidden="true" style="${isWarning ? 'color:#B58105;' : ''}">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="9"></circle>
-                        <path d="M15 9l-6 6"></path>
-                        <path d="M9 9l6 6"></path>
+                        ${icon}
                     </svg>
                 </div>
-                <div class="lemonsqueezer-error-title">Errore</div>
+                <div class="lemonsqueezer-error-title">${isWarning ? 'Non riassumibile' : 'Errore'}</div>
                 <div class="lemonsqueezer-error-message"></div>
+                <div class="lemonsqueezer-error-notes"></div>
                 <button class="lemonsqueezer-btn-secondary" onclick="document.getElementById('lemonsqueezer-modal').remove()">Chiudi</button>
             </div>
         `;
         const messageEl = modalBody.querySelector('.lemonsqueezer-error-message');
-        if (messageEl) messageEl.textContent = toUserFacingError(data && data.error);
+        if (messageEl) messageEl.textContent = toUserFacingError(code);
+        // Note di degrado: spiegano cosa è stato tentato prima di arrendersi.
+        const notesEl = modalBody.querySelector('.lemonsqueezer-error-notes');
+        if (notesEl) notesEl.innerHTML = sourceNotesHtml(data && data.notes);
     }
 
     // Etichetta leggibile per la raccomandazione Scout.
@@ -1261,54 +1333,144 @@
         }
     }
 
-    // Media generico (non-YouTube): trova il <video> principale (o, in mancanza, un
-    // <audio>) con sorgente diretta http(s) (mp4/webm/mp3/ogg/…). Esclude blob:/MSE
-    // (streaming/DRM, non scaricabili lato server) e video troppo piccoli (sfondi/
-    // anteprime). Ritorna { mediaUrl, title } oppure null.
-    function findDirectVideoMedia() {
+    const MIN_MEDIA_AREA = 320 * 180; // sotto: sfondi/anteprime, non il contenuto
+
+    // Cerca nell'HTML della pagina gli URL delle tracce sottotitoli (.vtt/.srt) e dei
+    // media (.m3u8/.mp4). Serve per i player JS che non espongono <track> né una
+    // sorgente diretta sull'elemento (es. Substack). Un solo passaggio di regex.
+    function scanPageMediaUrls() {
         try {
-            let best = null; let bestArea = 0;
-            for (const v of document.querySelectorAll('video')) {
-                const src = v.currentSrc || v.src || '';
-                if (!/^https?:\/\//i.test(src)) continue; // esclude blob:/data:/vuoto
-                const r = v.getBoundingClientRect();
-                const area = r.width * r.height;
-                if (area > bestArea) { best = src; bestArea = area; }
-            }
-            // Audio diretto (es. pagina di un solo file .mp3/.ogg, podcast): niente
-            // vincolo di area (i player audio sono piccoli).
-            if (!best || bestArea < 320 * 180) {
-                for (const a of document.querySelectorAll('audio')) {
-                    const src = a.currentSrc || a.src || '';
-                    if (/^https?:\/\//i.test(src)) { best = src; bestArea = Infinity; break; }
-                }
-            }
-            if (!best || bestArea < 320 * 180) return null;
-            const title = document.querySelector('meta[property="og:title"]')?.content || document.title || 'Video';
-            return { mediaUrl: best, title: String(title).replace(/\s+/g, ' ').trim() };
-        } catch { return null; }
+            const html = document.documentElement ? document.documentElement.innerHTML : '';
+            if (!html) return { vtt: [], hls: [], files: [] };
+            const grab = (re) => [...new Set((html.match(re) || []).map((u) => u.replace(/&amp;/g, '&')))].slice(0, 20);
+            return {
+                vtt: grab(/https?:\/\/[^"'\\\s<>]+\.(?:vtt|srt)(?:\?[^"'\\\s<>]*)?/gi),
+                hls: grab(/https?:\/\/[^"'\\\s<>]+\.m3u8(?:\?[^"'\\\s<>]*)?/gi),
+                files: grab(/https?:\/\/[^"'\\\s<>]+\.(?:mp4|webm|m4a|mp3)(?:\?[^"'\\\s<>]*)?/gi)
+            };
+        } catch { return { vtt: [], hls: [], files: [] }; }
     }
 
-    // True se esiste un <video> nella pagina (anche solo blob/MSE): serve a dare un
-    // messaggio migliore quando c'è un video ma la sorgente non è scaricabile.
-    function hasAnyVideoElement() {
+    // Inventario del media presente in pagina, per la funzione di decisione pura.
+    // Nota: i content script girano solo nel frame principale, quindi un video dentro
+    // un <iframe> non è ispezionabile come elemento; in quel caso ci si affida agli
+    // URL trovati nell'HTML (i sottotitoli restano raggiungibili).
+    function probeVideo() {
+        const empty = { present: false, prominent: false, isLive: false, durationSeconds: 0, captionTracks: [], directMedia: null };
         try {
+            const scanned = scanPageMediaUrls();
+            // 1. elemento media più prominente (video, o audio come fallback)
+            let el = null; let bestArea = -1; let isAudio = false;
             for (const v of document.querySelectorAll('video')) {
                 const r = v.getBoundingClientRect();
-                if (r.width * r.height >= 320 * 180) return true;
+                const area = Math.max(0, r.width) * Math.max(0, r.height);
+                if (area > bestArea) { bestArea = area; el = v; }
             }
-        } catch { /* noop */ }
-        return false;
+            if (!el || bestArea < MIN_MEDIA_AREA) {
+                const a = document.querySelector('audio');
+                if (a && /^https?:\/\//i.test(a.currentSrc || a.src || '')) { el = a; isAudio = true; bestArea = Infinity; }
+            }
+
+            // 2. tracce sottotitoli: <track> dell'elemento, poi URL scansionati e
+            //    correlati all'id di questa pagina (buco C).
+            const tracks = [];
+            const trackEls = el ? el.querySelectorAll('track') : document.querySelectorAll('video track, audio track');
+            for (const t of trackEls) {
+                const src = t.getAttribute('src') || '';
+                const kind = (t.getAttribute('kind') || '').toLowerCase();
+                if (!src || (kind && kind !== 'captions' && kind !== 'subtitles')) continue;
+                let abs = src;
+                try { abs = new URL(src, location.href).href; } catch { /* relativo non risolvibile */ }
+                if (/^https?:\/\//i.test(abs)) tracks.push({ url: abs, lang: t.getAttribute('srclang') || '', kind: kind || 'captions', label: t.getAttribute('label') || '' });
+            }
+            let correlatedVtt = [];
+            if (!tracks.length && scanned.vtt.length && window.RI_SOURCE) {
+                correlatedVtt = window.RI_SOURCE.correlateVttUrls(scanned.vtt, location.href);
+                // Lingua non nota dall'URL: si prova a dedurla dal nome file (es. .../en.vtt).
+                for (const u of correlatedVtt) {
+                    const m = u.match(/\/([a-z]{2})(?:-[a-z]{2})?\.(?:vtt|srt)/i);
+                    tracks.push({ url: u, lang: m ? m[1].toLowerCase() : '', kind: 'captions', label: '' });
+                }
+            }
+
+            // 3. sorgente diretta scaricabile (file o HLS)
+            let directMedia = null;
+            const elSrc = el ? (el.currentSrc || el.src || '') : '';
+            if (/^https?:\/\//i.test(elSrc)) {
+                directMedia = { url: elSrc, kind: /\.m3u8(\?|$)/i.test(elSrc) ? 'hls' : 'file' };
+            } else if (scanned.files.length) {
+                directMedia = { url: scanned.files[0], kind: 'file' };
+            } else if (scanned.hls.length) {
+                directMedia = { url: scanned.hls[0], kind: 'hls' };
+            }
+
+            // 4. durata e diretta
+            const rawDuration = el && Number.isFinite(el.duration) ? Math.round(el.duration) : 0;
+            const isLive = Boolean(
+                (el && el.duration === Infinity) ||
+                document.querySelector('.ytp-live, [class*="live-badge" i], [data-is-live="true"]')
+            );
+
+            const present = Boolean((el && (bestArea >= MIN_MEDIA_AREA || isAudio)) || tracks.length || directMedia);
+            if (!present) return empty;
+
+            // Prominenza: misurata sull'elemento; se l'elemento non è ispezionabile
+            // (player in iframe) la si assume solo con UNA traccia correlata a questa
+            // pagina, che è un segnale forte che il video è il contenuto principale.
+            let prominent = false;
+            if (el && bestArea >= MIN_MEDIA_AREA) {
+                const r = el.getBoundingClientRect();
+                prominent = r.top < (window.innerHeight || 800) * 1.5;
+            } else if (isAudio) {
+                prominent = true;
+            } else if (correlatedVtt.length === 1) {
+                prominent = true;
+            }
+
+            return {
+                present: true,
+                prominent,
+                isLive,
+                durationSeconds: rawDuration,
+                captionTracks: tracks,
+                directMedia
+            };
+        } catch (e) {
+            console.warn('[CONTENT] probeVideo fallito:', e);
+            return empty;
+        }
+    }
+
+    // Inventario completo della pagina passato alla decisione pura.
+    function probePageContent(page) {
+        return {
+            text: { len: (page.text || '').length, rawLen: page.rawLen || 0, title: page.title || '' },
+            video: probeVideo(),
+            blocked: detectBlockedContent(page.text)
+        };
+    }
+
+    function mediaTitle(fallback) {
+        const t = document.querySelector('meta[property="og:title"]')?.content || document.title || fallback || 'Video';
+        return String(t).replace(/\s+/g, ' ').trim();
     }
 
     // Converte messaggi di errore tecnici in messaggi comprensibili all'utente.
     // Gli errori interni (OpenAI, bullet, HTTP, stack trace) non devono arrivare in UI.
     function toUserFacingError(raw) {
         const msg = String(raw || '');
-        if (/^PREMIUM_REQUIRED$/.test(msg)) return 'La sintesi dei video è riservata al piano Premium.';
+        if (/^PREMIUM_REQUIRED$/.test(msg)) return 'La sintesi dei video senza sottotitoli è riservata al piano Premium.';
         if (/^UNSUPPORTED_MEDIA$/.test(msg)) return 'Video non supportato: la sorgente non è accessibile (streaming protetto, DRM o formato non diretto).';
         if (/^MEDIA_TOO_LARGE$/.test(msg)) return 'Video troppo grande per la sintesi al momento. Prova con un contenuto più breve.';
         if (/^NO_SPEECH$/.test(msg)) return 'Nessun parlato riconosciuto nel video.';
+        // Casi non gestibili: avviso esplicito (nessun riassunto silenziosamente sbagliato).
+        if (/^LIVE_STREAM$/.test(msg)) return 'Questa è una diretta: i sottotitoli sono parziali e il contenuto non è ancora completo. Riprova quando la registrazione è disponibile.';
+        if (/^VIDEO_NOT_ACCESSIBLE$/.test(msg)) return 'Il video di questa pagina non è accessibile (streaming protetto o DRM) e non ha sottotitoli, quindi non può essere riassunto.';
+        if (/^VIDEO_TOO_LONG_NO_CAPTIONS$/.test(msg)) return 'Questo video è troppo lungo per essere trascritto e non ha sottotitoli. Per ora i video lunghi sono supportati solo se hanno i sottotitoli.';
+        if (/^VIDEO_CAPTIONS_FAILED$/.test(msg)) return 'Non è stato possibile scaricare i sottotitoli del video. Ricarica la pagina e riprova.';
+        if (/^TRANSCRIBE_TIMEOUT$/.test(msg)) return 'La trascrizione del video sta impiegando troppo tempo. Riprova tra qualche minuto.';
+        if (/^BLOCKED_URL$/.test(msg)) return 'La sorgente del video non è raggiungibile pubblicamente.';
+        if (/^INSUFFICIENT_CONTENT$/.test(msg)) return 'Questa pagina non contiene abbastanza contenuto da riassumere.';
         if (/^(TRANSCRIBE_ERROR|TRANSCRIPTION_FAILED|MEDIA_FETCH_FAILED)$/.test(msg)) return 'Non è stato possibile trascrivere il video. Riprova tra poco.';
         if (/^PAYWALL$/.test(msg)) return 'Questa pagina è dietro un paywall: il contenuto non è accessibile senza un abbonamento al provider. Accedi al sito e riprova.';
         if (/^LOGIN_WALL$/.test(msg)) return 'Questo contenuto richiede l\'accesso al sito. Effettua il login nella pagina e riprova.';
@@ -1325,12 +1487,173 @@
         return 'Non è stato possibile generare il riassunto. Riprova tra poco.';
     }
 
+    // Risolve QUALE fonte riassumere ed esegue il recupero, popolando requestBody.
+    //
+    // Stadi: probe (DOM) -> decisione pura (source-decision.js) -> esecuzione.
+    // La catena di degrado (fallimento sottotitoli, STT non disponibile, gate premium)
+    // è implementata RI-DECIDENDO su un inventario ridotto: ogni fallimento rimuove
+    // la fonte che non ha funzionato, quindi la catena termina sempre e riusa la
+    // logica di decisione già testata.
+    // `forceSource` ('video'|'text') bypassa la scelta automatica (pulsante di switch).
+    async function resolveSummarySource(page, requestBody, forceSource) {
+        const RI = window.RI_SOURCE;
+        const notes = [];
+        if (!RI) {
+            // Modulo di decisione assente (build incompleta): comportamento minimo sul testo.
+            if (page.text && page.text.length >= 50) {
+                requestBody.text = page.text;
+                if (page.title) requestBody.title = page.title;
+                return { ok: true, source: 'text', notes };
+            }
+            return { ok: false, code: 'INSUFFICIENT_CONTENT', notes };
+        }
+
+        let stored = {};
+        try { stored = await chrome.storage.local.get(['user']); } catch { /* storage non disponibile */ }
+        // Il piano è autoritativo lato backend (non è nel JWT): qui è solo un
+        // suggerimento per evitare round-trip inutili. Se assente si tenta.
+        let plan = stored?.user?.plan === 'free' ? 'free' : 'premium';
+        const inventory = probePageContent(page);
+        const alternative = computeAlternative(inventory, page);
+
+        if (forceSource === 'text') {
+            if (page.text && page.text.length >= 50) {
+                requestBody.text = page.text;
+                if (page.title) requestBody.title = page.title;
+                if (page.truncated) requestBody.truncated = true;
+                return { ok: true, source: 'text', notes, alternative };
+            }
+            return { ok: false, code: 'INSUFFICIENT_CONTENT', notes };
+        }
+        if (forceSource === 'video') {
+            // Ignora il testo per forzare il ramo video della decisione.
+            inventory.text = { len: 0, rawLen: 0, title: inventory.text.title };
+        }
+
+        let decision = RI.decideSummarySource(inventory, { userLang: requestBody.lang, plan, asyncAvailable: true });
+        // Limite di iterazioni: l'inventario si riduce a ogni degrado (tracce, media, piano).
+        const maxSteps = (inventory.video.captionTracks || []).length + 4;
+
+        for (let step = 0; step < maxSteps; step++) {
+            const redecide = () => RI.decideSummarySource(inventory, { userLang: requestBody.lang, plan, asyncAvailable: true });
+
+            if (decision.action === 'VIDEO_CAPTIONS') {
+                const res = await chrome.runtime.sendMessage({ action: 'fetchCaptions', trackUrl: decision.trackUrl });
+                const text = res && res.success ? String(res.text || '') : '';
+                if (text.length >= 50) {
+                    requestBody.transcript = text.slice(0, RI.CONSTANTS.MAX_TRANSCRIPT_CHARS);
+                    if (text.length > RI.CONSTANTS.MAX_TRANSCRIPT_CHARS) {
+                        requestBody.truncated = true;
+                        notes.push('TRANSCRIPT_TRUNCATED');
+                    }
+                    requestBody.title = mediaTitle(page.title);
+                    if (decision.trackLang && requestBody.lang && decision.trackLang.slice(0, 2) !== requestBody.lang.slice(0, 2)) {
+                        notes.push('CAPTIONS_TRANSLATED');
+                    }
+                    return { ok: true, source: 'video', notes, alternative };
+                }
+                // Degrado: scarta questa traccia (URL firmato scaduto, rete, VTT vuoto).
+                notes.push('CAPTIONS_FAILED');
+                inventory.video.captionTracks = (inventory.video.captionTracks || []).filter((t) => t.url !== decision.trackUrl);
+                decision = redecide();
+                continue;
+            }
+
+            if (decision.action === 'VIDEO_STT' || decision.action === 'VIDEO_STT_ASYNC') {
+                const isAsync = decision.action === 'VIDEO_STT_ASYNC';
+                const res = isAsync
+                    ? await runAsyncTranscription(decision.mediaUrl, requestBody.lang)
+                    : await chrome.runtime.sendMessage({ action: 'transcribeMedia', mediaUrl: decision.mediaUrl, lang: requestBody.lang });
+                const text = res && res.success ? String(res.transcript || '') : '';
+                if (text.length >= 50) {
+                    requestBody.transcript = text.slice(0, RI.CONSTANTS.MAX_TRANSCRIPT_CHARS);
+                    if (text.length > RI.CONSTANTS.MAX_TRANSCRIPT_CHARS) {
+                        requestBody.truncated = true;
+                        notes.push('TRANSCRIPT_TRUNCATED');
+                    }
+                    requestBody.title = mediaTitle(page.title);
+                    return { ok: true, source: 'video', notes, alternative };
+                }
+                // Gate premium: il backend è autoritativo, il suggerimento locale era sbagliato.
+                if (res && (res.code === 'PREMIUM_REQUIRED' || res.status === 403)) {
+                    plan = 'free';
+                    decision = redecide();
+                    continue;
+                }
+                notes.push('STT_FAILED');
+                inventory.video.directMedia = null;
+                decision = redecide();
+                continue;
+            }
+
+            if (decision.action === 'TEXT') {
+                if (decision.note) notes.push(decision.note);
+                if (page.text && page.text.length >= 50) {
+                    requestBody.text = page.text;
+                    if (page.title) requestBody.title = page.title;
+                    if (page.truncated) requestBody.truncated = true;
+                    return { ok: true, source: 'text', notes, alternative };
+                }
+                // Il testo non è più utilizzabile: azzera e ri-decidi (finirà in UNSUPPORTED).
+                inventory.text = { len: 0, rawLen: inventory.text.rawLen, title: inventory.text.title };
+                decision = redecide();
+                continue;
+            }
+
+            // UNSUPPORTED
+            return { ok: false, code: decision.code, notes };
+        }
+        return { ok: false, code: 'INSUFFICIENT_CONTENT', notes };
+    }
+
+    // Fonte alternativa disponibile, per il pulsante di switch nella modale (buco A).
+    function computeAlternative(inventory, page) {
+        const hasVideo = Boolean(inventory.video.present &&
+            ((inventory.video.captionTracks || []).length || inventory.video.directMedia));
+        const hasText = (page.text || '').length >= 50;
+        return { video: hasVideo, text: hasText };
+    }
+
+    // Trascrizione asincrona (video lunghi/HLS): avvia un job e ne segue lo stato.
+    // Il polling vive nel content script così la modale può mostrare il progresso.
+    async function runAsyncTranscription(mediaUrl, lang) {
+        const start = await chrome.runtime.sendMessage({ action: 'startTranscribeJob', mediaUrl, lang });
+        if (!start || !start.success || !start.jobId) {
+            return { success: false, code: start && start.code ? start.code : 'TRANSCRIBE_ERROR', status: start && start.status };
+        }
+        setModalProgress('Trascrizione del video in corso…');
+        const deadline = Date.now() + 10 * 60 * 1000; // 10 min
+        let delay = 3000;
+        while (Date.now() < deadline) {
+            await new Promise((r) => setTimeout(r, delay));
+            delay = Math.min(delay * 1.3, 10000);
+            const st = await chrome.runtime.sendMessage({ action: 'transcribeJobStatus', jobId: start.jobId });
+            if (!st || !st.success) continue;
+            if (st.status === 'done') return { success: true, transcript: st.transcript };
+            if (st.status === 'error') return { success: false, code: st.code || 'TRANSCRIBE_ERROR' };
+            if (st.progress) setModalProgress(`Trascrizione del video: ${st.progress}`);
+        }
+        return { success: false, code: 'TRANSCRIBE_TIMEOUT' };
+    }
+
+    // Aggiorna il testo di stato nella modale di caricamento (se presente).
+    function setModalProgress(message) {
+        try {
+            const el = document.querySelector('#lemonsqueezer-modal .lemonsqueezer-loading-text');
+            if (el) el.textContent = message;
+        } catch { /* modale non presente */ }
+    }
+
     // Funzione per aprire la modale dal popup e avviare il riassunto
     async function openSummaryModal(request) {
         console.log('[CONTENT] openSummaryModal chiamata:', request);
         const requestId = request.requestId || crypto.randomUUID();
         const requestedUrl = request.url;
         activeSummaryRequestId = requestId;
+        // Fonte effettivamente riassunta (trasparenza in UI) + note di degrado.
+        let sourceUsed = null;
+        let sourceNotes = [];
+        let sourceAlternative = null;
         
         // Mostra loading modal
         showLoadingModal({ url: request.url });
@@ -1352,6 +1675,8 @@
             if ([10, 20, 50].includes(Number(request.squeeze))) {
                 requestBody.squeeze = Number(request.squeeze);
             }
+            // Memorizza i parametri per il pulsante di switch fonte.
+            lastSummaryRequest = { lang: requestBody.lang, summaryProfile: requestBody.summaryProfile, squeeze: requestBody.squeeze };
 
             if (isYouTubeVideoUrl(request.url)) {
                 const transcript = await getYouTubeTranscript();
@@ -1407,44 +1732,14 @@
                         await new Promise((r) => setTimeout(r, 1200));
                         page = extractReadablePageContent();
                     }
-                    // Pagina prevalentemente video (poco testo): tenta la trascrizione server
-                    // del media generico (non-YouTube). Solo con testo scarso, così gli
-                    // articoli con un video embedded restano riassunti come testo.
-                    const media = (!page.text || page.text.length < 400) ? findDirectVideoMedia() : null;
-                    if (media) {
-                        const t = await chrome.runtime.sendMessage({ action: 'transcribeMedia', mediaUrl: media.mediaUrl, lang: requestBody.lang });
-                        if (t?.success && typeof t.transcript === 'string' && t.transcript.length >= 50) {
-                            // /summarize-url (path video) accetta 50..120000 caratteri.
-                            requestBody.transcript = t.transcript.slice(0, 120000);
-                            requestBody.title = media.title || page.title || document.title || 'Video';
-                        } else {
-                            updateModalWithError({ error: t?.code || 'TRANSCRIBE_ERROR' });
-                            return;
-                        }
-                    } else {
-                        // Contenuto troppo lungo: niente riassunto parziale inaffidabile → messaggio.
-                        const TOO_LONG_CHARS = 80000; // ~14k parole
-                        if (page.rawLen > TOO_LONG_CHARS) {
-                            updateModalWithError({ error: 'TOO_LONG' });
-                            return;
-                        }
-                        // C'è un video ma senza sorgente diretta (blob/MSE/DRM) e poco testo → messaggio dedicato.
-                        if ((!page.text || page.text.length < 200) && hasAnyVideoElement()) {
-                            updateModalWithError({ error: 'UNSUPPORTED_MEDIA' });
-                            return;
-                        }
-                        // Casi noti non riassumibili (paywall / login / consent / doc canvas) → messaggio chiaro.
-                        const blocked = detectBlockedContent(page.text);
-                        if (blocked && (!page.text || page.text.length < 200)) {
-                            updateModalWithError({ error: blocked });
-                            return;
-                        }
-                        if (page.text && page.text.length >= 50) {
-                            requestBody.text = page.text;
-                            if (page.title) requestBody.title = page.title;
-                            if (page.truncated) requestBody.truncated = true;
-                        }
+                    const resolved = await resolveSummarySource(page, requestBody, request.forceSource);
+                    if (!resolved.ok) {
+                        updateModalWithError({ error: resolved.code, notes: resolved.notes });
+                        return;
                     }
+                    sourceUsed = resolved.source;
+                    sourceNotes = resolved.notes;
+                    sourceAlternative = resolved.alternative;
                 }
             }
 
@@ -1484,6 +1779,10 @@
             const data = Object.assign({}, dataRaw);
             // Contenuto troncato lato client: segnalalo nella modale.
             if (requestBody.truncated) data.truncated = true;
+            // Campi solo-client: fonte usata, note di degrado, switch disponibile.
+            data.__source = sourceUsed;
+            data.__notes = sourceNotes;
+            data.__alternative = sourceAlternative;
 
             // originalUrl: fallback alla request.url (il tab corrente)
             if (!data.originalUrl) data.originalUrl = request.url || window.location.href;
