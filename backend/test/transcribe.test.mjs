@@ -6,6 +6,7 @@ test('isAllowedMedia — content-type noti', () => {
     assert.equal(isAllowedMedia('video/mp4', 'https://x/y.mp4'), true);
     assert.equal(isAllowedMedia('audio/mpeg', 'https://x/y'), true);
     assert.equal(isAllowedMedia('audio/webm; codecs=opus', 'https://x/y.webm'), true);
+    assert.equal(isAllowedMedia('application/ogg', 'https://x/y.ogg'), true);
     assert.equal(isAllowedMedia('text/html', 'https://x/y.html'), false);
     assert.equal(isAllowedMedia('image/png', 'https://x/y.png'), false);
 });

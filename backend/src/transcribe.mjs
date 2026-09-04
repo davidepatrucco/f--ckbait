@@ -21,7 +21,8 @@ const FETCH_TIMEOUT_MS = 20000;
 const ALLOWED_CONTENT_TYPES = new Set([
     'audio/mpeg', 'audio/mp3', 'audio/mp4', 'audio/m4a', 'audio/x-m4a', 'audio/aac',
     'audio/wav', 'audio/x-wav', 'audio/webm', 'audio/ogg', 'audio/flac',
-    'video/mp4', 'video/webm', 'video/quicktime', 'video/x-m4v'
+    'application/ogg', // .ogg/.oga sono spesso serviti così
+    'video/mp4', 'video/webm', 'video/quicktime', 'video/x-m4v', 'video/ogg'
 ]);
 const EXT_TO_NAME = {
     mp3: 'audio.mp3', mpeg: 'audio.mp3', mpga: 'audio.mp3', m4a: 'audio.m4a', aac: 'audio.aac',

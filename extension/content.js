@@ -1261,10 +1261,10 @@
         }
     }
 
-    // Video generico (non-YouTube): trova il <video> principale con sorgente diretta
-    // http(s) (mp4/webm/…). Esclude blob:/MSE (streaming/DRM, non scaricabili lato server)
-    // e video troppo piccoli (probabili sfondi/anteprime, non il contenuto). Ritorna
-    // { mediaUrl, title } oppure null.
+    // Media generico (non-YouTube): trova il <video> principale (o, in mancanza, un
+    // <audio>) con sorgente diretta http(s) (mp4/webm/mp3/ogg/…). Esclude blob:/MSE
+    // (streaming/DRM, non scaricabili lato server) e video troppo piccoli (sfondi/
+    // anteprime). Ritorna { mediaUrl, title } oppure null.
     function findDirectVideoMedia() {
         try {
             let best = null; let bestArea = 0;
@@ -1274,6 +1274,14 @@
                 const r = v.getBoundingClientRect();
                 const area = r.width * r.height;
                 if (area > bestArea) { best = src; bestArea = area; }
+            }
+            // Audio diretto (es. pagina di un solo file .mp3/.ogg, podcast): niente
+            // vincolo di area (i player audio sono piccoli).
+            if (!best || bestArea < 320 * 180) {
+                for (const a of document.querySelectorAll('audio')) {
+                    const src = a.currentSrc || a.src || '';
+                    if (/^https?:\/\//i.test(src)) { best = src; bestArea = Infinity; break; }
+                }
             }
             if (!best || bestArea < 320 * 180) return null;
             const title = document.querySelector('meta[property="og:title"]')?.content || document.title || 'Video';
