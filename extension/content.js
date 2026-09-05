@@ -14,12 +14,14 @@
     // i18n: le stringhe UI vivono in _locales/<lang>/messages.json e seguono la lingua
     // del browser (chrome.i18n). Il fallback restituisce la chiave, così una stringa
     // mancante è visibile invece di produrre testo vuoto.
-    function t(key, substitutions) {
+    // Senza traduzione si restituisce il fallback esplicito, MAI la chiave: mostrare
+    // "err_paywall" all'utente sarebbe peggio di un messaggio generico in inglese.
+    function t(key, substitutions, fallback) {
         try {
             const s = chrome.i18n.getMessage(key, substitutions);
             if (s) return s;
         } catch (e) { /* i18n non disponibile */ }
-        return key;
+        return fallback !== undefined ? fallback : 'Content unavailable';
     }
     // Escape per interpolare testo tradotto dentro i template HTML della modale.
     function esc(s) {
@@ -411,7 +413,7 @@
                     <div class="lemonsqueezer-modal-body" id="lemonsqueezer-modal-body">
                         <div class="lemonsqueezer-loading">
                             <div class="lemonsqueezer-spinner"></div>
-                            <div class="lemonsqueezer-loading-text">${esc(t('modal_loading'))}</div>
+                            <div class="lemonsqueezer-loading-text">${esc(t('modal_loading', undefined, 'Analyzing...'))}</div>
                             <div class="lemonsqueezer-url-preview">${data.url}</div>
                         </div>
                     </div>
@@ -452,10 +454,10 @@
     function sourceBadgeHtml(data) {
         if (!data || !data.__source) return '';
         const isVideo = data.__source === 'video';
-        const label = isVideo ? `🎬 ${esc(t('source_video'))}` : `📄 ${esc(t('source_text'))}`;
+        const label = isVideo ? `🎬 ${esc(t('source_video', undefined, 'Summary of the video'))}` : `📄 ${esc(t('source_text', undefined, 'Summary of the page text'))}`;
         const alt = data.__alternative || {};
         const canSwitch = isVideo ? alt.text : alt.video;
-        const switchLabel = esc(t(isVideo ? 'source_switch_to_text' : 'source_switch_to_video'));
+        const switchLabel = esc(t(isVideo ? 'source_switch_to_text' : 'source_switch_to_video', undefined, isVideo ? 'Summarize the text instead' : 'Summarize the video instead'));
         const btn = canSwitch
             ? `<button id="lemonsqueezer-switch-source" data-target="${isVideo ? 'text' : 'video'}" style="background:none;border:none;color:#0969da;cursor:pointer;font-size:12px;text-decoration:underline;padding:0;">${switchLabel}</button>`
             : '';
@@ -523,7 +525,7 @@
             const readingTimeMinutes = Math.max(1, Math.round(originalWordsCount / 220));
             readingTimeDisplay = t('modal_reading_time', [String(readingTimeMinutes)]);
         } else {
-            readingTimeDisplay = t('modal_time_unavailable');
+            readingTimeDisplay = t('modal_time_unavailable', undefined, 'Time unavailable');
         }
         
         // Calcola tempo risparmiato solo se abbiamo i dati
@@ -555,14 +557,14 @@
                 timeSavedText = t('modal_saved_s', [String(totalSeconds)]);
             }
         } else {
-            timeSavedText = t('modal_saved_unavailable');
+            timeSavedText = t('modal_saved_unavailable', undefined, 'Savings not available');
         }
         
         console.log('DEBUG risultato:', { readingTimeDisplay, timeSavedText });
         
         modalBody.innerHTML = `
             <div class="lemonsqueezer-summary-meta">
-                <strong>${esc(data.title || t('modal_summary'))}</strong>
+                <strong>${esc(data.title || t('modal_summary', undefined, 'Summary'))}</strong>
                 <div class="lemonsqueezer-stats">
                     <div class="lemonsqueezer-stat-item">
                         <span class="lemonsqueezer-stat-icon" aria-hidden="true">
@@ -592,7 +594,7 @@
                         </span>
                         <span class="lemonsqueezer-stat-text">${timeSavedText}</span>
                     </div>
-                    ${data.cached ? `<div class="lemonsqueezer-stat-item"><span class="lemonsqueezer-stat-text">⚡ ${esc(t('modal_cached'))}</span></div>` : ''}
+                    ${data.cached ? `<div class="lemonsqueezer-stat-item"><span class="lemonsqueezer-stat-text">⚡ ${esc(t('modal_cached', undefined, 'From cache'))}</span></div>` : ''}
                 </div>
                 <div class="lemonsqueezer-url">
                     <a href="${data.originalUrl}" target="_blank">${data.originalUrl}</a>
@@ -620,7 +622,7 @@
                             <rect x="5" y="5" width="10" height="10" rx="2"></rect>
                         </svg>
                     </span>
-                    ${esc(t('modal_copy'))}
+                    ${esc(t('modal_copy', undefined, 'Copy'))}
                 </button>
             `;
             modal.querySelector('.lemonsqueezer-modal-content').appendChild(footer);
@@ -655,10 +657,10 @@
                         ${icon}
                     </svg>
                 </div>
-                <div class="lemonsqueezer-error-title">${esc(t(isWarning ? 'app_not_summarizable' : 'app_error'))}</div>
+                <div class="lemonsqueezer-error-title">${esc(t(isWarning ? 'app_not_summarizable' : 'app_error', undefined, isWarning ? "Can't be summarized" : 'Error'))}</div>
                 <div class="lemonsqueezer-error-message"></div>
                 <div class="lemonsqueezer-error-notes"></div>
-                <button class="lemonsqueezer-btn-secondary" onclick="document.getElementById('lemonsqueezer-modal').remove()">${esc(t('app_close'))}</button>
+                <button class="lemonsqueezer-btn-secondary" onclick="document.getElementById('lemonsqueezer-modal').remove()">${esc(t('app_close', undefined, 'Close'))}</button>
             </div>
         `;
         const messageEl = modalBody.querySelector('.lemonsqueezer-error-message');
@@ -1162,7 +1164,7 @@
             copyBtn.addEventListener('click', () => {
                 navigator.clipboard.writeText(data.summary).then(() => {
                     const originalText = copyBtn.textContent;
-                    copyBtn.textContent = t('modal_copied');
+                    copyBtn.textContent = t('modal_copied', undefined, 'Copied!');
                     setTimeout(() => {
                         copyBtn.textContent = originalText;
                     }, 2000);
@@ -1522,7 +1524,7 @@
         for (const [re, key] of ERROR_PATTERN_KEYS) {
             if (re.test(msg)) return t(key);
         }
-        return t('err_generic');
+        return t('err_generic', undefined, "The summary couldn't be generated. Please try again shortly.");
     }
 
     // Risolve QUALE fonte riassumere ed esegue il recupero, popolando requestBody.
@@ -1659,7 +1661,7 @@
         if (!start || !start.success || !start.jobId) {
             return { success: false, code: start && start.code ? start.code : 'TRANSCRIBE_ERROR', status: start && start.status };
         }
-        setModalProgress(t('modal_transcribing'));
+        setModalProgress(t('modal_transcribing', undefined, 'Transcribing the video…'));
         const deadline = Date.now() + 10 * 60 * 1000; // 10 min
         let delay = 3000;
         while (Date.now() < deadline) {

@@ -87,12 +87,7 @@
     "message": "Upgrade to Premium"
   },
   "popup_upgrade_error": {
-    "message": "Upgrade failed: $1",
-    "placeholders": {
-      "detail": {
-        "content": "$1"
-      }
-    }
+    "message": "Upgrade failed: $1"
   },
   "popup_summarize_failed": {
     "message": "Couldn't start the summary"
@@ -125,69 +120,31 @@
     "message": "Transcribing the video…"
   },
   "modal_transcribing_progress": {
-    "message": "Transcribing the video: $1",
-    "placeholders": {
-      "progress": {
-        "content": "$1"
-      }
-    }
+    "message": "Transcribing the video: $1"
   },
   "modal_summary": {
     "message": "Summary"
   },
   "modal_reading_time": {
-    "message": "$1 min read",
-    "placeholders": {
-      "minutes": {
-        "content": "$1"
-      }
-    }
+    "message": "$1 min read"
   },
   "modal_video_duration": {
-    "message": "Video: $1",
-    "placeholders": {
-      "duration": {
-        "content": "$1"
-      }
-    }
+    "message": "Video: $1"
   },
   "modal_time_unavailable": {
     "message": "Time unavailable"
   },
   "modal_words": {
-    "message": "$1 words",
-    "placeholders": {
-      "count": {
-        "content": "$1"
-      }
-    }
+    "message": "$1 words"
   },
   "modal_saved_ms": {
-    "message": "You saved $1m $2s!",
-    "placeholders": {
-      "minutes": {
-        "content": "$1"
-      },
-      "seconds": {
-        "content": "$2"
-      }
-    }
+    "message": "You saved $1m $2s!"
   },
   "modal_saved_m": {
-    "message": "You saved $1 min!",
-    "placeholders": {
-      "minutes": {
-        "content": "$1"
-      }
-    }
+    "message": "You saved $1 min!"
   },
   "modal_saved_s": {
-    "message": "You saved $1 sec!",
-    "placeholders": {
-      "seconds": {
-        "content": "$1"
-      }
-    }
+    "message": "You saved $1 sec!"
   },
   "modal_saved_unavailable": {
     "message": "Savings not available"
@@ -445,12 +402,7 @@
     "message": "en"
   },
   "popup_login_subtitle": {
-    "message": "Sign in with Google to use $1 and get smart summaries.",
-    "placeholders": {
-      "brand": {
-        "content": "$1"
-      }
-    }
+    "message": "Sign in with Google to use $1 and get smart summaries."
   },
   "popup_compression": {
     "message": "Compression"

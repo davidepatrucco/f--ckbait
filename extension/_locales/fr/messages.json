@@ -87,12 +87,7 @@
     "message": "Passer à Premium"
   },
   "popup_upgrade_error": {
-    "message": "Échec du changement de forfait : $1",
-    "placeholders": {
-      "detail": {
-        "content": "$1"
-      }
-    }
+    "message": "Échec du changement de forfait : $1"
   },
   "popup_summarize_failed": {
     "message": "Impossible de lancer le résumé"
@@ -125,69 +120,31 @@
     "message": "Transcription de la vidéo…"
   },
   "modal_transcribing_progress": {
-    "message": "Transcription de la vidéo : $1",
-    "placeholders": {
-      "progress": {
-        "content": "$1"
-      }
-    }
+    "message": "Transcription de la vidéo : $1"
   },
   "modal_summary": {
     "message": "Résumé"
   },
   "modal_reading_time": {
-    "message": "$1 min de lecture",
-    "placeholders": {
-      "minutes": {
-        "content": "$1"
-      }
-    }
+    "message": "$1 min de lecture"
   },
   "modal_video_duration": {
-    "message": "Vidéo : $1",
-    "placeholders": {
-      "duration": {
-        "content": "$1"
-      }
-    }
+    "message": "Vidéo : $1"
   },
   "modal_time_unavailable": {
     "message": "Durée indisponible"
   },
   "modal_words": {
-    "message": "$1 mots",
-    "placeholders": {
-      "count": {
-        "content": "$1"
-      }
-    }
+    "message": "$1 mots"
   },
   "modal_saved_ms": {
-    "message": "Vous avez économisé $1 min $2 s !",
-    "placeholders": {
-      "minutes": {
-        "content": "$1"
-      },
-      "seconds": {
-        "content": "$2"
-      }
-    }
+    "message": "Vous avez économisé $1 min $2 s !"
   },
   "modal_saved_m": {
-    "message": "Vous avez économisé $1 min !",
-    "placeholders": {
-      "minutes": {
-        "content": "$1"
-      }
-    }
+    "message": "Vous avez économisé $1 min !"
   },
   "modal_saved_s": {
-    "message": "Vous avez économisé $1 s !",
-    "placeholders": {
-      "seconds": {
-        "content": "$1"
-      }
-    }
+    "message": "Vous avez économisé $1 s !"
   },
   "modal_saved_unavailable": {
     "message": "Gain de temps indisponible"
@@ -445,12 +402,7 @@
     "message": "fr"
   },
   "popup_login_subtitle": {
-    "message": "Connectez-vous avec Google pour utiliser $1 et obtenir des résumés intelligents.",
-    "placeholders": {
-      "brand": {
-        "content": "$1"
-      }
-    }
+    "message": "Connectez-vous avec Google pour utiliser $1 et obtenir des résumés intelligents."
   },
   "popup_compression": {
     "message": "Compression"

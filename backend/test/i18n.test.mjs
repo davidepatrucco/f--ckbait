@@ -31,9 +31,20 @@ function usedKeys() {
     const callRe = /(?:\bt|getMessage|msg)\(((?:[^()]|\([^()]*\))*)\)/g;
     let call;
     while ((call = callRe.exec(allCode))) {
+        // Solo il PRIMO argomento e' la chiave: gli altri sono sostituzioni e testo di
+        // fallback, che non devono essere scambiati per chiavi di catalogo.
+        const args = call[1];
+        let depth = 0;
+        let firstArg = args;
+        for (let i = 0; i < args.length; i++) {
+            const c = args[i];
+            if (c === '(' || c === '[' || c === '{') depth++;
+            else if (c === ')' || c === ']' || c === '}') depth--;
+            else if (c === ',' && depth === 0) { firstArg = args.slice(0, i); break; }
+        }
         let lit;
         const litRe = /'([a-z0-9_]+)'/g;
-        while ((lit = litRe.exec(call[1]))) keys.add(lit[1]);
+        while ((lit = litRe.exec(firstArg))) keys.add(lit[1]);
     }
     let m;
     const attr = /data-i18n(?:-node|-brand|-placeholder)?="([a-z0-9_]+)"/g;
@@ -108,6 +119,28 @@ test('il blocco placeholders è coerente con il default', () => {
             assert.deepEqual(got, base, `${lang}/${key}: blocco placeholders diverso dal default`);
         }
     }
+});
+
+// Schema di Chrome per messages.json. Violarlo NON produce un errore visibile: Chrome
+// scarta l'intero catalogo e getMessage restituisce stringa vuota, quindi la UI mostra
+// le chiavi grezze. È esattamente il difetto osservato in produzione.
+test('schema Chrome: niente $1 insieme a un blocco placeholders', () => {
+    const offenders = [];
+    for (const [lang, entries] of Object.entries(catalog)) {
+        for (const [key, val] of Object.entries(entries)) {
+            const numeric = /\$\d/.test(val.message);
+            const named = /\$[a-zA-Z_]+\$/.test(val.message);
+            if (val.placeholders && numeric && !named) offenders.push(`${lang}/${key}`);
+            if (val.placeholders && !named) offenders.push(`${lang}/${key} (placeholders dichiarati ma mai usati come $nome$)`);
+            if (named && !val.placeholders) offenders.push(`${lang}/${key} ($nome$ senza dichiarazione)`);
+        }
+    }
+    assert.deepEqual([...new Set(offenders)], [], `voci non valide per Chrome:\n${[...new Set(offenders)].join('\n')}`);
+});
+
+test('nomi delle chiavi validi per Chrome ([A-Za-z0-9_@])', () => {
+    const bad = Object.keys(catalog[DEFAULT_LOCALE]).filter((k) => !/^[A-Za-z0-9_@]+$/.test(k));
+    assert.deepEqual(bad, [], `chiavi con caratteri non ammessi: ${bad.join(', ')}`);
 });
 
 test('ogni chiave usata nel codice esiste nel catalogo', () => {

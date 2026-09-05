@@ -87,12 +87,7 @@
     "message": "Auf Premium upgraden"
   },
   "popup_upgrade_error": {
-    "message": "Upgrade fehlgeschlagen: $1",
-    "placeholders": {
-      "detail": {
-        "content": "$1"
-      }
-    }
+    "message": "Upgrade fehlgeschlagen: $1"
   },
   "popup_summarize_failed": {
     "message": "Zusammenfassung konnte nicht gestartet werden"
@@ -125,69 +120,31 @@
     "message": "Video wird transkribiert…"
   },
   "modal_transcribing_progress": {
-    "message": "Video wird transkribiert: $1",
-    "placeholders": {
-      "progress": {
-        "content": "$1"
-      }
-    }
+    "message": "Video wird transkribiert: $1"
   },
   "modal_summary": {
     "message": "Zusammenfassung"
   },
   "modal_reading_time": {
-    "message": "$1 Min. Lesezeit",
-    "placeholders": {
-      "minutes": {
-        "content": "$1"
-      }
-    }
+    "message": "$1 Min. Lesezeit"
   },
   "modal_video_duration": {
-    "message": "Video: $1",
-    "placeholders": {
-      "duration": {
-        "content": "$1"
-      }
-    }
+    "message": "Video: $1"
   },
   "modal_time_unavailable": {
     "message": "Zeit nicht verfügbar"
   },
   "modal_words": {
-    "message": "$1 Wörter",
-    "placeholders": {
-      "count": {
-        "content": "$1"
-      }
-    }
+    "message": "$1 Wörter"
   },
   "modal_saved_ms": {
-    "message": "$1m $2s gespart!",
-    "placeholders": {
-      "minutes": {
-        "content": "$1"
-      },
-      "seconds": {
-        "content": "$2"
-      }
-    }
+    "message": "$1m $2s gespart!"
   },
   "modal_saved_m": {
-    "message": "$1 Min. gespart!",
-    "placeholders": {
-      "minutes": {
-        "content": "$1"
-      }
-    }
+    "message": "$1 Min. gespart!"
   },
   "modal_saved_s": {
-    "message": "$1 Sek. gespart!",
-    "placeholders": {
-      "seconds": {
-        "content": "$1"
-      }
-    }
+    "message": "$1 Sek. gespart!"
   },
   "modal_saved_unavailable": {
     "message": "Ersparnis nicht verfügbar"
@@ -445,12 +402,7 @@
     "message": "de"
   },
   "popup_login_subtitle": {
-    "message": "Melden Sie sich mit Google an, um $1 zu nutzen und intelligente Zusammenfassungen zu erhalten.",
-    "placeholders": {
-      "brand": {
-        "content": "$1"
-      }
-    }
+    "message": "Melden Sie sich mit Google an, um $1 zu nutzen und intelligente Zusammenfassungen zu erhalten."
   },
   "popup_compression": {
     "message": "Komprimierung"

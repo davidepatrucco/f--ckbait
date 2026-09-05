@@ -34,7 +34,12 @@ let pass = 0, fail = 0;
 const ok = (m) => { console.log('    ✓', m); pass++; };
 const no = (m) => { console.log('    ✗', m); fail++; };
 
-// Copia dell'estensione con un solo catalogo: forza la risoluzione su quella lingua.
+// Copia dell'estensione con il solo catalogo della lingua target. Serve a FORZARE la
+// risoluzione su quella lingua: default_locale non basta (e' solo il fallback quando
+// la lingua UI non ha un catalogo, e qui Chrome risolve sempre en). Poiche' Chrome deve
+// parsare proprio quel catalogo, un file malformato emerge subito: getMessage torna
+// vuoto e il controllo "tutte le chiavi risolvono" fallisce. La struttura multi-locale
+// come spedita e' verificata a parte da checkShippedBuild().
 function buildSingleLocale(lang) {
     const dir = join(TMP, lang);
     rmSync(dir, { recursive: true, force: true });
@@ -42,7 +47,9 @@ function buildSingleLocale(lang) {
     cpSync(EXT, dir, { recursive: true });
     rmSync(join(dir, '_locales'), { recursive: true, force: true });
     mkdirSync(join(dir, '_locales', lang), { recursive: true });
-    writeFileSync(join(dir, '_locales', lang, 'messages.json'), JSON.stringify(catalog[lang], null, 2));
+    // Copia BYTE PER BYTE il catalogo spedito: riscriverlo con JSON.stringify
+    // normalizzerebbe eventuali difetti di formato invece di rivelarli.
+    cpSync(join(EXT, '_locales', lang, 'messages.json'), join(dir, '_locales', lang, 'messages.json'));
     const manifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'));
     manifest.default_locale = lang;
     delete manifest.key; // due profili con la stessa key darebbero conflitto di id
@@ -82,6 +89,13 @@ async function checkLocale(lang) {
             const expected = catalog[lang][key].message;
             body.includes(expected) ? ok(`${key}: "${expected}"`) : no(`${key}: manca "${expected}"`);
         }
+
+        // 2b. ogni chiave deve risolvere: se il catalogo di QUESTA lingua e' malformato
+        //     Chrome lo scarta silenziosamente e getMessage torna stringa vuota.
+        const empties = await sw.evaluate((keys) => keys.filter((k) => !chrome.i18n.getMessage(k)), allKeys);
+        empties.length === 0
+            ? ok(`tutte le ${allKeys.length} chiavi risolvono`)
+            : no(`${empties.length} chiavi vuote (catalogo ${lang} scartato?): ${empties.slice(0, 5).join(', ')}…`);
 
         // 3. nessuna chiave grezza (sintomo di catalogo incompleto)
         const leaked = allKeys.filter((k) => new RegExp(`(^|\\s|>)${k}(\\s|<|$)`).test(body));
@@ -129,9 +143,52 @@ async function checkLocale(lang) {
     }
 }
 
+// Controllo sul pacchetto COME SPEDITO (multi-locale, default_locale=en). I test a
+// locale singola non bastano: un catalogo malformato viene scartato da Chrome senza
+// errori visibili e getMessage torna stringa vuota, con la UI che mostra le chiavi.
+async function checkShippedBuild() {
+    console.log('\n[pacchetto spedito: multi-locale]');
+    const profile = join(TMP, 'profile-shipped');
+    rmSync(profile, { recursive: true, force: true });
+    const ctx = await chromium.launchPersistentContext(profile, {
+        headless: false,
+        args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
+        viewport: { width: 420, height: 640 }
+    });
+    try {
+        let [sw] = ctx.serviceWorkers();
+        if (!sw) sw = await ctx.waitForEvent('serviceworker', { timeout: 30000 });
+
+        // Ogni chiave del catalogo deve risolvere in qualcosa di non vuoto.
+        const empties = await sw.evaluate((keys) => keys.filter((k) => !chrome.i18n.getMessage(k)), allKeys);
+        empties.length === 0
+            ? ok(`tutte le ${allKeys.length} chiavi risolvono (catalogo accettato da Chrome)`)
+            : no(`${empties.length} chiavi vuote — catalogo scartato o incompleto: ${empties.slice(0, 6).join(', ')}…`);
+
+        // Le sostituzioni posizionali devono funzionare davvero.
+        const sub = await sw.evaluate(() => chrome.i18n.getMessage('modal_saved_ms', ['3', '20']));
+        (sub && sub.includes('3') && sub.includes('20') && !sub.includes('$1'))
+            ? ok(`sostituzione posizionale: "${sub}"`)
+            : no(`sostituzione posizionale rotta: "${sub}"`);
+
+        const extId = new URL(sw.url()).host;
+        const page = await ctx.newPage();
+        await page.goto(`chrome-extension://${extId}/popup.html`);
+        await page.waitForTimeout(1800);
+        const body = (await page.textContent('body')) || '';
+        const leaked = allKeys.filter((k) => new RegExp(`(^|\\s|>)${k}(\\s|<|$)`).test(body));
+        leaked.length === 0 ? ok('nessuna chiave grezza nel popup') : no(`chiavi grezze: ${leaked.join(', ')}`);
+        await page.screenshot({ path: join(TMP, 'popup-shipped.png') });
+    } finally {
+        await ctx.close();
+        rmSync(profile, { recursive: true, force: true });
+    }
+}
+
 (async () => {
     rmSync(TMP, { recursive: true, force: true });
     mkdirSync(TMP, { recursive: true });
+    try { await checkShippedBuild(); } catch (e) { no(`pacchetto spedito: ${e.message}`); }
     for (const lang of LOCALES) {
         try { await checkLocale(lang); } catch (e) { no(`${lang}: ${e.message}`); }
     }

@@ -2,9 +2,10 @@
 // script). Il service worker scrive il risultato in storage e apre questa scheda.
 (function () {
   // i18n: stringhe in _locales/<lang>/messages.json, lingua = quella del browser.
-  const t = (key, subs) => {
+  // Mai restituire la chiave: senza catalogo si degrada a un testo inglese leggibile.
+  const t = (key, subs, fallback = 'Summary') => {
     try { const m = chrome.i18n.getMessage(key, subs); if (m) return m; } catch (e) { /* noop */ }
-    return key;
+    return fallback;
   };
   const BRAND = (typeof window !== 'undefined' && window.__BRAND__) ? window.__BRAND__ : null;
   const primary = BRAND?.tokens?.colors?.primary || '#FFD400';

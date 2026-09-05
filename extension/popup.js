@@ -118,23 +118,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     // i18n: le stringhe UI vivono in _locales/<lang>/messages.json e seguono la lingua
     // del browser. Il fallback restituisce la chiave, cosi' una stringa mancante e'
     // visibile invece di lasciare l'interfaccia vuota.
-    const t = (key, substitutions) => {
+    // Senza traduzione si restituisce il fallback esplicito (o stringa vuota), MAI la
+    // chiave: un catalogo non disponibile deve degradare a testo leggibile.
+    const t = (key, substitutions, fallback = '') => {
         try {
             const m = chrome.i18n.getMessage(key, substitutions);
             if (m) return m;
         } catch (e) { /* i18n non disponibile */ }
-        return key;
+        return fallback;
     };
     const supportedLanguage = (chrome.i18n?.getUILanguage?.() || navigator.language || 'en')
         .toLowerCase().split('-')[0];
+    // Stringhe usate per comporre testo dinamico (piano, statistiche, cronologia): qui
+    // non esiste un fallback nel DOM, quindi ognuna porta il proprio default inglese.
     const text = {
-        summary: t('popup_summarize'), options: t('popup_options'), history: t('popup_history'),
-        user: t('popup_user'), premium: t('popup_plan_premium'), free: t('popup_plan_free'),
-        unlimited: t('popup_unlimited'), summaries: t('popup_summaries'), month: t('popup_month'),
-        total: t('popup_total'), saved: t('popup_saved'), output: t('popup_output'),
-        language: t('popup_language'), logout: t('popup_logout'),
-        emptyHistory: t('popup_empty_history'), login: t('popup_login'), or: t('popup_or'),
-        create: t('popup_create_account'), clear: t('popup_clear'),
+        summary: t('popup_summarize', undefined, 'Summarize this page'),
+        premium: t('popup_plan_premium', undefined, 'Premium plan'),
+        free: t('popup_plan_free', undefined, 'Free plan'),
+        unlimited: t('popup_unlimited', undefined, 'Unlimited summaries'),
+        summaries: t('popup_summaries', undefined, 'summaries'),
+        month: t('popup_month', undefined, 'This month'),
+        total: t('popup_total', undefined, 'Total'),
+        saved: t('popup_saved', undefined, 'saved'),
+        emptyHistory: t('popup_empty_history', undefined, 'Your latest summaries will appear here.'),
         // La tagline resta una proprieta' del brand (non si traduce un claim di marca).
         tagline: (BRAND && BRAND.tagline) ? BRAND.tagline : 'Skip the noise. Get the point.'
     };
@@ -170,23 +176,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     // La lingua dichiarata nell'HTML deve essere quella che chrome.i18n ha davvero
     // risolto (non navigator.language, che puo' divergere): la chiave locale_code
     // vive nel catalogo stesso, quindi le due cose non possono disallinearsi.
-    document.documentElement.lang = t('locale_code');
+    document.documentElement.lang = t('locale_code', undefined, 'en');
     document.querySelector('.header p').textContent = (BRAND && BRAND.tagline) ? BRAND.tagline : text.tagline;
-    document.querySelector('.login-title').textContent = text.login;
-    document.querySelector('.login-divider').textContent = text.or;
-    document.getElementById('emailRegisterBtn').textContent = text.create;
-    document.getElementById('logoutBtn').textContent = text.logout;
-    document.getElementById('clearHistoryBtn').textContent = text.clear;
+    // Questi nodi sono gia' risolti dal ciclo data-i18n sopra (.login-title,
+    // .login-divider, #emailRegisterBtn, #logoutBtn, #clearHistoryBtn, la summary
+    // delle opzioni, il titolo della cronologia, .user-label, le label di lingua e
+    // compressione). Sovrascriverli qui con t() significherebbe mostrare la CHIAVE
+    // quando il catalogo non e' disponibile — che e' esattamente cio' che accade se
+    // l'estensione e' stata caricata prima che _locales esistesse e non e' stata
+    // ricaricata. Lasciando fare al ciclo, in quel caso resta il testo dell'HTML.
     // .loading-text, .loading-subtext, #resultTitle e .error-title sono gia' risolti
     // dal ciclo data-i18n sopra: nessuna assegnazione manuale (era il vecchio
     // meccanismo a due lingue con ternari su supportedLanguage).
     // #summarizeBtn: il testo e' in uno <span data-i18n="popup_summarize"> risolto sopra.
 
-    document.querySelector('.options-panel > summary').textContent = text.options;
-    document.querySelector('.history-card h3').textContent = text.history;
-    document.querySelector('.user-label').textContent = text.user;
-    document.querySelector('label[for="language"]').textContent = text.output;
-    document.querySelector('.config-card h3').lastChild.textContent = `\n                    ${text.language}\n                `;
+
     if (languageSelect) {
         // La lingua di output è scelta dall'utente e persistita. Default: preferenza
         // salvata, altrimenti lingua del browser se supportata, altrimenti italiano.
@@ -251,7 +255,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Login ancora in corso, mostra stato di attesa
         console.log('[POPUP] Login in corso rilevato, mostro stato attesa...');
         googleLoginBtn.disabled = true;
-        googleLoginBtn.textContent = t('popup_login_completing');
+        googleLoginBtn.textContent = t('popup_login_completing', undefined, 'Finish signing in from the Google window...');
         
         // Polling per verificare completamento
         let attempts = 0;
@@ -271,16 +275,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                 clearInterval(pollInterval);
                 console.log('[POPUP] Login cancellato/fallito');
                 googleLoginBtn.disabled = false;
-                googleLoginBtn.textContent = t('popup_login_google');
+                googleLoginBtn.textContent = t('popup_login_google', undefined, 'Connect with Google');
             } else if (attempts >= maxAttempts) {
                 // Timeout
                 clearInterval(pollInterval);
                 await chrome.storage.local.remove('loginInProgress');
                 console.log('[POPUP] Timeout login');
                 googleLoginBtn.disabled = false;
-                googleLoginBtn.textContent = t('popup_login_timeout');
+                googleLoginBtn.textContent = t('popup_login_timeout', undefined, 'Timed out — try again');
                 setTimeout(() => {
-                    googleLoginBtn.textContent = t('popup_login_google');
+                    googleLoginBtn.textContent = t('popup_login_google', undefined, 'Connect with Google');
                 }, 3000);
             }
         }, 500);
@@ -432,7 +436,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Disabilita bottone se limiti superati
             if (usage.used >= usage.limit && plan === 'free') {
                 summarizeBtn.disabled = true;
-                summarizeBtn.textContent = t('popup_limit_reached');
+                summarizeBtn.textContent = t('popup_limit_reached', undefined, 'Limit reached — upgrade to Premium');
             }
             
             // Aggiunge bottone Premium per utenti free
@@ -546,7 +550,7 @@ if (!email || !password) {
             const premiumBtn = document.createElement('button');
             premiumBtn.id = 'premiumBtn';
             premiumBtn.className = 'premium-btn';
-            premiumBtn.textContent = t('popup_upgrade');
+            premiumBtn.textContent = t('popup_upgrade', undefined, 'Upgrade to Premium');
             premiumBtn.style.cssText = `
                 width: 100%;
                 padding: 10px 12px;
@@ -618,7 +622,7 @@ if (!email || !password) {
             
         } catch (error) {
             console.error('[PREMIUM] Errore upgrade:', error);
-            alert(t('popup_upgrade_error', [String(error.message)]));
+            alert(t('popup_upgrade_error', [String(error.message)], `Upgrade failed: ${error.message}`));
         }
     }
     
@@ -632,7 +636,7 @@ if (!email || !password) {
         
         try {
             googleLoginBtn.disabled = true;
-            googleLoginBtn.textContent = t('popup_login_authenticating');
+            googleLoginBtn.textContent = t('popup_login_authenticating', undefined, 'Signing in...');
             
             console.log('[LOGIN] Generazione PKCE parametri...');
             
@@ -669,7 +673,7 @@ if (!email || !password) {
             });
             
             // Mostra messaggio all'utente
-            googleLoginBtn.textContent = t('popup_login_completing');
+            googleLoginBtn.textContent = t('popup_login_completing', undefined, 'Finish signing in from the Google window...');
             console.log('[LOGIN] Il popup potrebbe chiudersi. Riaprilo dopo il login.');
             
         } catch (error) {
@@ -768,7 +772,7 @@ if (!email || !password) {
             
         } catch (error) {
             console.error('[POPUP] Errore apertura modale:', error);
-                summarizeBtn.textContent = t('popup_summarize_failed');
+                summarizeBtn.textContent = t('popup_summarize_failed', undefined, "Couldn't start the summary");
                 setTimeout(() => {
                 summarizeBtn.textContent = text.summary;
             }, 3000);

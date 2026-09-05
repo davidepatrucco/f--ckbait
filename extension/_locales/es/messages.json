@@ -87,12 +87,7 @@
     "message": "Cambiar a Premium"
   },
   "popup_upgrade_error": {
-    "message": "No se pudo cambiar de plan: $1",
-    "placeholders": {
-      "detail": {
-        "content": "$1"
-      }
-    }
+    "message": "No se pudo cambiar de plan: $1"
   },
   "popup_summarize_failed": {
     "message": "No se pudo iniciar el resumen"
@@ -125,69 +120,31 @@
     "message": "Transcribiendo el vídeo…"
   },
   "modal_transcribing_progress": {
-    "message": "Transcribiendo el vídeo: $1",
-    "placeholders": {
-      "progress": {
-        "content": "$1"
-      }
-    }
+    "message": "Transcribiendo el vídeo: $1"
   },
   "modal_summary": {
     "message": "Resumen"
   },
   "modal_reading_time": {
-    "message": "$1 min de lectura",
-    "placeholders": {
-      "minutes": {
-        "content": "$1"
-      }
-    }
+    "message": "$1 min de lectura"
   },
   "modal_video_duration": {
-    "message": "Vídeo: $1",
-    "placeholders": {
-      "duration": {
-        "content": "$1"
-      }
-    }
+    "message": "Vídeo: $1"
   },
   "modal_time_unavailable": {
     "message": "Tiempo no disponible"
   },
   "modal_words": {
-    "message": "$1 palabras",
-    "placeholders": {
-      "count": {
-        "content": "$1"
-      }
-    }
+    "message": "$1 palabras"
   },
   "modal_saved_ms": {
-    "message": "¡Ha ahorrado $1m $2s!",
-    "placeholders": {
-      "minutes": {
-        "content": "$1"
-      },
-      "seconds": {
-        "content": "$2"
-      }
-    }
+    "message": "¡Ha ahorrado $1m $2s!"
   },
   "modal_saved_m": {
-    "message": "¡Ha ahorrado $1 min!",
-    "placeholders": {
-      "minutes": {
-        "content": "$1"
-      }
-    }
+    "message": "¡Ha ahorrado $1 min!"
   },
   "modal_saved_s": {
-    "message": "¡Ha ahorrado $1 s!",
-    "placeholders": {
-      "seconds": {
-        "content": "$1"
-      }
-    }
+    "message": "¡Ha ahorrado $1 s!"
   },
   "modal_saved_unavailable": {
     "message": "Ahorro no disponible"
@@ -445,12 +402,7 @@
     "message": "es"
   },
   "popup_login_subtitle": {
-    "message": "Inicia sesión con Google para usar $1 y obtener resúmenes inteligentes.",
-    "placeholders": {
-      "brand": {
-        "content": "$1"
-      }
-    }
+    "message": "Inicia sesión con Google para usar $1 y obtener resúmenes inteligentes."
   },
   "popup_compression": {
     "message": "Compresión"

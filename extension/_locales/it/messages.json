@@ -87,12 +87,7 @@
     "message": "Passa a Premium"
   },
   "popup_upgrade_error": {
-    "message": "Upgrade non riuscito: $1",
-    "placeholders": {
-      "detail": {
-        "content": "$1"
-      }
-    }
+    "message": "Upgrade non riuscito: $1"
   },
   "popup_summarize_failed": {
     "message": "Impossibile avviare il riassunto"
@@ -125,69 +120,31 @@
     "message": "Trascrizione del video in corso…"
   },
   "modal_transcribing_progress": {
-    "message": "Trascrizione del video: $1",
-    "placeholders": {
-      "progress": {
-        "content": "$1"
-      }
-    }
+    "message": "Trascrizione del video: $1"
   },
   "modal_summary": {
     "message": "Riassunto"
   },
   "modal_reading_time": {
-    "message": "$1 min di lettura",
-    "placeholders": {
-      "minutes": {
-        "content": "$1"
-      }
-    }
+    "message": "$1 min di lettura"
   },
   "modal_video_duration": {
-    "message": "Video: $1",
-    "placeholders": {
-      "duration": {
-        "content": "$1"
-      }
-    }
+    "message": "Video: $1"
   },
   "modal_time_unavailable": {
     "message": "Tempo non disponibile"
   },
   "modal_words": {
-    "message": "$1 parole",
-    "placeholders": {
-      "count": {
-        "content": "$1"
-      }
-    }
+    "message": "$1 parole"
   },
   "modal_saved_ms": {
-    "message": "Hai risparmiato $1m $2s!",
-    "placeholders": {
-      "minutes": {
-        "content": "$1"
-      },
-      "seconds": {
-        "content": "$2"
-      }
-    }
+    "message": "Hai risparmiato $1m $2s!"
   },
   "modal_saved_m": {
-    "message": "Hai risparmiato $1 min!",
-    "placeholders": {
-      "minutes": {
-        "content": "$1"
-      }
-    }
+    "message": "Hai risparmiato $1 min!"
   },
   "modal_saved_s": {
-    "message": "Hai risparmiato $1 sec!",
-    "placeholders": {
-      "seconds": {
-        "content": "$1"
-      }
-    }
+    "message": "Hai risparmiato $1 sec!"
   },
   "modal_saved_unavailable": {
     "message": "Risparmio non calcolabile"
@@ -445,12 +402,7 @@
     "message": "it"
   },
   "popup_login_subtitle": {
-    "message": "Effettua l'accesso con Google per utilizzare $1 e ottenere riassunti intelligenti.",
-    "placeholders": {
-      "brand": {
-        "content": "$1"
-      }
-    }
+    "message": "Effettua l'accesso con Google per utilizzare $1 e ottenere riassunti intelligenti."
   },
   "popup_compression": {
     "message": "Compressione"
