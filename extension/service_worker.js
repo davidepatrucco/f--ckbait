@@ -41,7 +41,7 @@ chrome.runtime.onInstalled.addListener((details) => {
     chrome.contextMenus.removeAll(() => {
         chrome.contextMenus.create({
             id: 'summarize-link',
-            title: 'Riassumi questo link',
+            title: chrome.i18n.getMessage('sw_context_menu') || 'Summarize this link',
             contexts: ['link'],
             documentUrlPatterns: ['http://*/*', 'https://*/*']
         });
@@ -56,18 +56,19 @@ chrome.runtime.onStartup.addListener(() => {
 // PDF: riassume l'URL lato backend (server-fetch + parsing) e mostra il risultato in
 // una scheda dedicata (il viewer PDF di Chrome non permette content script/modale).
 async function handlePdfSummarize(request, sendResponse) {
+    const msg = (key, fallback) => { try { return chrome.i18n.getMessage(key) || fallback; } catch (e) { return fallback; } };
     const friendly = (m, status) => {
-        if (status === 429) return 'Limite riassunti raggiunto. Upgrade a Premium per continuare.';
-        if (/TOO_LONG/i.test(m)) return 'Questo PDF è troppo lungo per un riassunto affidabile.';
-        if (/senza testo estraibile|scansione/i.test(m)) return 'Questo PDF non contiene testo selezionabile (probabile scansione/immagine).';
-        if (/BOT_CHALLENGE|non accessibile/i.test(m)) return 'Documento non accessibile.';
-        if (/autenticat|AUTH_REQUIRED/i.test(m)) return 'Devi effettuare il login per usare l’estensione.';
-        return m || 'Non è stato possibile riassumere il PDF.';
+        if (status === 429) return msg('err_quota_reached', 'Summary limit reached.');
+        if (/TOO_LONG/i.test(m)) return msg('err_pdf_too_long', 'This PDF is too long.');
+        if (/senza testo estraibile|scansione/i.test(m)) return msg('err_pdf_no_text', 'This PDF has no selectable text.');
+        if (/BOT_CHALLENGE|non accessibile/i.test(m)) return msg('err_doc_not_accessible', 'Document not accessible.');
+        if (/autenticat|AUTH_REQUIRED/i.test(m)) return msg('err_auth_required', 'Sign-in required.');
+        return m || msg('err_pdf_generic', "The PDF couldn't be summarized.");
     };
     try {
         const { authToken } = await chrome.storage.local.get(['authToken']);
         if (!authToken) {
-            await chrome.storage.local.set({ pendingSummary: { error: 'Devi effettuare il login per usare l’estensione.' } });
+            await chrome.storage.local.set({ pendingSummary: { error: msg('err_auth_required', 'Sign-in required.') } });
             await chrome.tabs.create({ url: chrome.runtime.getURL('summary.html') });
             sendResponse({ success: false, error: 'not-authenticated' });
             return;
@@ -88,7 +89,7 @@ async function handlePdfSummarize(request, sendResponse) {
         await chrome.tabs.create({ url: chrome.runtime.getURL('summary.html') });
         sendResponse({ success: res.ok });
     } catch (e) {
-        await chrome.storage.local.set({ pendingSummary: { error: 'Errore di rete. Riprova.' } });
+        await chrome.storage.local.set({ pendingSummary: { error: msg('err_network_retry', 'Network error. Please try again.') } });
         try { await chrome.tabs.create({ url: chrome.runtime.getURL('summary.html') }); } catch { /* ignore */ }
         sendResponse({ success: false, error: e.message });
     }
@@ -922,8 +923,8 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
                     chrome.notifications.create({
                         type: 'basic',
                         iconUrl: 'assets/icon-48.png',
-                        title: 'LemonSqueezer - Login richiesto',
-                        message: 'Apri l\'estensione per effettuare il login, poi riprova con il link.'
+                        title: chrome.i18n.getMessage('sw_notif_login_title') || 'Sign-in required',
+                        message: chrome.i18n.getMessage('sw_notif_login_message') || 'Open the extension and sign in to continue.'
                     });
                 }
                 return;
@@ -1030,7 +1031,7 @@ async function showLoadingModal(url, tabId) {
             type: 'basic',
             iconUrl: 'assets/icon-48.png',
             title: 'LemonSqueezer - TL;DR',
-            message: 'Analisi in corso...'
+            message: chrome.i18n.getMessage('sw_notif_analyzing') || 'Analyzing...'
         });
     }
 }
@@ -1068,7 +1069,7 @@ async function updateModalWithError(errorMessage, tabId) {
         chrome.notifications.create({
             type: 'basic',
             iconUrl: 'assets/icon-48.png',
-            title: 'LemonSqueezer - Errore',
+            title: chrome.i18n.getMessage('sw_notif_error_title') || 'Error',
             message: errorMessage
         });
     }

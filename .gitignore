@@ -58,3 +58,6 @@ config.json
 # Status files with AWS credentials
 status_sviluppo_*.md
 test/README.md
+# QA: profili Chromium e build temporanee generate dai test i18n
+qa/.chrome-profile/
+qa/.i18n-builds/

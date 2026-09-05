@@ -1,0 +1,467 @@
+{
+  "app_close": {
+    "message": "Schließen"
+  },
+  "app_error": {
+    "message": "Fehler"
+  },
+  "app_not_summarizable": {
+    "message": "Nicht zusammenfassbar"
+  },
+  "popup_summarize": {
+    "message": "Diese Seite zusammenfassen"
+  },
+  "popup_options": {
+    "message": "Optionen"
+  },
+  "popup_history": {
+    "message": "Verlauf"
+  },
+  "popup_user": {
+    "message": "Benutzer"
+  },
+  "popup_plan_premium": {
+    "message": "Premium-Tarif"
+  },
+  "popup_plan_free": {
+    "message": "Kostenloser Tarif"
+  },
+  "popup_unlimited": {
+    "message": "Unbegrenzte Zusammenfassungen"
+  },
+  "popup_summaries": {
+    "message": "Zusammenfassungen"
+  },
+  "popup_month": {
+    "message": "Diesen Monat"
+  },
+  "popup_total": {
+    "message": "Gesamt"
+  },
+  "popup_saved": {
+    "message": "gespart"
+  },
+  "popup_output": {
+    "message": "Ausgabe"
+  },
+  "popup_language": {
+    "message": "Sprache der Zusammenfassung"
+  },
+  "popup_logout": {
+    "message": "Abmelden"
+  },
+  "popup_empty_history": {
+    "message": "Ihre letzten Zusammenfassungen erscheinen hier."
+  },
+  "popup_login": {
+    "message": "Melden Sie sich an, um fortzufahren"
+  },
+  "popup_or": {
+    "message": "oder"
+  },
+  "popup_create_account": {
+    "message": "Konto erstellen"
+  },
+  "popup_clear": {
+    "message": "Leeren"
+  },
+  "popup_signin": {
+    "message": "Anmelden"
+  },
+  "popup_login_google": {
+    "message": "Mit Google verbinden"
+  },
+  "popup_login_completing": {
+    "message": "Schließen Sie die Anmeldung im Google-Fenster ab..."
+  },
+  "popup_login_timeout": {
+    "message": "Zeitüberschreitung — erneut versuchen"
+  },
+  "popup_login_authenticating": {
+    "message": "Anmeldung läuft..."
+  },
+  "popup_limit_reached": {
+    "message": "Limit erreicht — auf Premium upgraden"
+  },
+  "popup_upgrade": {
+    "message": "Auf Premium upgraden"
+  },
+  "popup_upgrade_error": {
+    "message": "Upgrade fehlgeschlagen: $1",
+    "placeholders": {
+      "detail": {
+        "content": "$1"
+      }
+    }
+  },
+  "popup_summarize_failed": {
+    "message": "Zusammenfassung konnte nicht gestartet werden"
+  },
+  "popup_analyzing": {
+    "message": "Wird analysiert..."
+  },
+  "popup_analyzing_page": {
+    "message": "Seite wird analysiert"
+  },
+  "popup_summary_title": {
+    "message": "Zusammenfassung"
+  },
+  "popup_squeeze_label": {
+    "message": "Länge der Zusammenfassung (% des Textes)"
+  },
+  "popup_squeeze_10": {
+    "message": "10 % — sehr kurz"
+  },
+  "popup_squeeze_20": {
+    "message": "20 % — empfohlen"
+  },
+  "popup_squeeze_50": {
+    "message": "50 % — ausführlich"
+  },
+  "modal_loading": {
+    "message": "Wird analysiert..."
+  },
+  "modal_transcribing": {
+    "message": "Video wird transkribiert…"
+  },
+  "modal_transcribing_progress": {
+    "message": "Video wird transkribiert: $1",
+    "placeholders": {
+      "progress": {
+        "content": "$1"
+      }
+    }
+  },
+  "modal_summary": {
+    "message": "Zusammenfassung"
+  },
+  "modal_reading_time": {
+    "message": "$1 Min. Lesezeit",
+    "placeholders": {
+      "minutes": {
+        "content": "$1"
+      }
+    }
+  },
+  "modal_video_duration": {
+    "message": "Video: $1",
+    "placeholders": {
+      "duration": {
+        "content": "$1"
+      }
+    }
+  },
+  "modal_time_unavailable": {
+    "message": "Zeit nicht verfügbar"
+  },
+  "modal_words": {
+    "message": "$1 Wörter",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "modal_saved_ms": {
+    "message": "$1m $2s gespart!",
+    "placeholders": {
+      "minutes": {
+        "content": "$1"
+      },
+      "seconds": {
+        "content": "$2"
+      }
+    }
+  },
+  "modal_saved_m": {
+    "message": "$1 Min. gespart!",
+    "placeholders": {
+      "minutes": {
+        "content": "$1"
+      }
+    }
+  },
+  "modal_saved_s": {
+    "message": "$1 Sek. gespart!",
+    "placeholders": {
+      "seconds": {
+        "content": "$1"
+      }
+    }
+  },
+  "modal_saved_unavailable": {
+    "message": "Ersparnis nicht verfügbar"
+  },
+  "modal_cached": {
+    "message": "Aus dem Cache"
+  },
+  "modal_copy": {
+    "message": "Kopieren"
+  },
+  "modal_copied": {
+    "message": "Kopiert!"
+  },
+  "modal_truncated": {
+    "message": "Sehr langer Inhalt: Die Zusammenfassung deckt nur den ersten Teil der Seite ab."
+  },
+  "modal_unsupported_output": {
+    "message": "Ausgabeformat wird in dieser Version nicht unterstützt."
+  },
+  "source_video": {
+    "message": "Zusammenfassung des Videos"
+  },
+  "source_text": {
+    "message": "Zusammenfassung des Seitentextes"
+  },
+  "source_switch_to_text": {
+    "message": "Stattdessen den Text zusammenfassen"
+  },
+  "source_switch_to_video": {
+    "message": "Stattdessen das Video zusammenfassen"
+  },
+  "note_video_available": {
+    "message": "Diese Seite enthält auch ein Video."
+  },
+  "note_video_not_accessible": {
+    "message": "Das Video auf dieser Seite ist nicht zugänglich (geschützter Stream oder keine Untertitel): Stattdessen wurde der Seitentext zusammengefasst."
+  },
+  "note_video_needs_premium": {
+    "message": "Für die Zusammenfassung des Videos ist der Premium-Tarif erforderlich: Stattdessen wurde der Seitentext zusammengefasst."
+  },
+  "note_video_too_long": {
+    "message": "Das Video ist zu lang für eine Transkription: Stattdessen wurde der Seitentext zusammengefasst."
+  },
+  "note_video_skipped_live": {
+    "message": "Ein Livestream läuft gerade (Inhalt unvollständig): Stattdessen wurde der Seitentext zusammengefasst."
+  },
+  "note_captions_failed": {
+    "message": "Die Untertitel des Videos konnten nicht heruntergeladen werden."
+  },
+  "note_stt_failed": {
+    "message": "Der Ton des Videos konnte nicht transkribiert werden."
+  },
+  "note_captions_translated": {
+    "message": "Die Untertitel sind in einer anderen Sprache: Die Zusammenfassung ist übersetzt."
+  },
+  "note_transcript_truncated": {
+    "message": "Sehr langes Video: Die Zusammenfassung deckt nur den ersten Teil der Transkription ab."
+  },
+  "err_paywall": {
+    "message": "Diese Seite befindet sich hinter einer Paywall: Der Inhalt ist ohne Abo beim Anbieter nicht zugänglich. Melden Sie sich auf der Website an und versuchen Sie es erneut."
+  },
+  "err_login_wall": {
+    "message": "Für diesen Inhalt ist eine Anmeldung auf der Website erforderlich. Melden Sie sich auf der Seite an und versuchen Sie es erneut."
+  },
+  "err_consent_wall": {
+    "message": "Schließen Sie das Cookie- bzw. Einwilligungsbanner auf der Seite und versuchen Sie es erneut."
+  },
+  "err_canvas_doc": {
+    "message": "Dieses Dokument (zum Beispiel Google Docs oder Office online) kann von der Erweiterung nicht gelesen werden. Exportieren Sie es als PDF oder öffnen Sie die veröffentlichte Version (HTML)."
+  },
+  "err_too_long": {
+    "message": "Dieser Inhalt ist zu lang für eine zuverlässige Zusammenfassung. Versuchen Sie es mit einem kürzeren Abschnitt oder einer kürzeren Seite."
+  },
+  "err_bot_challenge": {
+    "message": "Die Seite ist durch eine Bot-Prüfung geschützt. Öffnen Sie sie im Browser und versuchen Sie es erneut."
+  },
+  "err_invalid_response": {
+    "message": "Dieser Inhalt konnte nicht zusammengefasst werden (möglicherweise enthält er keinen verwertbaren Text oder ist laut Richtlinien nicht zulässig)."
+  },
+  "err_auth_required": {
+    "message": "Für die Nutzung dieser Erweiterung ist eine Anmeldung erforderlich."
+  },
+  "err_insufficient_text": {
+    "message": "Diese Seite enthält nicht genug Text für eine Zusammenfassung."
+  },
+  "err_timeout": {
+    "message": "Die Zusammenfassung hat zu lange gedauert. Bitte versuchen Sie es erneut."
+  },
+  "err_network": {
+    "message": "Der Dienst konnte nicht erreicht werden. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut."
+  },
+  "err_generic": {
+    "message": "Die Zusammenfassung konnte nicht erstellt werden. Bitte versuchen Sie es in Kürze erneut."
+  },
+  "err_premium_required": {
+    "message": "Das Zusammenfassen von Videos ohne Untertitel ist dem Premium-Tarif vorbehalten."
+  },
+  "err_unsupported_media": {
+    "message": "Video nicht unterstützt: Die Quelle ist nicht zugänglich (geschützter Stream, DRM oder kein direktes Format)."
+  },
+  "err_media_too_large": {
+    "message": "Das Video ist derzeit zu groß für eine Zusammenfassung. Versuchen Sie es mit einem kürzeren Video."
+  },
+  "err_no_speech": {
+    "message": "Im Video wurde keine Sprache erkannt."
+  },
+  "err_live_stream": {
+    "message": "Dies ist ein Livestream: Die Untertitel sind unvollständig und der Inhalt ist noch nicht abgeschlossen. Versuchen Sie es erneut, sobald die Aufzeichnung verfügbar ist."
+  },
+  "err_video_not_accessible": {
+    "message": "Das Video auf dieser Seite ist nicht zugänglich (geschützter Stream oder DRM) und hat keine Untertitel, daher kann es nicht zusammengefasst werden."
+  },
+  "err_video_too_long_no_captions": {
+    "message": "Dieses Video ist zu lang für eine Transkription und hat keine Untertitel. Derzeit werden lange Videos nur unterstützt, wenn Untertitel verfügbar sind."
+  },
+  "err_captions_failed": {
+    "message": "Die Untertitel des Videos konnten nicht heruntergeladen werden. Laden Sie die Seite neu und versuchen Sie es erneut."
+  },
+  "err_transcribe_timeout": {
+    "message": "Die Transkription des Videos dauert zu lange. Versuchen Sie es in einigen Minuten erneut."
+  },
+  "err_blocked_url": {
+    "message": "Die Videoquelle ist nicht öffentlich erreichbar."
+  },
+  "err_insufficient_content": {
+    "message": "Diese Seite enthält nicht genug Inhalt für eine Zusammenfassung."
+  },
+  "err_transcribe_generic": {
+    "message": "Das Video konnte nicht transkribiert werden. Bitte versuchen Sie es in Kürze erneut."
+  },
+  "brand_rec_read_now": {
+    "message": "Jetzt lesen"
+  },
+  "brand_rec_skim": {
+    "message": "Überfliegen"
+  },
+  "brand_rec_save": {
+    "message": "Für später speichern"
+  },
+  "brand_rec_ignore": {
+    "message": "Überspringen"
+  },
+  "brand_label_attention_score": {
+    "message": "Attention score"
+  },
+  "brand_label_clickbait": {
+    "message": "Clickbait"
+  },
+  "brand_label_hype": {
+    "message": "Hype"
+  },
+  "brand_label_framing": {
+    "message": "Framing"
+  },
+  "brand_label_reliability": {
+    "message": "Zuverlässigkeit"
+  },
+  "brand_label_info_density": {
+    "message": "Informationsdichte"
+  },
+  "brand_label_novelty": {
+    "message": "Neuheit"
+  },
+  "brand_label_relevance": {
+    "message": "Relevanz"
+  },
+  "brand_label_strategic_importance": {
+    "message": "Strategische Bedeutung"
+  },
+  "brand_label_decision": {
+    "message": "Entscheidung"
+  },
+  "brand_label_signal": {
+    "message": "Signal"
+  },
+  "summarypage_title": {
+    "message": "Zusammenfassung"
+  },
+  "summarypage_no_summary": {
+    "message": "Zusammenfassung nicht verfügbar."
+  },
+  "summarypage_none_queued": {
+    "message": "Keine Zusammenfassung in der Warteschlange."
+  },
+  "summarypage_load_error": {
+    "message": "Beim Laden der Zusammenfassung ist ein Fehler aufgetreten."
+  },
+  "summarypage_generic_error": {
+    "message": "Die Zusammenfassung konnte nicht erstellt werden."
+  },
+  "summarypage_truncated": {
+    "message": "Langer Inhalt: Die Zusammenfassung deckt nur den ersten Teil ab."
+  },
+  "sw_context_menu": {
+    "message": "Diesen Link zusammenfassen"
+  },
+  "sw_notif_analyzing": {
+    "message": "Wird analysiert..."
+  },
+  "sw_notif_error_title": {
+    "message": "Fehler"
+  },
+  "sw_notif_login_title": {
+    "message": "Anmeldung erforderlich"
+  },
+  "sw_notif_login_message": {
+    "message": "Öffnen Sie die Erweiterung und melden Sie sich an, um fortzufahren."
+  },
+  "brand_section_key_takeaways": {
+    "message": "Kernaussagen"
+  },
+  "brand_section_opportunities": {
+    "message": "Chancen"
+  },
+  "brand_section_filler_hype": {
+    "message": "Füllinhalt / Hype"
+  },
+  "brand_section_what_happened": {
+    "message": "Was passiert ist"
+  },
+  "brand_section_why_it_matters": {
+    "message": "Warum es wichtig ist"
+  },
+  "brand_section_alternative_views": {
+    "message": "Alternative Sichtweisen"
+  },
+  "brand_section_watch_next": {
+    "message": "Im Blick behalten"
+  },
+  "video_default_title": {
+    "message": "YouTube-Video"
+  },
+  "err_quota_reached": {
+    "message": "Limit für Zusammenfassungen erreicht. Für die weitere Nutzung auf Premium upgraden."
+  },
+  "err_transcript_unavailable": {
+    "message": "Für dieses Video ist keine Transkription verfügbar."
+  },
+  "err_pdf_too_long": {
+    "message": "Dieses PDF ist zu lang für eine zuverlässige Zusammenfassung."
+  },
+  "err_pdf_no_text": {
+    "message": "Dieses PDF enthält keinen auswählbaren Text (vermutlich ein Scan oder ein Bild)."
+  },
+  "err_doc_not_accessible": {
+    "message": "Dokument nicht zugänglich."
+  },
+  "err_pdf_generic": {
+    "message": "Das PDF konnte nicht zusammengefasst werden."
+  },
+  "err_network_retry": {
+    "message": "Netzwerkfehler. Bitte versuchen Sie es erneut."
+  },
+  "locale_code": {
+    "message": "de"
+  },
+  "popup_login_subtitle": {
+    "message": "Melden Sie sich mit Google an, um $1 zu nutzen und intelligente Zusammenfassungen zu erhalten.",
+    "placeholders": {
+      "brand": {
+        "content": "$1"
+      }
+    }
+  },
+  "popup_compression": {
+    "message": "Komprimierung"
+  },
+  "popup_copy_clipboard": {
+    "message": "In die Zwischenablage kopieren"
+  },
+  "popup_email": {
+    "message": "E-Mail"
+  },
+  "popup_password": {
+    "message": "Passwort"
+  }
+}

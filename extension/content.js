@@ -10,7 +10,25 @@
     const BRAND_PRIMARY_700 = (BRAND && BRAND.tokens && BRAND.tokens.colors && BRAND.tokens.colors.primary700) || '#FFB800';
     const BRAND_INK = (BRAND && BRAND.tokens && BRAND.tokens.colors && BRAND.tokens.colors.black) || '#0D1117';
     let activeSummaryRequestId = null;
-    
+
+    // i18n: le stringhe UI vivono in _locales/<lang>/messages.json e seguono la lingua
+    // del browser (chrome.i18n). Il fallback restituisce la chiave, così una stringa
+    // mancante è visibile invece di produrre testo vuoto.
+    function t(key, substitutions) {
+        try {
+            const s = chrome.i18n.getMessage(key, substitutions);
+            if (s) return s;
+        } catch (e) { /* i18n non disponibile */ }
+        return key;
+    }
+    // Escape per interpolare testo tradotto dentro i template HTML della modale.
+    function esc(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+
     // Funzione per calcolare la densità del testo in un elemento
     function getTextDensity(element) {
         const text = element.textContent || '';
@@ -202,7 +220,7 @@
             }
             return {
                 text: transcriptApi.text.slice(0, 120000),
-                title: document.title.replace(/\s*-\s*YouTube\s*$/i, '').trim() || 'Video YouTube',
+                title: document.title.replace(/\s*-\s*YouTube\s*$/i, '').trim() || t('video_default_title'),
                 language: track?.languageCode || document.documentElement.lang || 'auto',
                 durationSeconds: Number.isFinite(durationSeconds) && durationSeconds > 0 ? durationSeconds : undefined
             };
@@ -269,7 +287,7 @@
         }
         return {
             text: text.slice(0, 120000),
-            title: document.title.replace(/\s*-\s*YouTube\s*$/i, '').trim() || 'Video YouTube',
+            title: document.title.replace(/\s*-\s*YouTube\s*$/i, '').trim() || t('video_default_title'),
             language: track.languageCode,
             durationSeconds: Number.isFinite(durationSeconds) && durationSeconds > 0 ? durationSeconds : undefined
         };
@@ -304,7 +322,7 @@
 
         if (request.action === 'extractYouTubeTranscript') {
             getYouTubeTranscript()
-                .then((data) => sendResponse({ success: Boolean(data), data, error: data ? undefined : 'Trascrizione non disponibile per questo video' }))
+                .then((data) => sendResponse({ success: Boolean(data), data, error: data ? undefined : t('err_transcript_unavailable') }))
                 .catch((error) => sendResponse({ success: false, error: error.message }));
             return true;
         }
@@ -393,7 +411,7 @@
                     <div class="lemonsqueezer-modal-body" id="lemonsqueezer-modal-body">
                         <div class="lemonsqueezer-loading">
                             <div class="lemonsqueezer-spinner"></div>
-                            <div class="lemonsqueezer-loading-text">Analisi in corso...</div>
+                            <div class="lemonsqueezer-loading-text">${esc(t('modal_loading'))}</div>
                             <div class="lemonsqueezer-url-preview">${data.url}</div>
                         </div>
                     </div>
@@ -417,26 +435,27 @@
     }
     
     // Note non bloccanti (degrado): spiegano perché la fonte scelta è quella e non un'altra.
-    const NOTE_MESSAGES = {
-        VIDEO_AVAILABLE: 'Questa pagina contiene anche un video.',
-        VIDEO_NOT_ACCESSIBLE: 'Il video di questa pagina non è accessibile (streaming protetto o senza sottotitoli): ho riassunto il testo.',
-        VIDEO_NEEDS_PREMIUM: 'La sintesi del video richiede il piano Premium: ho riassunto il testo della pagina.',
-        VIDEO_TOO_LONG: 'Il video è troppo lungo per essere trascritto: ho riassunto il testo della pagina.',
-        VIDEO_SKIPPED_LIVE: 'È in corso una diretta (contenuto parziale): ho riassunto il testo della pagina.',
-        CAPTIONS_FAILED: 'Non è stato possibile scaricare i sottotitoli del video.',
-        STT_FAILED: 'Non è stato possibile trascrivere l’audio del video.',
-        CAPTIONS_TRANSLATED: 'Sottotitoli in un’altra lingua: il riassunto è tradotto.',
-        TRANSCRIPT_TRUNCATED: 'Video molto lungo: il riassunto si basa sulla prima parte della trascrizione.'
+    // Codice della nota → chiave i18n (il testo vive in _locales/).
+    const NOTE_KEYS = {
+        VIDEO_AVAILABLE: 'note_video_available',
+        VIDEO_NOT_ACCESSIBLE: 'note_video_not_accessible',
+        VIDEO_NEEDS_PREMIUM: 'note_video_needs_premium',
+        VIDEO_TOO_LONG: 'note_video_too_long',
+        VIDEO_SKIPPED_LIVE: 'note_video_skipped_live',
+        CAPTIONS_FAILED: 'note_captions_failed',
+        STT_FAILED: 'note_stt_failed',
+        CAPTIONS_TRANSLATED: 'note_captions_translated',
+        TRANSCRIPT_TRUNCATED: 'note_transcript_truncated'
     };
 
     // Etichetta di trasparenza: dice SEMPRE quale fonte è stata riassunta (buco A).
     function sourceBadgeHtml(data) {
         if (!data || !data.__source) return '';
         const isVideo = data.__source === 'video';
-        const label = isVideo ? '🎬 Riassunto del <b>video</b>' : '📄 Riassunto del <b>testo</b> della pagina';
+        const label = isVideo ? `🎬 ${esc(t('source_video'))}` : `📄 ${esc(t('source_text'))}`;
         const alt = data.__alternative || {};
         const canSwitch = isVideo ? alt.text : alt.video;
-        const switchLabel = isVideo ? 'Riassumi il testo' : 'Riassumi il video';
+        const switchLabel = esc(t(isVideo ? 'source_switch_to_text' : 'source_switch_to_video'));
         const btn = canSwitch
             ? `<button id="lemonsqueezer-switch-source" data-target="${isVideo ? 'text' : 'video'}" style="background:none;border:none;color:#0969da;cursor:pointer;font-size:12px;text-decoration:underline;padding:0;">${switchLabel}</button>`
             : '';
@@ -446,9 +465,9 @@
     }
 
     function sourceNotesHtml(notes) {
-        const list = (Array.isArray(notes) ? notes : []).filter((n) => NOTE_MESSAGES[n]);
+        const list = (Array.isArray(notes) ? notes : []).filter((n) => NOTE_KEYS[n]);
         if (!list.length) return '';
-        return list.map((n) => `<div style="background:#FFF7E6;border:1px solid #FFE1A8;color:#8a6d3b;border-radius:6px;padding:8px 10px;font-size:12px;margin-bottom:8px;">⚠️ ${NOTE_MESSAGES[n]}</div>`).join('');
+        return list.map((n) => `<div style="background:#FFF7E6;border:1px solid #FFE1A8;color:#8a6d3b;border-radius:6px;padding:8px 10px;font-size:12px;margin-bottom:8px;">⚠️ ${esc(t(NOTE_KEYS[n]))}</div>`).join('');
     }
 
     // Switch di fonte: rilancia il riassunto forzando l'altra fonte.
@@ -497,14 +516,14 @@
         // word count. Web pages retain the reading-time calculation.
         let readingTimeDisplay;
         if (isVideo) {
-            readingTimeDisplay = `Video: ${formatDuration(videoDurationSeconds)}`;
+            readingTimeDisplay = t('modal_video_duration', [formatDuration(videoDurationSeconds)]);
         } else if (data.stats?.readingTime && data.stats.readingTime !== 'N/D') {
-            readingTimeDisplay = `${data.stats.readingTime} min di lettura`;
+            readingTimeDisplay = t('modal_reading_time', [String(data.stats.readingTime)]);
         } else if (originalWordsCount > 0) {
             const readingTimeMinutes = Math.max(1, Math.round(originalWordsCount / 220));
-            readingTimeDisplay = `${readingTimeMinutes} min di lettura`;
+            readingTimeDisplay = t('modal_reading_time', [String(readingTimeMinutes)]);
         } else {
-            readingTimeDisplay = 'Tempo non disponibile';
+            readingTimeDisplay = t('modal_time_unavailable');
         }
         
         // Calcola tempo risparmiato solo se abbiamo i dati
@@ -527,23 +546,23 @@
                 const minutes = Math.floor(timeSavedMinutes);
                 const seconds = Math.round((timeSavedMinutes - minutes) * 60);
                 if (seconds > 0) {
-                    timeSavedText = `Hai risparmiato ${minutes}m ${seconds}s!`;
+                    timeSavedText = t('modal_saved_ms', [String(minutes), String(seconds)]);
                 } else {
-                    timeSavedText = `Hai risparmiato ${minutes} min!`;
+                    timeSavedText = t('modal_saved_m', [String(minutes)]);
                 }
             } else {
                 const totalSeconds = Math.max(1, Math.round(timeSavedMinutes * 60));
-                timeSavedText = `Hai risparmiato ${totalSeconds} sec!`;
+                timeSavedText = t('modal_saved_s', [String(totalSeconds)]);
             }
         } else {
-            timeSavedText = 'Risparmio non calcolabile';
+            timeSavedText = t('modal_saved_unavailable');
         }
         
         console.log('DEBUG risultato:', { readingTimeDisplay, timeSavedText });
         
         modalBody.innerHTML = `
             <div class="lemonsqueezer-summary-meta">
-                <strong>${data.title || 'Riassunto'}</strong>
+                <strong>${esc(data.title || t('modal_summary'))}</strong>
                 <div class="lemonsqueezer-stats">
                     <div class="lemonsqueezer-stat-item">
                         <span class="lemonsqueezer-stat-icon" aria-hidden="true">
@@ -563,7 +582,7 @@
                                 <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path>
                             </svg>
                         </span>
-                        <span class="lemonsqueezer-stat-text">${data.stats?.summaryWords || data.wordsCount || 'N/A'} parole</span>
+                        <span class="lemonsqueezer-stat-text">${esc(t('modal_words', [String(data.stats?.summaryWords || data.wordsCount || 0)]))}</span>
                     </div>
                     <div class="lemonsqueezer-stat-item lemonsqueezer-stat-highlight">
                         <span class="lemonsqueezer-stat-icon" aria-hidden="true">
@@ -573,7 +592,7 @@
                         </span>
                         <span class="lemonsqueezer-stat-text">${timeSavedText}</span>
                     </div>
-                    ${data.cached ? '<div class="lemonsqueezer-stat-item"><span class="lemonsqueezer-stat-text">⚡ Dalla cache</span></div>' : ''}
+                    ${data.cached ? `<div class="lemonsqueezer-stat-item"><span class="lemonsqueezer-stat-text">⚡ ${esc(t('modal_cached'))}</span></div>` : ''}
                 </div>
                 <div class="lemonsqueezer-url">
                     <a href="${data.originalUrl}" target="_blank">${data.originalUrl}</a>
@@ -581,7 +600,7 @@
             </div>
             ${sourceBadgeHtml(data)}
             ${sourceNotesHtml(data.__notes)}
-            ${data.truncated ? '<div style="background:#FFF7E6;border:1px solid #FFE1A8;color:#8a6d3b;border-radius:6px;padding:8px 10px;font-size:12px;margin-bottom:12px;">⚠️ Contenuto molto lungo: il riassunto si basa sulla prima parte della pagina.</div>' : ''}
+            ${data.truncated ? `<div style="background:#FFF7E6;border:1px solid #FFE1A8;color:#8a6d3b;border-radius:6px;padding:8px 10px;font-size:12px;margin-bottom:12px;">⚠️ ${esc(t('modal_truncated'))}</div>` : ''}
             <div class="lemonsqueezer-summary-content">
                 ${(data.summary || '').replace(/\n/g, '<br>')}
             </div>
@@ -601,7 +620,7 @@
                             <rect x="5" y="5" width="10" height="10" rx="2"></rect>
                         </svg>
                     </span>
-                    Copia
+                    ${esc(t('modal_copy'))}
                 </button>
             `;
             modal.querySelector('.lemonsqueezer-modal-content').appendChild(footer);
@@ -636,10 +655,10 @@
                         ${icon}
                     </svg>
                 </div>
-                <div class="lemonsqueezer-error-title">${isWarning ? 'Non riassumibile' : 'Errore'}</div>
+                <div class="lemonsqueezer-error-title">${esc(t(isWarning ? 'app_not_summarizable' : 'app_error'))}</div>
                 <div class="lemonsqueezer-error-message"></div>
                 <div class="lemonsqueezer-error-notes"></div>
-                <button class="lemonsqueezer-btn-secondary" onclick="document.getElementById('lemonsqueezer-modal').remove()">Chiudi</button>
+                <button class="lemonsqueezer-btn-secondary" onclick="document.getElementById('lemonsqueezer-modal').remove()">${esc(t('app_close'))}</button>
             </div>
         `;
         const messageEl = modalBody.querySelector('.lemonsqueezer-error-message');
@@ -652,10 +671,10 @@
     // Etichetta leggibile per la raccomandazione Scout.
     function attentionRecommendationLabel(rec) {
         const map = {
-            read_now: { label: 'Leggi ora', color: '#16A34A' },
-            skim: { label: 'Scorri', color: '#FFB800' },
-            save: { label: 'Salva per dopo', color: '#3B82F6' },
-            ignore: { label: 'Ignora', color: '#EF4444' }
+            read_now: { label: t('brand_rec_read_now'), color: '#16A34A' },
+            skim: { label: t('brand_rec_skim'), color: '#FFB800' },
+            save: { label: t('brand_rec_save'), color: '#3B82F6' },
+            ignore: { label: t('brand_rec_ignore'), color: '#EF4444' }
         };
         return map[rec] || map.skim;
     }
@@ -668,12 +687,12 @@
         if (schema === 'attention') {
             const rec = attentionRecommendationLabel(out.recommendation);
             return {
-                hero: { value: num(out.attention_score), label: 'Attention score' },
+                hero: { value: num(out.attention_score), label: t('brand_label_attention_score') },
                 badge: { text: rec.label, color: rec.color },
                 metrics: [
-                    { value: num(out.novelty), label: 'Novità' },
-                    { value: num(out.importance), label: 'Rilevanza' },
-                    { value: num(out.credibility), label: 'Affidabilità' }
+                    { value: num(out.novelty), label: t('brand_label_novelty') },
+                    { value: num(out.importance), label: t('brand_label_relevance') },
+                    { value: num(out.credibility), label: t('brand_label_reliability') }
                 ],
                 sections: [{ title: 'Perché', items: list(out.reasons) }],
                 notes: []
@@ -681,41 +700,41 @@
         }
         if (schema === 'insights') {
             return {
-                hero: { value: num(out.signal_score), label: 'Signal' },
+                hero: { value: num(out.signal_score), label: t('brand_label_signal') },
                 metrics: [],
                 sections: [
-                    { title: 'Punti chiave', items: list(out.key_takeaways) },
+                    { title: t('brand_section_key_takeaways'), items: list(out.key_takeaways) },
                     { title: 'Rischi', items: list(out.risks) },
-                    { title: 'Opportunità', items: list(out.opportunities) }
+                    { title: t('brand_section_opportunities'), items: list(out.opportunities) }
                 ],
-                notes: [{ label: 'Decisione', text: out.decision_note || '' }]
+                notes: [{ label: t('brand_label_decision'), text: out.decision_note || '' }]
             };
         }
         if (schema === 'noise') {
             return {
                 metrics: [
-                    { value: num(out.clickbait_score), label: 'Clickbait' },
-                    { value: num(out.hype_score), label: 'Hype' },
-                    { value: num(out.information_density), label: 'Densità info' }
+                    { value: num(out.clickbait_score), label: t('brand_label_clickbait') },
+                    { value: num(out.hype_score), label: t('brand_label_hype') },
+                    { value: num(out.information_density), label: t('brand_label_info_density') }
                 ],
                 sections: [
                     { title: 'Fatti', items: list(out.facts) },
-                    { title: 'Riempitivo / Hype', items: list(out.filler_patterns) }
+                    { title: t('brand_section_filler_hype'), items: list(out.filler_patterns) }
                 ],
-                notes: [{ label: 'Framing', text: out.framing_note || '' }]
+                notes: [{ label: t('brand_label_framing'), text: out.framing_note || '' }]
             };
         }
         if (schema === 'brief') {
             return {
                 metrics: [],
                 sections: [
-                    { title: 'Cosa è successo', items: list(out.what_happened) },
-                    { title: 'Perché conta', items: list(out.why_it_matters) },
+                    { title: t('brand_section_what_happened'), items: list(out.what_happened) },
+                    { title: t('brand_section_why_it_matters'), items: list(out.why_it_matters) },
                     { title: 'Contesto', items: list(out.background) },
-                    { title: 'Letture alternative', items: list(out.alternative_views) },
-                    { title: 'Da monitorare', items: list(out.watch_next) }
+                    { title: t('brand_section_alternative_views'), items: list(out.alternative_views) },
+                    { title: t('brand_section_watch_next'), items: list(out.watch_next) }
                 ],
-                notes: [{ label: 'Importanza strategica', text: out.strategic_importance || '' }]
+                notes: [{ label: t('brand_label_strategic_importance'), text: out.strategic_importance || '' }]
             };
         }
         return null;
@@ -727,7 +746,7 @@
         if (!modalBody) return;
         const vm = brandOutputViewModel(data.schema, data.output || {});
         if (!vm) {
-            updateModalWithError({ error: 'Formato di output non supportato in questa versione.' });
+            updateModalWithError({ error: t('modal_unsupported_output') });
             return;
         }
 
@@ -1143,7 +1162,7 @@
             copyBtn.addEventListener('click', () => {
                 navigator.clipboard.writeText(data.summary).then(() => {
                     const originalText = copyBtn.textContent;
-                    copyBtn.textContent = 'Copiato!';
+                    copyBtn.textContent = t('modal_copied');
                     setTimeout(() => {
                         copyBtn.textContent = originalText;
                     }, 2000);
@@ -1457,34 +1476,53 @@
 
     // Converte messaggi di errore tecnici in messaggi comprensibili all'utente.
     // Gli errori interni (OpenAI, bullet, HTTP, stack trace) non devono arrivare in UI.
+    // Codice/errore tecnico -> chiave i18n. Gli errori interni (OpenAI, HTTP, stack
+    // trace) non devono mai arrivare in UI: qualunque cosa non riconosciuta cade su
+    // err_generic. La mappa e' esportata per il test (ogni chiave deve esistere).
+    const ERROR_CODE_KEYS = {
+        PAYWALL: 'err_paywall',
+        LOGIN_WALL: 'err_login_wall',
+        CONSENT_WALL: 'err_consent_wall',
+        CANVAS_DOC: 'err_canvas_doc',
+        PREMIUM_REQUIRED: 'err_premium_required',
+        UNSUPPORTED_MEDIA: 'err_unsupported_media',
+        MEDIA_TOO_LARGE: 'err_media_too_large',
+        NO_SPEECH: 'err_no_speech',
+        LIVE_STREAM: 'err_live_stream',
+        VIDEO_NOT_ACCESSIBLE: 'err_video_not_accessible',
+        VIDEO_TOO_LONG_NO_CAPTIONS: 'err_video_too_long_no_captions',
+        VIDEO_CAPTIONS_FAILED: 'err_captions_failed',
+        TRANSCRIBE_TIMEOUT: 'err_transcribe_timeout',
+        BLOCKED_URL: 'err_blocked_url',
+        INSUFFICIENT_CONTENT: 'err_insufficient_content',
+        TRANSCRIBE_ERROR: 'err_transcribe_generic',
+        TRANSCRIPTION_FAILED: 'err_transcribe_generic',
+        MEDIA_FETCH_FAILED: 'err_transcribe_generic',
+        TOO_LONG: 'err_too_long',
+        BOT_CHALLENGE: 'err_bot_challenge'
+    };
+
+    // Pattern testuali (messaggi non strutturati provenienti dal backend o dalla rete).
+    const ERROR_PATTERN_KEYS = [
+        [/TOO_LONG/, 'err_too_long'],
+        [/just a moment|checking your browser|challenge/i, 'err_bot_challenge'],
+        [/INVALID_OPENAI_RESPONSE|non utilizzabile|Risposta OpenAI non valida/i, 'err_invalid_response'],
+        [/autenticat|login|AUTH_REQUIRED/i, 'err_auth_required'],
+        [/troppo breve|sufficiente|INSUFFICIENT|INVALID_TRANSCRIPT/i, 'err_insufficient_text'],
+        [/504|timeout|tempo|scadut/i, 'err_timeout'],
+        [/non raggiungibile|Failed to fetch|network|URL_NOT_ACCESSIBLE/i, 'err_network']
+    ];
+
+    // Converte un errore tecnico nel messaggio localizzato da mostrare all'utente.
     function toUserFacingError(raw) {
-        const msg = String(raw || '');
-        if (/^PREMIUM_REQUIRED$/.test(msg)) return 'La sintesi dei video senza sottotitoli è riservata al piano Premium.';
-        if (/^UNSUPPORTED_MEDIA$/.test(msg)) return 'Video non supportato: la sorgente non è accessibile (streaming protetto, DRM o formato non diretto).';
-        if (/^MEDIA_TOO_LARGE$/.test(msg)) return 'Video troppo grande per la sintesi al momento. Prova con un contenuto più breve.';
-        if (/^NO_SPEECH$/.test(msg)) return 'Nessun parlato riconosciuto nel video.';
-        // Casi non gestibili: avviso esplicito (nessun riassunto silenziosamente sbagliato).
-        if (/^LIVE_STREAM$/.test(msg)) return 'Questa è una diretta: i sottotitoli sono parziali e il contenuto non è ancora completo. Riprova quando la registrazione è disponibile.';
-        if (/^VIDEO_NOT_ACCESSIBLE$/.test(msg)) return 'Il video di questa pagina non è accessibile (streaming protetto o DRM) e non ha sottotitoli, quindi non può essere riassunto.';
-        if (/^VIDEO_TOO_LONG_NO_CAPTIONS$/.test(msg)) return 'Questo video è troppo lungo per essere trascritto e non ha sottotitoli. Per ora i video lunghi sono supportati solo se hanno i sottotitoli.';
-        if (/^VIDEO_CAPTIONS_FAILED$/.test(msg)) return 'Non è stato possibile scaricare i sottotitoli del video. Ricarica la pagina e riprova.';
-        if (/^TRANSCRIBE_TIMEOUT$/.test(msg)) return 'La trascrizione del video sta impiegando troppo tempo. Riprova tra qualche minuto.';
-        if (/^BLOCKED_URL$/.test(msg)) return 'La sorgente del video non è raggiungibile pubblicamente.';
-        if (/^INSUFFICIENT_CONTENT$/.test(msg)) return 'Questa pagina non contiene abbastanza contenuto da riassumere.';
-        if (/^(TRANSCRIBE_ERROR|TRANSCRIPTION_FAILED|MEDIA_FETCH_FAILED)$/.test(msg)) return 'Non è stato possibile trascrivere il video. Riprova tra poco.';
-        if (/^PAYWALL$/.test(msg)) return 'Questa pagina è dietro un paywall: il contenuto non è accessibile senza un abbonamento al provider. Accedi al sito e riprova.';
-        if (/^LOGIN_WALL$/.test(msg)) return 'Questo contenuto richiede l\'accesso al sito. Effettua il login nella pagina e riprova.';
-        if (/^CONSENT_WALL$/.test(msg)) return 'Chiudi il banner dei cookie/consenso della pagina e riprova.';
-        if (/^CANVAS_DOC$/.test(msg)) return 'Questo documento (es. Google Docs/Office online) non è leggibile dall\'estensione. Esportalo in PDF o apri la versione pubblicata (HTML).';
-        if (/TOO_LONG/.test(msg)) return 'Questo contenuto è troppo lungo per un riassunto affidabile. Prova con una sezione o una pagina più breve.';
-        if (/^BOT_CHALLENGE$/.test(msg) || /just a moment|checking your browser|challenge/i.test(msg)) return 'La pagina è protetta da un controllo anti-bot. Aprila nel browser e riprova.';
-        if (/INVALID_OPENAI_RESPONSE|non utilizzabile|Risposta OpenAI non valida/i.test(msg)) return 'Non è stato possibile riassumere questo contenuto (potrebbe non contenere testo utile o non essere ammesso dalle policy).';
-        if (/limite|premium|upgrade/i.test(msg)) return msg;
-        if (/autenticat|login|AUTH_REQUIRED/i.test(msg)) return 'Devi effettuare il login per usare LemonSqueezer.';
-        if (/troppo breve|sufficiente|INSUFFICIENT|INVALID_TRANSCRIPT/i.test(msg)) return 'Questa pagina non contiene abbastanza testo da riassumere.';
-        if (/504|timeout|tempo|scadut/i.test(msg)) return 'Il riassunto ha impiegato troppo tempo. Riprova.';
-        if (/non raggiungibile|Failed to fetch|network|URL_NOT_ACCESSIBLE/i.test(msg)) return 'Impossibile contattare il servizio. Controlla la connessione e riprova.';
-        return 'Non è stato possibile generare il riassunto. Riprova tra poco.';
+        const msg = String(raw || '').trim();
+        if (ERROR_CODE_KEYS[msg]) return t(ERROR_CODE_KEYS[msg]);
+        // Messaggio gia' destinato all'utente (quota/premium): passa invariato.
+        if (/limite|premium|upgrade|limit reached/i.test(msg) && msg.length > 20) return msg;
+        for (const [re, key] of ERROR_PATTERN_KEYS) {
+            if (re.test(msg)) return t(key);
+        }
+        return t('err_generic');
     }
 
     // Risolve QUALE fonte riassumere ed esegue il recupero, popolando requestBody.
@@ -1621,7 +1659,7 @@
         if (!start || !start.success || !start.jobId) {
             return { success: false, code: start && start.code ? start.code : 'TRANSCRIBE_ERROR', status: start && start.status };
         }
-        setModalProgress('Trascrizione del video in corso…');
+        setModalProgress(t('modal_transcribing'));
         const deadline = Date.now() + 10 * 60 * 1000; // 10 min
         let delay = 3000;
         while (Date.now() < deadline) {
@@ -1631,7 +1669,7 @@
             if (!st || !st.success) continue;
             if (st.status === 'done') return { success: true, transcript: st.transcript };
             if (st.status === 'error') return { success: false, code: st.code || 'TRANSCRIBE_ERROR' };
-            if (st.progress) setModalProgress(`Trascrizione del video: ${st.progress}`);
+            if (st.progress) setModalProgress(t('modal_transcribing_progress', [String(st.progress)]));
         }
         return { success: false, code: 'TRANSCRIBE_TIMEOUT' };
     }
@@ -1753,7 +1791,7 @@
 
             if (!apiResult?.success) {
                 if (apiResult?.status === 429) {
-                    throw new Error('Limite riassunti raggiunto. Upgrade a Premium per continuare.');
+                    throw new Error(t('err_quota_reached'));
                 }
                 throw new Error(apiResult?.error || 'Backend non raggiungibile');
             }
@@ -1887,7 +1925,7 @@
         try {
             const entry = {
                 timestamp: Date.now(),
-                title: data.title || 'Riassunto',
+                title: data.title || t('modal_summary'),
                 url: data.originalUrl || window.location.href,
                 cached: Boolean(data.cached),
                 sourceType: data.sourceType || 'web'

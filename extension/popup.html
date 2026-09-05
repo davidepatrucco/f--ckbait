@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -659,11 +659,11 @@
                         <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
                     </svg>
                 </div>
-                <div class="login-title">Accedi per continuare</div>
-                <div class="login-subtitle">
+                <div class="login-title" data-i18n="popup_login">Accedi per continuare</div>
+                <div class="login-subtitle" data-i18n-brand="popup_login_subtitle">
                     Effettua l'accesso con Google per utilizzare LemonSqueezer e ottenere riassunti intelligenti.
                 </div>
-                <button id="googleLoginBtn" class="google-login-btn">
+                <button id="googleLoginBtn" class="google-login-btn" data-i18n-node="popup_login_google">
                     <svg class="google-icon" viewBox="0 0 24 24">
                         <path fill="#4285f4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                         <path fill="#34a853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -673,15 +673,15 @@
                     Accedi con Google
                 </button>
 
-                <div class="login-divider">oppure</div>
+                <div class="login-divider" data-i18n="popup_or">oppure</div>
 
                 <div class="login-form">
-                    <input id="emailInput" class="text-input" type="email" placeholder="Email" autocomplete="email">
-                    <input id="passwordInput" class="text-input" type="password" placeholder="Password" autocomplete="current-password">
+                    <input id="emailInput" class="text-input" type="email" placeholder="Email" data-i18n-placeholder="popup_email" autocomplete="email">
+                    <input id="passwordInput" class="text-input" type="password" placeholder="Password" data-i18n-placeholder="popup_password" autocomplete="current-password">
                     <div id="emailLoginError" class="login-error"></div>
                     <div class="login-actions">
-                        <button id="emailLoginBtn" class="button-secondary">Accedi</button>
-                        <button id="emailRegisterBtn" class="button-primary">Crea account</button>
+                        <button id="emailLoginBtn" class="button-secondary" data-i18n="popup_signin">Accedi</button>
+                        <button id="emailRegisterBtn" class="button-primary" data-i18n="popup_create_account">Crea account</button>
                     </div>
                 </div>
             </div>
@@ -690,22 +690,22 @@
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M4 5h10"></path><path d="M4 10h16"></path><path d="M4 15h12"></path><path d="M4 20h8"></path>
                 </svg>
-                Riassumi questa pagina
+                <span data-i18n="popup_summarize">Riassumi questa pagina</span>
             </button>
 
             <!-- User plan -->
             <div id="userInfo" class="user-info">
                 <img id="userAvatar" class="user-avatar" alt="User">
                 <div class="user-details">
-                    <div class="user-label">User</div>
+                    <div class="user-label" data-i18n="popup_user">User</div>
                     <div id="userName" class="user-name"></div>
-                    <div id="userPlan" class="user-plan">Piano Free • 3/10 riassunti</div>
+                    <div id="userPlan" class="user-plan"></div>
                 </div>
-                <button id="logoutBtn" class="logout-btn">Esci</button>
+                <button id="logoutBtn" class="logout-btn" data-i18n="popup_logout">Esci</button>
             </div>
 
             <details class="options-panel">
-                <summary>Opzioni</summary>
+                <summary data-i18n="popup_options">Opzioni</summary>
 
             <div class="config-card">
                 <h3>
@@ -715,10 +715,10 @@
                         <path d="M12 3a14 14 0 0 1 0 18"></path>
                         <path d="M12 3a14 14 0 0 0 0 18"></path>
                     </svg>
-                    Lingua riassunto
+                    <span data-i18n="popup_language">Lingua riassunto</span>
                 </h3>
                 <div class="input-group">
-                    <label for="language">Output</label>
+                    <label for="language" data-i18n="popup_output">Output</label>
                     <select id="language">
                         <option value="it">Italiano</option>
                         <option value="en">English</option>
@@ -736,14 +736,14 @@
                         <path d="M7 12h10"></path>
                         <path d="M10 17h4"></path>
                     </svg>
-                    Compressione
+                    <span data-i18n="popup_compression">Compressione</span>
                 </h3>
                 <div class="input-group">
-                    <label for="squeeze">Lunghezza sintesi (% del testo)</label>
+                    <label for="squeeze" data-i18n="popup_squeeze_label">Lunghezza sintesi (% del testo)</label>
                     <select id="squeeze">
-                        <option value="10">10% — molto sintetico</option>
-                        <option value="20" selected>20% — consigliato</option>
-                        <option value="50">50% — esteso</option>
+                        <option value="10" data-i18n="popup_squeeze_10">10% — molto sintetico</option>
+                        <option value="20" selected data-i18n="popup_squeeze_20">20% — consigliato</option>
+                        <option value="50" data-i18n="popup_squeeze_50">50% — esteso</option>
                     </select>
                 </div>
             </div>
@@ -751,16 +751,16 @@
 
             <section class="history-card" aria-label="Cronologia riassunti">
                 <div class="history-card-header">
-                    <h3>Cronologia</h3>
-                    <button id="clearHistoryBtn" class="history-clear-btn" type="button" hidden>Svuota</button>
+                    <h3 data-i18n="popup_history">Cronologia</h3>
+                    <button id="clearHistoryBtn" class="history-clear-btn" type="button" hidden data-i18n="popup_clear">Svuota</button>
                 </div>
                 <div id="historyList"></div>
             </section>
             
             <div id="loading" class="loading-card">
                 <div class="loading-spinner"></div>
-                <div class="loading-text">Sto analizzando...</div>
-                <div class="loading-subtext">Sto analizzando la pagina</div>
+                <div class="loading-text" data-i18n="popup_analyzing">Sto analizzando...</div>
+                <div class="loading-subtext" data-i18n="popup_analyzing_page">Sto analizzando la pagina</div>
             </div>
             
             <div id="result" class="result-card">
@@ -772,7 +772,7 @@
                             <path d="M8 12h8"></path>
                             <path d="M8 16h6"></path>
                         </svg>
-                        <h3 id="resultTitle">Riassunto</h3>
+                        <h3 id="resultTitle" data-i18n="popup_summary_title">Riassunto</h3>
                     </div>
                     <div class="result-stats" id="resultStats">
                         <!-- Stats will be populated here -->
@@ -788,7 +788,7 @@
                     <rect x="9" y="9" width="10" height="10" rx="2"></rect>
                     <rect x="5" y="5" width="10" height="10" rx="2"></rect>
                 </svg>
-                Copia negli appunti
+                <span data-i18n="popup_copy_clipboard">Copia negli appunti</span>
             </button>
             
             <div id="error" class="error-card">
@@ -799,7 +799,7 @@
                         <path d="M9 9l6 6"></path>
                     </svg>
                 </div>
-                <div class="error-title">Errore</div>
+                <div class="error-title" data-i18n="app_error">Errore</div>
                 <div class="error-message" id="errorMessage"></div>
             </div>
         </div>

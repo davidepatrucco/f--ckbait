@@ -1,0 +1,467 @@
+{
+  "app_close": {
+    "message": "Close"
+  },
+  "app_error": {
+    "message": "Error"
+  },
+  "app_not_summarizable": {
+    "message": "Can't be summarized"
+  },
+  "popup_summarize": {
+    "message": "Summarize this page"
+  },
+  "popup_options": {
+    "message": "Options"
+  },
+  "popup_history": {
+    "message": "History"
+  },
+  "popup_user": {
+    "message": "User"
+  },
+  "popup_plan_premium": {
+    "message": "Premium plan"
+  },
+  "popup_plan_free": {
+    "message": "Free plan"
+  },
+  "popup_unlimited": {
+    "message": "Unlimited summaries"
+  },
+  "popup_summaries": {
+    "message": "summaries"
+  },
+  "popup_month": {
+    "message": "This month"
+  },
+  "popup_total": {
+    "message": "Total"
+  },
+  "popup_saved": {
+    "message": "saved"
+  },
+  "popup_output": {
+    "message": "Output"
+  },
+  "popup_language": {
+    "message": "Summary language"
+  },
+  "popup_logout": {
+    "message": "Log out"
+  },
+  "popup_empty_history": {
+    "message": "Your latest summaries will appear here."
+  },
+  "popup_login": {
+    "message": "Sign in to continue"
+  },
+  "popup_or": {
+    "message": "or"
+  },
+  "popup_create_account": {
+    "message": "Create account"
+  },
+  "popup_clear": {
+    "message": "Clear"
+  },
+  "popup_signin": {
+    "message": "Sign in"
+  },
+  "popup_login_google": {
+    "message": "Connect with Google"
+  },
+  "popup_login_completing": {
+    "message": "Finish signing in from the Google window..."
+  },
+  "popup_login_timeout": {
+    "message": "Timed out — try again"
+  },
+  "popup_login_authenticating": {
+    "message": "Signing in..."
+  },
+  "popup_limit_reached": {
+    "message": "Limit reached — upgrade to Premium"
+  },
+  "popup_upgrade": {
+    "message": "Upgrade to Premium"
+  },
+  "popup_upgrade_error": {
+    "message": "Upgrade failed: $1",
+    "placeholders": {
+      "detail": {
+        "content": "$1"
+      }
+    }
+  },
+  "popup_summarize_failed": {
+    "message": "Couldn't start the summary"
+  },
+  "popup_analyzing": {
+    "message": "Analyzing..."
+  },
+  "popup_analyzing_page": {
+    "message": "Analyzing the page"
+  },
+  "popup_summary_title": {
+    "message": "Summary"
+  },
+  "popup_squeeze_label": {
+    "message": "Summary length (% of the text)"
+  },
+  "popup_squeeze_10": {
+    "message": "10% — very short"
+  },
+  "popup_squeeze_20": {
+    "message": "20% — recommended"
+  },
+  "popup_squeeze_50": {
+    "message": "50% — extended"
+  },
+  "modal_loading": {
+    "message": "Analyzing..."
+  },
+  "modal_transcribing": {
+    "message": "Transcribing the video…"
+  },
+  "modal_transcribing_progress": {
+    "message": "Transcribing the video: $1",
+    "placeholders": {
+      "progress": {
+        "content": "$1"
+      }
+    }
+  },
+  "modal_summary": {
+    "message": "Summary"
+  },
+  "modal_reading_time": {
+    "message": "$1 min read",
+    "placeholders": {
+      "minutes": {
+        "content": "$1"
+      }
+    }
+  },
+  "modal_video_duration": {
+    "message": "Video: $1",
+    "placeholders": {
+      "duration": {
+        "content": "$1"
+      }
+    }
+  },
+  "modal_time_unavailable": {
+    "message": "Time unavailable"
+  },
+  "modal_words": {
+    "message": "$1 words",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "modal_saved_ms": {
+    "message": "You saved $1m $2s!",
+    "placeholders": {
+      "minutes": {
+        "content": "$1"
+      },
+      "seconds": {
+        "content": "$2"
+      }
+    }
+  },
+  "modal_saved_m": {
+    "message": "You saved $1 min!",
+    "placeholders": {
+      "minutes": {
+        "content": "$1"
+      }
+    }
+  },
+  "modal_saved_s": {
+    "message": "You saved $1 sec!",
+    "placeholders": {
+      "seconds": {
+        "content": "$1"
+      }
+    }
+  },
+  "modal_saved_unavailable": {
+    "message": "Savings not available"
+  },
+  "modal_cached": {
+    "message": "From cache"
+  },
+  "modal_copy": {
+    "message": "Copy"
+  },
+  "modal_copied": {
+    "message": "Copied!"
+  },
+  "modal_truncated": {
+    "message": "Very long content: the summary covers only the first part of the page."
+  },
+  "modal_unsupported_output": {
+    "message": "Output format not supported in this version."
+  },
+  "source_video": {
+    "message": "Summary of the video"
+  },
+  "source_text": {
+    "message": "Summary of the page text"
+  },
+  "source_switch_to_text": {
+    "message": "Summarize the text instead"
+  },
+  "source_switch_to_video": {
+    "message": "Summarize the video instead"
+  },
+  "note_video_available": {
+    "message": "This page also contains a video."
+  },
+  "note_video_not_accessible": {
+    "message": "The video on this page isn't accessible (protected stream or no subtitles), so the page text was summarized instead."
+  },
+  "note_video_needs_premium": {
+    "message": "Summarizing the video requires the Premium plan, so the page text was summarized instead."
+  },
+  "note_video_too_long": {
+    "message": "The video is too long to transcribe, so the page text was summarized instead."
+  },
+  "note_video_skipped_live": {
+    "message": "A live stream is in progress (partial content), so the page text was summarized instead."
+  },
+  "note_captions_failed": {
+    "message": "The video subtitles couldn't be downloaded."
+  },
+  "note_stt_failed": {
+    "message": "The video audio couldn't be transcribed."
+  },
+  "note_captions_translated": {
+    "message": "Subtitles are in another language: the summary is translated."
+  },
+  "note_transcript_truncated": {
+    "message": "Very long video: the summary covers only the first part of the transcript."
+  },
+  "err_paywall": {
+    "message": "This page is behind a paywall: the content isn't accessible without a subscription to the provider. Sign in on the site and try again."
+  },
+  "err_login_wall": {
+    "message": "This content requires signing in to the site. Log in on the page and try again."
+  },
+  "err_consent_wall": {
+    "message": "Dismiss the cookie/consent banner on the page and try again."
+  },
+  "err_canvas_doc": {
+    "message": "This document (for example Google Docs or Office online) can't be read by the extension. Export it to PDF or open the published (HTML) version."
+  },
+  "err_too_long": {
+    "message": "This content is too long for a reliable summary. Try a shorter section or page."
+  },
+  "err_bot_challenge": {
+    "message": "The page is protected by an anti-bot check. Open it in the browser and try again."
+  },
+  "err_invalid_response": {
+    "message": "This content couldn't be summarized (it may not contain usable text, or it isn't allowed by the policies)."
+  },
+  "err_auth_required": {
+    "message": "You need to sign in to use this extension."
+  },
+  "err_insufficient_text": {
+    "message": "This page doesn't contain enough text to summarize."
+  },
+  "err_timeout": {
+    "message": "The summary took too long. Please try again."
+  },
+  "err_network": {
+    "message": "Couldn't reach the service. Check your connection and try again."
+  },
+  "err_generic": {
+    "message": "The summary couldn't be generated. Please try again shortly."
+  },
+  "err_premium_required": {
+    "message": "Summarizing videos without subtitles is reserved for the Premium plan."
+  },
+  "err_unsupported_media": {
+    "message": "Video not supported: the source isn't accessible (protected stream, DRM, or a non-direct format)."
+  },
+  "err_media_too_large": {
+    "message": "The video is too large to summarize right now. Try a shorter one."
+  },
+  "err_no_speech": {
+    "message": "No speech was recognized in the video."
+  },
+  "err_live_stream": {
+    "message": "This is a live stream: subtitles are partial and the content isn't complete yet. Try again once the recording is available."
+  },
+  "err_video_not_accessible": {
+    "message": "The video on this page isn't accessible (protected stream or DRM) and has no subtitles, so it can't be summarized."
+  },
+  "err_video_too_long_no_captions": {
+    "message": "This video is too long to transcribe and has no subtitles. For now, long videos are supported only when subtitles are available."
+  },
+  "err_captions_failed": {
+    "message": "The video subtitles couldn't be downloaded. Reload the page and try again."
+  },
+  "err_transcribe_timeout": {
+    "message": "Transcribing the video is taking too long. Try again in a few minutes."
+  },
+  "err_blocked_url": {
+    "message": "The video source isn't publicly reachable."
+  },
+  "err_insufficient_content": {
+    "message": "This page doesn't contain enough content to summarize."
+  },
+  "err_transcribe_generic": {
+    "message": "The video couldn't be transcribed. Please try again shortly."
+  },
+  "brand_rec_read_now": {
+    "message": "Read now"
+  },
+  "brand_rec_skim": {
+    "message": "Skim"
+  },
+  "brand_rec_save": {
+    "message": "Save for later"
+  },
+  "brand_rec_ignore": {
+    "message": "Skip"
+  },
+  "brand_label_attention_score": {
+    "message": "Attention score"
+  },
+  "brand_label_clickbait": {
+    "message": "Clickbait"
+  },
+  "brand_label_hype": {
+    "message": "Hype"
+  },
+  "brand_label_framing": {
+    "message": "Framing"
+  },
+  "brand_label_reliability": {
+    "message": "Reliability"
+  },
+  "brand_label_info_density": {
+    "message": "Info density"
+  },
+  "brand_label_novelty": {
+    "message": "Novelty"
+  },
+  "brand_label_relevance": {
+    "message": "Relevance"
+  },
+  "brand_label_strategic_importance": {
+    "message": "Strategic importance"
+  },
+  "brand_label_decision": {
+    "message": "Decision"
+  },
+  "brand_label_signal": {
+    "message": "Signal"
+  },
+  "summarypage_title": {
+    "message": "Summary"
+  },
+  "summarypage_no_summary": {
+    "message": "Summary not available."
+  },
+  "summarypage_none_queued": {
+    "message": "No summary queued."
+  },
+  "summarypage_load_error": {
+    "message": "Something went wrong while loading the summary."
+  },
+  "summarypage_generic_error": {
+    "message": "The summary couldn't be generated."
+  },
+  "summarypage_truncated": {
+    "message": "Long content: the summary covers only the first part."
+  },
+  "sw_context_menu": {
+    "message": "Summarize this link"
+  },
+  "sw_notif_analyzing": {
+    "message": "Analyzing..."
+  },
+  "sw_notif_error_title": {
+    "message": "Error"
+  },
+  "sw_notif_login_title": {
+    "message": "Sign-in required"
+  },
+  "sw_notif_login_message": {
+    "message": "Open the extension and sign in to continue."
+  },
+  "brand_section_key_takeaways": {
+    "message": "Key takeaways"
+  },
+  "brand_section_opportunities": {
+    "message": "Opportunities"
+  },
+  "brand_section_filler_hype": {
+    "message": "Filler / Hype"
+  },
+  "brand_section_what_happened": {
+    "message": "What happened"
+  },
+  "brand_section_why_it_matters": {
+    "message": "Why it matters"
+  },
+  "brand_section_alternative_views": {
+    "message": "Alternative views"
+  },
+  "brand_section_watch_next": {
+    "message": "What to watch"
+  },
+  "video_default_title": {
+    "message": "YouTube video"
+  },
+  "err_quota_reached": {
+    "message": "Summary limit reached. Upgrade to Premium to continue."
+  },
+  "err_transcript_unavailable": {
+    "message": "No transcript available for this video."
+  },
+  "err_pdf_too_long": {
+    "message": "This PDF is too long for a reliable summary."
+  },
+  "err_pdf_no_text": {
+    "message": "This PDF has no selectable text (it is likely a scan or an image)."
+  },
+  "err_doc_not_accessible": {
+    "message": "Document not accessible."
+  },
+  "err_pdf_generic": {
+    "message": "The PDF couldn't be summarized."
+  },
+  "err_network_retry": {
+    "message": "Network error. Please try again."
+  },
+  "locale_code": {
+    "message": "en"
+  },
+  "popup_login_subtitle": {
+    "message": "Sign in with Google to use $1 and get smart summaries.",
+    "placeholders": {
+      "brand": {
+        "content": "$1"
+      }
+    }
+  },
+  "popup_compression": {
+    "message": "Compression"
+  },
+  "popup_copy_clipboard": {
+    "message": "Copy to clipboard"
+  },
+  "popup_email": {
+    "message": "Email"
+  },
+  "popup_password": {
+    "message": "Password"
+  }
+}

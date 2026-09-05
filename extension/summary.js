@@ -1,10 +1,15 @@
 // summary.js — pagina risultati (usata per i PDF, dove il viewer non ospita content
 // script). Il service worker scrive il risultato in storage e apre questa scheda.
 (function () {
+  // i18n: stringhe in _locales/<lang>/messages.json, lingua = quella del browser.
+  const t = (key, subs) => {
+    try { const m = chrome.i18n.getMessage(key, subs); if (m) return m; } catch (e) { /* noop */ }
+    return key;
+  };
   const BRAND = (typeof window !== 'undefined' && window.__BRAND__) ? window.__BRAND__ : null;
   const primary = BRAND?.tokens?.colors?.primary || '#FFD400';
   document.documentElement.style.setProperty('--p', primary);
-  const brandName = BRAND?.storeName || BRAND?.displayName || 'Riassunto';
+  const brandName = BRAND?.storeName || BRAND?.displayName || t('summarypage_title');
   document.getElementById('brand').textContent = brandName;
   document.title = brandName;
 
@@ -13,7 +18,7 @@
 
   function renderError(message) {
     root.innerHTML = '';
-    const d = el('div'); d.className = 'error'; d.textContent = message || 'Non è stato possibile generare il riassunto.';
+    const d = el('div'); d.className = 'error'; d.textContent = message || t('summarypage_generic_error');
     root.appendChild(d);
   }
 
@@ -21,14 +26,14 @@
     const data = payload?.data || {};
     const url = payload?.url || data.originalUrl || data.url || '';
     root.innerHTML = '';
-    root.appendChild(Object.assign(el('h1', data.title || 'Riassunto'), {}));
+    root.appendChild(Object.assign(el('h1', data.title || t('summarypage_title')), {}));
     if (url) {
       const src = el('div'); src.className = 'src';
       const a = el('a', url); a.href = url; a.target = '_blank'; src.appendChild(a); root.appendChild(src);
     }
     if (data.truncated) {
       const n = el('div'); n.className = 'note';
-      n.textContent = '⚠️ Contenuto lungo: riassunto basato sulla prima parte.';
+      n.textContent = `⚠️ ${t('summarypage_truncated')}`;
       n.style.cssText = 'background:#FFF7E6;border:1px solid #FFE1A8;color:#8a6d3b;border-radius:6px;padding:8px 10px;font-size:12px;';
       root.appendChild(n);
     }
@@ -45,20 +50,20 @@
         }
       }
     } else {
-      renderError('Riassunto non disponibile.');
+      renderError(t('summarypage_no_summary'));
     }
   }
 
   async function boot() {
     try {
       const { pendingSummary } = await chrome.storage.local.get(['pendingSummary']);
-      if (!pendingSummary) { renderError('Nessun riassunto in coda.'); return; }
+      if (!pendingSummary) { renderError(t('summarypage_none_queued')); return; }
       if (pendingSummary.error) { renderError(pendingSummary.error); }
       else { renderResult(pendingSummary); }
       // one-shot: pulisci per non mostrare un risultato vecchio alla prossima apertura.
       await chrome.storage.local.remove('pendingSummary');
     } catch (e) {
-      renderError('Errore nel caricamento del riassunto.');
+      renderError(t('summarypage_load_error'));
     }
   }
   boot();

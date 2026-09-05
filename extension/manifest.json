@@ -2,6 +2,7 @@
   "manifest_version": 3,
   "name": "LemonSqueezer - TL;DR",
   "version": "1.3.2",
+  "default_locale": "en",
   "description": "Riassumi qualsiasi pagina web in 3-4 bullet points secchi",
   "permissions": [
     "activeTab",
@@ -34,8 +35,16 @@
   },
   "content_scripts": [
     {
-      "matches": ["http://*/*", "https://*/*"],
-      "js": ["browser-polyfill.js", "brand-config.js", "source-decision.js", "content.js"],
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "browser-polyfill.js",
+        "brand-config.js",
+        "source-decision.js",
+        "content.js"
+      ],
       "run_at": "document_idle"
     }
   ]

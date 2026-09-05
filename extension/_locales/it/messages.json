@@ -1,0 +1,467 @@
+{
+  "app_close": {
+    "message": "Chiudi"
+  },
+  "app_error": {
+    "message": "Errore"
+  },
+  "app_not_summarizable": {
+    "message": "Non riassumibile"
+  },
+  "popup_summarize": {
+    "message": "Riassumi questa pagina"
+  },
+  "popup_options": {
+    "message": "Opzioni"
+  },
+  "popup_history": {
+    "message": "Cronologia"
+  },
+  "popup_user": {
+    "message": "Utente"
+  },
+  "popup_plan_premium": {
+    "message": "Piano Premium"
+  },
+  "popup_plan_free": {
+    "message": "Piano Free"
+  },
+  "popup_unlimited": {
+    "message": "Riassunti illimitati"
+  },
+  "popup_summaries": {
+    "message": "riassunti"
+  },
+  "popup_month": {
+    "message": "Questo mese"
+  },
+  "popup_total": {
+    "message": "Totale"
+  },
+  "popup_saved": {
+    "message": "risparmiati"
+  },
+  "popup_output": {
+    "message": "Output"
+  },
+  "popup_language": {
+    "message": "Lingua riassunto"
+  },
+  "popup_logout": {
+    "message": "Esci"
+  },
+  "popup_empty_history": {
+    "message": "I tuoi ultimi riassunti appariranno qui."
+  },
+  "popup_login": {
+    "message": "Accedi per continuare"
+  },
+  "popup_or": {
+    "message": "oppure"
+  },
+  "popup_create_account": {
+    "message": "Crea account"
+  },
+  "popup_clear": {
+    "message": "Svuota"
+  },
+  "popup_signin": {
+    "message": "Accedi"
+  },
+  "popup_login_google": {
+    "message": "Connetti con Google"
+  },
+  "popup_login_completing": {
+    "message": "Completa il login nella finestra Google..."
+  },
+  "popup_login_timeout": {
+    "message": "Tempo scaduto — riprova"
+  },
+  "popup_login_authenticating": {
+    "message": "Autenticazione in corso..."
+  },
+  "popup_limit_reached": {
+    "message": "Limite raggiunto — passa a Premium"
+  },
+  "popup_upgrade": {
+    "message": "Passa a Premium"
+  },
+  "popup_upgrade_error": {
+    "message": "Upgrade non riuscito: $1",
+    "placeholders": {
+      "detail": {
+        "content": "$1"
+      }
+    }
+  },
+  "popup_summarize_failed": {
+    "message": "Impossibile avviare il riassunto"
+  },
+  "popup_analyzing": {
+    "message": "Sto analizzando..."
+  },
+  "popup_analyzing_page": {
+    "message": "Sto analizzando la pagina"
+  },
+  "popup_summary_title": {
+    "message": "Riassunto"
+  },
+  "popup_squeeze_label": {
+    "message": "Lunghezza sintesi (% del testo)"
+  },
+  "popup_squeeze_10": {
+    "message": "10% — molto sintetico"
+  },
+  "popup_squeeze_20": {
+    "message": "20% — consigliato"
+  },
+  "popup_squeeze_50": {
+    "message": "50% — esteso"
+  },
+  "modal_loading": {
+    "message": "Analisi in corso..."
+  },
+  "modal_transcribing": {
+    "message": "Trascrizione del video in corso…"
+  },
+  "modal_transcribing_progress": {
+    "message": "Trascrizione del video: $1",
+    "placeholders": {
+      "progress": {
+        "content": "$1"
+      }
+    }
+  },
+  "modal_summary": {
+    "message": "Riassunto"
+  },
+  "modal_reading_time": {
+    "message": "$1 min di lettura",
+    "placeholders": {
+      "minutes": {
+        "content": "$1"
+      }
+    }
+  },
+  "modal_video_duration": {
+    "message": "Video: $1",
+    "placeholders": {
+      "duration": {
+        "content": "$1"
+      }
+    }
+  },
+  "modal_time_unavailable": {
+    "message": "Tempo non disponibile"
+  },
+  "modal_words": {
+    "message": "$1 parole",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "modal_saved_ms": {
+    "message": "Hai risparmiato $1m $2s!",
+    "placeholders": {
+      "minutes": {
+        "content": "$1"
+      },
+      "seconds": {
+        "content": "$2"
+      }
+    }
+  },
+  "modal_saved_m": {
+    "message": "Hai risparmiato $1 min!",
+    "placeholders": {
+      "minutes": {
+        "content": "$1"
+      }
+    }
+  },
+  "modal_saved_s": {
+    "message": "Hai risparmiato $1 sec!",
+    "placeholders": {
+      "seconds": {
+        "content": "$1"
+      }
+    }
+  },
+  "modal_saved_unavailable": {
+    "message": "Risparmio non calcolabile"
+  },
+  "modal_cached": {
+    "message": "Dalla cache"
+  },
+  "modal_copy": {
+    "message": "Copia"
+  },
+  "modal_copied": {
+    "message": "Copiato!"
+  },
+  "modal_truncated": {
+    "message": "Contenuto molto lungo: il riassunto si basa sulla prima parte della pagina."
+  },
+  "modal_unsupported_output": {
+    "message": "Formato di output non supportato in questa versione."
+  },
+  "source_video": {
+    "message": "Riassunto del video"
+  },
+  "source_text": {
+    "message": "Riassunto del testo della pagina"
+  },
+  "source_switch_to_text": {
+    "message": "Riassumi il testo"
+  },
+  "source_switch_to_video": {
+    "message": "Riassumi il video"
+  },
+  "note_video_available": {
+    "message": "Questa pagina contiene anche un video."
+  },
+  "note_video_not_accessible": {
+    "message": "Il video di questa pagina non è accessibile (streaming protetto o senza sottotitoli): ho riassunto il testo."
+  },
+  "note_video_needs_premium": {
+    "message": "La sintesi del video richiede il piano Premium: ho riassunto il testo della pagina."
+  },
+  "note_video_too_long": {
+    "message": "Il video è troppo lungo per essere trascritto: ho riassunto il testo della pagina."
+  },
+  "note_video_skipped_live": {
+    "message": "È in corso una diretta (contenuto parziale): ho riassunto il testo della pagina."
+  },
+  "note_captions_failed": {
+    "message": "Non è stato possibile scaricare i sottotitoli del video."
+  },
+  "note_stt_failed": {
+    "message": "Non è stato possibile trascrivere l’audio del video."
+  },
+  "note_captions_translated": {
+    "message": "Sottotitoli in un’altra lingua: il riassunto è tradotto."
+  },
+  "note_transcript_truncated": {
+    "message": "Video molto lungo: il riassunto si basa sulla prima parte della trascrizione."
+  },
+  "err_paywall": {
+    "message": "Questa pagina è dietro un paywall: il contenuto non è accessibile senza un abbonamento al provider. Accedi al sito e riprova."
+  },
+  "err_login_wall": {
+    "message": "Questo contenuto richiede l’accesso al sito. Effettua il login nella pagina e riprova."
+  },
+  "err_consent_wall": {
+    "message": "Chiudi il banner dei cookie/consenso della pagina e riprova."
+  },
+  "err_canvas_doc": {
+    "message": "Questo documento (es. Google Docs/Office online) non è leggibile dall’estensione. Esportalo in PDF o apri la versione pubblicata (HTML)."
+  },
+  "err_too_long": {
+    "message": "Questo contenuto è troppo lungo per un riassunto affidabile. Prova con una sezione o una pagina più breve."
+  },
+  "err_bot_challenge": {
+    "message": "La pagina è protetta da un controllo anti-bot. Aprila nel browser e riprova."
+  },
+  "err_invalid_response": {
+    "message": "Non è stato possibile riassumere questo contenuto (potrebbe non contenere testo utile o non essere ammesso dalle policy)."
+  },
+  "err_auth_required": {
+    "message": "Devi effettuare il login per usare l’estensione."
+  },
+  "err_insufficient_text": {
+    "message": "Questa pagina non contiene abbastanza testo da riassumere."
+  },
+  "err_timeout": {
+    "message": "Il riassunto ha impiegato troppo tempo. Riprova."
+  },
+  "err_network": {
+    "message": "Impossibile contattare il servizio. Controlla la connessione e riprova."
+  },
+  "err_generic": {
+    "message": "Non è stato possibile generare il riassunto. Riprova tra poco."
+  },
+  "err_premium_required": {
+    "message": "La sintesi dei video senza sottotitoli è riservata al piano Premium."
+  },
+  "err_unsupported_media": {
+    "message": "Video non supportato: la sorgente non è accessibile (streaming protetto, DRM o formato non diretto)."
+  },
+  "err_media_too_large": {
+    "message": "Video troppo grande per la sintesi al momento. Prova con un contenuto più breve."
+  },
+  "err_no_speech": {
+    "message": "Nessun parlato riconosciuto nel video."
+  },
+  "err_live_stream": {
+    "message": "Questa è una diretta: i sottotitoli sono parziali e il contenuto non è ancora completo. Riprova quando la registrazione è disponibile."
+  },
+  "err_video_not_accessible": {
+    "message": "Il video di questa pagina non è accessibile (streaming protetto o DRM) e non ha sottotitoli, quindi non può essere riassunto."
+  },
+  "err_video_too_long_no_captions": {
+    "message": "Questo video è troppo lungo per essere trascritto e non ha sottotitoli. Per ora i video lunghi sono supportati solo se hanno i sottotitoli."
+  },
+  "err_captions_failed": {
+    "message": "Non è stato possibile scaricare i sottotitoli del video. Ricarica la pagina e riprova."
+  },
+  "err_transcribe_timeout": {
+    "message": "La trascrizione del video sta impiegando troppo tempo. Riprova tra qualche minuto."
+  },
+  "err_blocked_url": {
+    "message": "La sorgente del video non è raggiungibile pubblicamente."
+  },
+  "err_insufficient_content": {
+    "message": "Questa pagina non contiene abbastanza contenuto da riassumere."
+  },
+  "err_transcribe_generic": {
+    "message": "Non è stato possibile trascrivere il video. Riprova tra poco."
+  },
+  "brand_rec_read_now": {
+    "message": "Leggi ora"
+  },
+  "brand_rec_skim": {
+    "message": "Scorri"
+  },
+  "brand_rec_save": {
+    "message": "Salva per dopo"
+  },
+  "brand_rec_ignore": {
+    "message": "Ignora"
+  },
+  "brand_label_attention_score": {
+    "message": "Attention score"
+  },
+  "brand_label_clickbait": {
+    "message": "Clickbait"
+  },
+  "brand_label_hype": {
+    "message": "Hype"
+  },
+  "brand_label_framing": {
+    "message": "Framing"
+  },
+  "brand_label_reliability": {
+    "message": "Affidabilità"
+  },
+  "brand_label_info_density": {
+    "message": "Densità info"
+  },
+  "brand_label_novelty": {
+    "message": "Novità"
+  },
+  "brand_label_relevance": {
+    "message": "Rilevanza"
+  },
+  "brand_label_strategic_importance": {
+    "message": "Importanza strategica"
+  },
+  "brand_label_decision": {
+    "message": "Decisione"
+  },
+  "brand_label_signal": {
+    "message": "Signal"
+  },
+  "summarypage_title": {
+    "message": "Riassunto"
+  },
+  "summarypage_no_summary": {
+    "message": "Riassunto non disponibile."
+  },
+  "summarypage_none_queued": {
+    "message": "Nessun riassunto in coda."
+  },
+  "summarypage_load_error": {
+    "message": "Errore nel caricamento del riassunto."
+  },
+  "summarypage_generic_error": {
+    "message": "Non è stato possibile generare il riassunto."
+  },
+  "summarypage_truncated": {
+    "message": "Contenuto lungo: riassunto basato sulla prima parte."
+  },
+  "sw_context_menu": {
+    "message": "Riassumi questo link"
+  },
+  "sw_notif_analyzing": {
+    "message": "Analisi in corso..."
+  },
+  "sw_notif_error_title": {
+    "message": "Errore"
+  },
+  "sw_notif_login_title": {
+    "message": "Login richiesto"
+  },
+  "sw_notif_login_message": {
+    "message": "Apri l’estensione ed effettua il login per continuare."
+  },
+  "brand_section_key_takeaways": {
+    "message": "Punti chiave"
+  },
+  "brand_section_opportunities": {
+    "message": "Opportunità"
+  },
+  "brand_section_filler_hype": {
+    "message": "Riempitivo / Hype"
+  },
+  "brand_section_what_happened": {
+    "message": "Cosa è successo"
+  },
+  "brand_section_why_it_matters": {
+    "message": "Perché conta"
+  },
+  "brand_section_alternative_views": {
+    "message": "Letture alternative"
+  },
+  "brand_section_watch_next": {
+    "message": "Da monitorare"
+  },
+  "video_default_title": {
+    "message": "Video YouTube"
+  },
+  "err_quota_reached": {
+    "message": "Limite riassunti raggiunto. Passa a Premium per continuare."
+  },
+  "err_transcript_unavailable": {
+    "message": "Trascrizione non disponibile per questo video."
+  },
+  "err_pdf_too_long": {
+    "message": "Questo PDF è troppo lungo per un riassunto affidabile."
+  },
+  "err_pdf_no_text": {
+    "message": "Questo PDF non contiene testo selezionabile (probabile scansione/immagine)."
+  },
+  "err_doc_not_accessible": {
+    "message": "Documento non accessibile."
+  },
+  "err_pdf_generic": {
+    "message": "Non è stato possibile riassumere il PDF."
+  },
+  "err_network_retry": {
+    "message": "Errore di rete. Riprova."
+  },
+  "locale_code": {
+    "message": "it"
+  },
+  "popup_login_subtitle": {
+    "message": "Effettua l'accesso con Google per utilizzare $1 e ottenere riassunti intelligenti.",
+    "placeholders": {
+      "brand": {
+        "content": "$1"
+      }
+    }
+  },
+  "popup_compression": {
+    "message": "Compressione"
+  },
+  "popup_copy_clipboard": {
+    "message": "Copia negli appunti"
+  },
+  "popup_email": {
+    "message": "Email"
+  },
+  "popup_password": {
+    "message": "Password"
+  }
+}
