@@ -88,9 +88,11 @@ export function buildBrand(brandId, options = {}) {
     if (manifest.action) manifest.action.default_title = cfg.storeName || cfg.displayName;
     // key pinnata (opzionale): rende stabile l'extension id nel load-unpacked, così il
     // redirect OAuth https://<id>.chromiumapp.org/ è registrabile una volta. Solo Chromium
-    // (Firefox usa browser_specific_settings.gecko.id). Sullo store la key viene comunque
-    // sovrascritta: serve solo per la distribuzione diretta pre-lancio.
-    if (cfg.extensionKey && browser === 'chromium') manifest.key = cfg.extensionKey;
+    // (Firefox usa browser_specific_settings.gecko.id). Serve SOLO alla distribuzione
+    // diretta pre-lancio: nei pacchetti per lo store va omessa (--store), perché l'ID lo
+    // assegna lo store e una key nel manifest può far rifiutare l'upload.
+    if (cfg.extensionKey && browser === 'chromium' && !opts.store) manifest.key = cfg.extensionKey;
+    if (opts.store) delete manifest.key;
     applyBrowserManifest(manifest, browser, brandId);
     writeFileSync(join(outDir, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 
@@ -109,10 +111,11 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     const browser = bIdx >= 0 ? args[bIdx + 1] : 'chromium';
     const eIdx = args.indexOf('--env');
     const env = eIdx >= 0 ? args[eIdx + 1] : 'dev';
-    if (!brandId) { console.error('uso: node scripts/build-brand.mjs <brand> [--browser chromium|firefox] [--env dev|staging|prod]'); process.exit(1); }
+    const store = args.includes('--store');
+    if (!brandId) { console.error('uso: node scripts/build-brand.mjs <brand> [--browser chromium|firefox] [--env dev|staging|prod] [--store]'); process.exit(1); }
     try {
-        const res = buildBrand(brandId, { browser, env });
-        console.log(`✓ build "${res.brandId}" [${res.browser}/${res.env}] -> ${res.outDir} (name: "${res.name}", v${res.version})`);
+        const res = buildBrand(brandId, { browser, env, store });
+        console.log(`✓ build "${res.brandId}" [${res.browser}/${res.env}${store ? '/store' : ''}] -> ${res.outDir} (name: "${res.name}", v${res.version})`);
     } catch (e) {
         console.error(`✗ ${e.message}`);
         process.exit(1);
