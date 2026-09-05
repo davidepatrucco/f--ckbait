@@ -21,7 +21,8 @@
       ],
       "Resource": [
         "arn:aws:iam::707688585651:role/lemonsqueezer-*-SummarizeFunctionRole-*",
-        "arn:aws:iam::707688585651:role/lemonsqueezer-*-StripeWebhookFunctionRole-*"
+        "arn:aws:iam::707688585651:role/lemonsqueezer-*-StripeWebhookFunctionRole-*",
+        "arn:aws:iam::707688585651:role/lemonsqueezer-*-TranscribeWorkerFunctionRole-*"
       ]
     }
   ]
