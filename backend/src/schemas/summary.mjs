@@ -13,7 +13,9 @@ export function parse(response) {
     const splitProse = (s) => {
         const byLine = String(s).split(/\r?\n+/).map(clean).filter(Boolean);
         if (byLine.length > 1) return byLine;
-        return String(s).split(/(?<=[.!?])\s+/).map((x) => x.trim()).filter(Boolean);
+        // Anche qui serve clean(): senza, un output su una riga sola che inizia con "•"
+        // conserva il segno, e il renderer ne aggiunge un secondo ("• • testo").
+        return String(s).split(/(?<=[.!?])\s+/).map(clean).filter(Boolean);
     };
 
     const bulletsFromParsed = (parsed) => {
