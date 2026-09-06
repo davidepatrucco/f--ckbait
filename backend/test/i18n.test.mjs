@@ -21,7 +21,10 @@ const code = Object.fromEntries(
     CODE_FILES.map((f) => [f, readFileSync(join(ROOT, 'extension', f), 'utf8')])
 );
 const allCode = Object.values(code).join('\n');
-const popupHtml = readFileSync(join(ROOT, 'extension', 'popup.html'), 'utf8');
+const HTML_FILES = ['popup.html', 'summary.html'];
+const html = Object.fromEntries(HTML_FILES.map((f) => [f, readFileSync(join(ROOT, 'extension', f), 'utf8')]));
+const popupHtml = html['popup.html'];
+const allHtml = Object.values(html).join('\n');
 
 // Chiavi effettivamente richieste dal codice: t('x'), getMessage('x'), data-i18n="x".
 function usedKeys() {
@@ -47,8 +50,8 @@ function usedKeys() {
         while ((lit = litRe.exec(firstArg))) keys.add(lit[1]);
     }
     let m;
-    const attr = /data-i18n(?:-node|-brand|-placeholder)?="([a-z0-9_]+)"/g;
-    while ((m = attr.exec(popupHtml))) keys.add(m[1]);
+    const attr = /data-i18n(?:-node|-brand|-placeholder|-aria|-alt)?="([a-z0-9_]+)"/g;
+    while ((m = attr.exec(allHtml))) keys.add(m[1]);
     // Mappe codice -> chiave (NOTE_KEYS / ERROR_CODE_KEYS / ERROR_PATTERN_KEYS).
     const mapRe = /(?:NOTE_KEYS|ERROR_CODE_KEYS)\s*=\s*\{([\s\S]*?)\n\s{4}\}/g;
     while ((m = mapRe.exec(code['content.js']))) {
@@ -213,3 +216,41 @@ test('popup.html: ogni data-i18n ha un fallback testuale nel markup', () => {
     }
     assert.ok(checked >= 15, `troppi pochi nodi data-i18n verificati (${checked})`);
 });
+
+// Copertura che mancava: i test guardavano solo popup.html e i file .js. summary.html
+// (la pagina dei risultati PDF) non era controllata affatto, e nessun test guardava
+// gli attributi visibili all'utente (aria-label, alt, title, placeholder).
+test('nessun testo italiano non annotato nei file HTML', () => {
+    const italian = /\b(riassunt\w+|riassumi|pagina|accedi|cronologia|opzioni|lingua|appunti|compressione|chiudi|copia|errore|utente|analizzando|effettua|sintesi)\b/i;
+    const offenders = [];
+    for (const [file, src] of Object.entries(html)) {
+        let clean = src.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<style[\s\S]*?<\/style>/g, '');
+        // Rimuove gli elementi ANNOTATI insieme al loro contenuto: il testo che
+        // contengono e' gestito da chrome.i18n (anche quando non e' adiacente al tag,
+        // p.es. un <button> con un'icona SVG prima del testo).
+        for (let guard = 0; guard < 200; guard++) {
+            const open = /<(\w+)[^>]*\bdata-i18n[\w-]*=/.exec(clean);
+            if (!open) break;
+            const tag = open[1];
+            const closeIdx = clean.indexOf(`</${tag}>`, open.index);
+            const end = closeIdx === -1 ? clean.length : closeIdx + tag.length + 3;
+            clean = clean.slice(0, open.index) + clean.slice(end);
+        }
+        let m;
+        const re = />([^<>{}]{3,120})</g;
+        while ((m = re.exec(clean))) {
+            const txt = m[1].trim();
+            if (!txt || !italian.test(txt)) continue;
+            offenders.push(`${file}: "${txt.slice(0, 60)}"`);
+        }
+        // attributi visibili
+        const attrRe = /<[^>]*?(aria-label|alt|title|placeholder)="([^"]{3,80})"[^>]*>/g;
+        while ((m = attrRe.exec(clean))) {
+            if (!italian.test(m[2])) continue;
+            if (/data-i18n/.test(m[0])) continue;
+            offenders.push(`${file}: ${m[1]}="${m[2].slice(0, 50)}"`);
+        }
+    }
+    assert.deepEqual(offenders, [], `testo/attributi non tradotti:\n${offenders.join('\n')}`);
+});
+

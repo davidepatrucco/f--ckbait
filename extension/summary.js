@@ -10,6 +10,11 @@
   const BRAND = (typeof window !== 'undefined' && window.__BRAND__) ? window.__BRAND__ : null;
   const primary = BRAND?.tokens?.colors?.primary || '#FFD400';
   document.documentElement.style.setProperty('--p', primary);
+  // Testi statici del markup di summary.html (compreso <title>) e attributi.
+  for (const el of document.querySelectorAll('[data-i18n]')) {
+    const v = t(el.getAttribute('data-i18n'), undefined, '');
+    if (v) el.textContent = v;
+  }
   const brandName = BRAND?.storeName || BRAND?.displayName || t('summarypage_title');
   document.getElementById('brand').textContent = brandName;
   document.title = brandName;

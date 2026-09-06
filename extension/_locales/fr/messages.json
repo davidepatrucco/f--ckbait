@@ -415,5 +415,14 @@
   },
   "popup_password": {
     "message": "Mot de passe"
+  },
+  "summarypage_loading": {
+    "message": "Résumé en cours…"
+  },
+  "popup_history_aria": {
+    "message": "Historique des résumés"
+  },
+  "popup_avatar_alt": {
+    "message": "Avatar de l’utilisateur"
   }
 }

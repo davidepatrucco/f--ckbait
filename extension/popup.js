@@ -164,6 +164,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (textNode) textNode.textContent = ` ${translated} `;
         else el.appendChild(document.createTextNode(` ${translated} `));
     }
+    for (const el of document.querySelectorAll('[data-i18n-aria]')) {
+        const v = message(el.getAttribute('data-i18n-aria'));
+        if (v) el.setAttribute('aria-label', v);
+    }
+    for (const el of document.querySelectorAll('[data-i18n-alt]')) {
+        const v = message(el.getAttribute('data-i18n-alt'));
+        if (v) el.setAttribute('alt', v);
+    }
     for (const el of document.querySelectorAll('[data-i18n-placeholder]')) {
         const translated = message(el.getAttribute('data-i18n-placeholder'));
         if (translated) el.setAttribute('placeholder', translated);

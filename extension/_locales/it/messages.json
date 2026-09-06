@@ -415,5 +415,14 @@
   },
   "popup_password": {
     "message": "Password"
+  },
+  "summarypage_loading": {
+    "message": "Riassunto in corso…"
+  },
+  "popup_history_aria": {
+    "message": "Cronologia riassunti"
+  },
+  "popup_avatar_alt": {
+    "message": "Avatar utente"
   }
 }
