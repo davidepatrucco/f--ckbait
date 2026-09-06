@@ -424,5 +424,11 @@
   },
   "popup_avatar_alt": {
     "message": "Avatar de l’utilisateur"
+  },
+  "err_transcribe_busy": {
+    "message": "Des transcriptions sont déjà en cours. Attendez qu’elles se terminent et réessayez."
+  },
+  "err_transcribe_daily_limit": {
+    "message": "Limite quotidienne de transcriptions atteinte. Réessayez demain."
   }
 }

@@ -424,5 +424,11 @@
   },
   "popup_avatar_alt": {
     "message": "User avatar"
+  },
+  "err_transcribe_busy": {
+    "message": "You already have transcriptions running. Wait for them to finish and try again."
+  },
+  "err_transcribe_daily_limit": {
+    "message": "Daily transcription limit reached. Try again tomorrow."
   }
 }

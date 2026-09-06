@@ -5,7 +5,7 @@ import { validateSubscription } from '../src/subscription.mjs';
 import { checkRateLimit } from '../src/rate-limit.mjs';
 import { fetchWebContent, assertPublicUrl } from '../src/web-fetcher.mjs';
 import { transcribeMedia } from '../src/transcribe.mjs';
-import { createJob, getJob, updateJob, publicJobView } from '../src/transcribe-jobs.mjs';
+import { createJob, getJob, updateJob, publicJobView, countUserJobs, MAX_ACTIVE_JOBS, MAX_JOBS_PER_DAY } from '../src/transcribe-jobs.mjs';
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 
 // Client Lambda per invocare il worker di trascrizione (InvocationType Event).
@@ -1428,6 +1428,29 @@ export async function transcribeJobStartHandler(event) {
             await assertPublicUrl(url);
         } catch {
             return createResponse(400, { error: 'URL non consentito (indirizzo privato o locale).', code: 'BLOCKED_URL' });
+        }
+
+        // Anti-abuso: la trascrizione ha un costo per minuto. Il controllo sta PRIMA
+        // della creazione del job, cosi' non si accoda lavoro che poi va scartato.
+        try {
+            const { active, last24h } = await countUserJobs(user.id);
+            if (active >= MAX_ACTIVE_JOBS) {
+                return createResponse(429, {
+                    error: `Hai già ${active} trascrizioni in corso. Attendi che finiscano.`,
+                    code: 'TRANSCRIBE_BUSY',
+                    active
+                });
+            }
+            if (last24h >= MAX_JOBS_PER_DAY) {
+                return createResponse(429, {
+                    error: 'Limite giornaliero di trascrizioni raggiunto.',
+                    code: 'TRANSCRIBE_DAILY_LIMIT'
+                });
+            }
+        } catch (countErr) {
+            // Se il conteggio non è disponibile (indice assente), non si blocca l'utente:
+            // si registra e si prosegue. Il limite è una protezione, non un gate di accesso.
+            console.error('countUserJobs fallito, limite non applicato:', countErr?.message);
         }
 
         const workerName = process.env.TRANSCRIBE_WORKER_FUNCTION;

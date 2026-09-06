@@ -424,5 +424,11 @@
   },
   "popup_avatar_alt": {
     "message": "Avatar del usuario"
+  },
+  "err_transcribe_busy": {
+    "message": "Ya tienes transcripciones en curso. Espera a que terminen e inténtalo de nuevo."
+  },
+  "err_transcribe_daily_limit": {
+    "message": "Límite diario de transcripciones alcanzado. Inténtalo mañana."
   }
 }

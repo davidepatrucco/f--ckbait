@@ -5,7 +5,7 @@
 // crea il job e ritorna subito; il worker (Lambda separata, timeout 15') lo esegue;
 // il client fa polling su GET /transcribe-job.
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand, GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, PutCommand, GetCommand, UpdateCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { randomUUID } from 'node:crypto';
 
 const client = new DynamoDBClient({ region: process.env.AWS_REGION || 'eu-west-1' });
@@ -33,6 +33,50 @@ export async function createJob({ userId, brandId, mediaUrl, mediaKind, lang }) 
         }
     }));
     return { jobId, status: JOB_STATUS.PENDING };
+}
+
+// Limiti anti-abuso. La trascrizione ha un costo per minuto: senza un tetto, un
+// singolo account (o un token rubato) puo' accodare job illimitati.
+export const MAX_ACTIVE_JOBS = Number(process.env.MAX_ACTIVE_TRANSCRIBE_JOBS || 2);
+export const MAX_JOBS_PER_DAY = Number(process.env.MAX_TRANSCRIBE_JOBS_PER_DAY || 20);
+// Oltre questa eta' un job pending/running e' considerato morto (il worker ha timeout
+// a 15'): senza questa finestra, un worker crashato bloccherebbe l'utente per sempre.
+const STALE_AFTER_MS = 20 * 60 * 1000;
+
+// Classificazione PURA dei job letti dall'indice: separata dall'accesso a DynamoDB
+// per poter essere verificata senza infrastruttura.
+export function classifyJobs(items, now = Date.now()) {
+    let active = 0;
+    let last24h = 0;
+    for (const item of items || []) {
+        last24h++;
+        const isOpen = item.status === JOB_STATUS.PENDING || item.status === JOB_STATUS.RUNNING;
+        const age = now - Date.parse(item.createdAt || 0);
+        if (isOpen && age < STALE_AFTER_MS) active++;
+    }
+    return { active, last24h };
+}
+
+// Conta i job dell'utente nelle ultime 24h, distinguendo quelli ancora attivi.
+export async function countUserJobs(userId, now = Date.now()) {
+    const since = new Date(now - 24 * 3600 * 1000).toISOString();
+    let ExclusiveStartKey;
+    let active = 0;
+    let last24h = 0;
+    do {
+        const out = await doc.send(new QueryCommand({
+            TableName: TABLE,
+            IndexName: 'UserJobsIndex',
+            KeyConditionExpression: 'userId = :u AND createdAt >= :since',
+            ExpressionAttributeValues: { ':u': userId, ':since': since },
+            ExclusiveStartKey
+        }));
+        const page = classifyJobs(out.Items, now);
+        active += page.active;
+        last24h += page.last24h;
+        ExclusiveStartKey = out.LastEvaluatedKey;
+    } while (ExclusiveStartKey);
+    return { active, last24h };
 }
 
 export async function getJob(jobId) {

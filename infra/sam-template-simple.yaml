@@ -320,9 +320,26 @@ Resources:
       AttributeDefinitions:
         - AttributeName: jobId
           AttributeType: S
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: createdAt
+          AttributeType: S
       KeySchema:
         - AttributeName: jobId
           KeyType: HASH
+      # Serve a contare i job per utente (limiti anti-abuso): senza indice
+      # occorrerebbe una Scan dell'intera tabella a ogni richiesta.
+      GlobalSecondaryIndexes:
+        - IndexName: UserJobsIndex
+          KeySchema:
+            - AttributeName: userId
+              KeyType: HASH
+            - AttributeName: createdAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: INCLUDE
+            NonKeyAttributes:
+              - status
       TimeToLiveSpecification:
         AttributeName: ttl
         Enabled: true

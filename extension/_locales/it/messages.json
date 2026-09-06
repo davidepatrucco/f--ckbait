@@ -424,5 +424,11 @@
   },
   "popup_avatar_alt": {
     "message": "Avatar utente"
+  },
+  "err_transcribe_busy": {
+    "message": "Hai già delle trascrizioni in corso. Attendi che finiscano e riprova."
+  },
+  "err_transcribe_daily_limit": {
+    "message": "Limite giornaliero di trascrizioni raggiunto. Riprova domani."
   }
 }

@@ -424,5 +424,11 @@
   },
   "popup_avatar_alt": {
     "message": "Benutzer-Avatar"
+  },
+  "err_transcribe_busy": {
+    "message": "Es laufen bereits Transkriptionen. Warten Sie, bis sie fertig sind, und versuchen Sie es erneut."
+  },
+  "err_transcribe_daily_limit": {
+    "message": "Tageslimit für Transkriptionen erreicht. Versuchen Sie es morgen erneut."
   }
 }
