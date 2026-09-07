@@ -430,5 +430,8 @@
   },
   "err_transcribe_daily_limit": {
     "message": "Daily transcription limit reached. Try again tomorrow."
+  },
+  "err_pdf_local": {
+    "message": "This PDF is open from a local file, which the extension cannot read. Open the document from a web address (http/https) and try again."
   }
 }

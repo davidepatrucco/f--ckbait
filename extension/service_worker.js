@@ -66,6 +66,15 @@ async function handlePdfSummarize(request, sendResponse) {
         return m || msg('err_pdf_generic', "The PDF couldn't be summarized.");
     };
     try {
+        // Un PDF aperto da disco ha URL file:// (o content://, blob:): il backend non
+        // puo' scaricarlo. Senza questo controllo l'utente riceveva l'errore tecnico
+        // "Solo URL HTTP/HTTPS sono supportati", che non spiega nulla.
+        if (!/^https?:\/\//i.test(String(request.url || ''))) {
+            await chrome.storage.local.set({ pendingSummary: { error: msg('err_pdf_local', 'This PDF is open from a local file, which the extension cannot read.') } });
+            await chrome.tabs.create({ url: chrome.runtime.getURL('summary.html') });
+            sendResponse({ success: false, error: 'local-pdf' });
+            return;
+        }
         const { authToken } = await chrome.storage.local.get(['authToken']);
         if (!authToken) {
             await chrome.storage.local.set({ pendingSummary: { error: msg('err_auth_required', 'Sign-in required.') } });

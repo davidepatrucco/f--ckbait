@@ -430,5 +430,8 @@
   },
   "err_transcribe_daily_limit": {
     "message": "Tageslimit für Transkriptionen erreicht. Versuchen Sie es morgen erneut."
+  },
+  "err_pdf_local": {
+    "message": "Dieses PDF ist aus einer lokalen Datei geöffnet, die die Erweiterung nicht lesen kann. Öffnen Sie das Dokument über eine Webadresse (http/https) und versuchen Sie es erneut."
   }
 }
