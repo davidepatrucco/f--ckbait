@@ -53,6 +53,77 @@ chrome.runtime.onStartup.addListener(() => {
     console.log('LemonSqueezer avviato');
 });
 
+// PDF scelto dall'utente: due passi. 1) /extract-pdf riceve i byte e restituisce il
+// testo (operazione a costo trascurabile). 2) il testo va a /summarize-url, dove
+// vivono quota, cache e routing dei modelli: nessuna duplicazione di quella logica.
+async function handlePdfFileSummarize(request, sendResponse) {
+    const msg = (key, fallback) => { try { return chrome.i18n.getMessage(key) || fallback; } catch (e) { return fallback; } };
+    const show = async (payload) => {
+        await chrome.storage.local.set({ pendingSummary: payload });
+        await chrome.tabs.create({ url: chrome.runtime.getURL('summary.html') });
+    };
+    // Codice del backend -> messaggio localizzato. Un codice sconosciuto non deve
+    // arrivare grezzo in UI.
+    const friendly = (code, fallbackText) => {
+        const map = {
+            PDF_TOO_LARGE: ['err_pdf_too_large', 'This PDF is too large.'],
+            NOT_A_PDF: ['err_not_a_pdf', 'The selected file is not a PDF.'],
+            PDF_UNREADABLE: ['err_pdf_unreadable', 'This PDF could not be read.'],
+            PDF_NO_TEXT: ['err_pdf_no_text', 'This PDF has no selectable text.'],
+            CONTENT_TOO_LONG: ['err_pdf_too_long', 'This PDF is too long for a reliable summary.'],
+            AUTH_REQUIRED: ['err_auth_required', 'Sign-in required.']
+        };
+        const entry = map[code];
+        return entry ? msg(entry[0], entry[1]) : (fallbackText || msg('err_pdf_generic', "The PDF couldn't be summarized."));
+    };
+    try {
+        const { authToken } = await chrome.storage.local.get(['authToken']);
+        if (!authToken) {
+            await show({ error: msg('err_auth_required', 'Sign-in required.') });
+            sendResponse({ success: false, error: 'not-authenticated' });
+            return;
+        }
+        const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}`, 'X-Brand': BRAND_ID };
+
+        // 1. estrazione
+        const exRes = await fetch(`${API_BASE}/extract-pdf`, {
+            method: 'POST', headers,
+            body: JSON.stringify({ dataBase64: request.dataBase64, filename: request.filename })
+        });
+        const exData = await exRes.json().catch(() => ({}));
+        if (!exRes.ok || !exData.text) {
+            await show({ error: friendly(exData.code) });
+            sendResponse({ success: false, code: exData.code });
+            return;
+        }
+
+        // 2. riassunto sul path esistente (quota, cache, prompt, modelli)
+        const body = {
+            url: `pdf://${encodeURIComponent(request.filename || 'documento.pdf')}`,
+            text: exData.text,
+            title: exData.title,
+            lang: request.lang || 'it'
+        };
+        if ([10, 20, 50].includes(Number(request.squeeze))) body.squeeze = Number(request.squeeze);
+        const sumRes = await fetch(`${API_BASE}/summarize-url`, { method: 'POST', headers, body: JSON.stringify(body) });
+        const sumData = await sumRes.json().catch(() => ({}));
+        if (!sumRes.ok) {
+            const err = sumRes.status === 429
+                ? msg('err_quota_reached', 'Summary limit reached.')
+                : friendly(sumData.code, sumData.error);
+            await show({ error: err });
+            sendResponse({ success: false, status: sumRes.status });
+            return;
+        }
+        await show({ data: sumData, url: body.url });
+        sendResponse({ success: true });
+    } catch (error) {
+        console.error('[PDF FILE] errore:', error?.message);
+        await show({ error: msg('err_network_retry', 'Network error. Please try again.') });
+        sendResponse({ success: false, error: error?.message });
+    }
+}
+
 // PDF: riassume l'URL lato backend (server-fetch + parsing) e mostra il risultato in
 // una scheda dedicata (il viewer PDF di Chrome non permette content script/modale).
 async function handlePdfSummarize(request, sendResponse) {
@@ -121,6 +192,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'summarizeUrl') {
         // Gestisce la richiesta di riassunto di un URL
         handleSummarizeUrl(request, sender, sendResponse);
+        return true;
+    }
+
+    if (request.action === 'summarizePdfFile') {
+        handlePdfFileSummarize(request, sendResponse);
         return true;
     }
 

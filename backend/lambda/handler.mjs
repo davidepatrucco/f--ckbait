@@ -3,7 +3,7 @@ import { summarizeWithOpenAI } from '../src/openai.mjs';
 import { selectSummaryModel } from '../src/model-router.mjs';
 import { validateSubscription } from '../src/subscription.mjs';
 import { checkRateLimit } from '../src/rate-limit.mjs';
-import { fetchWebContent, assertPublicUrl } from '../src/web-fetcher.mjs';
+import { fetchWebContent, assertPublicUrl, extractPdfText } from '../src/web-fetcher.mjs';
 import { transcribeMedia } from '../src/transcribe.mjs';
 import { createJob, getJob, updateJob, publicJobView, countUserJobs, MAX_ACTIVE_JOBS, MAX_JOBS_PER_DAY } from '../src/transcribe-jobs.mjs';
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
@@ -1510,6 +1510,67 @@ export async function transcribeJobStatusHandler(event) {
     }
 }
 
+// POST /extract-pdf — estrae il testo da un PDF caricato dall'utente.
+//
+// Perche' esiste: un PDF aperto da disco ha URL file://, che il backend non puo'
+// scaricare. Qui il client invia i BYTE del file scelto dall'utente, quindi non
+// serve alcun permesso file:// nell'estensione.
+// Fa SOLO estrazione (operazione a costo trascurabile, nessuna chiamata LLM): il
+// riassunto resta su /summarize-url, dove vivono quota, cache e routing modelli.
+const PDF_UPLOAD_MAX_BYTES = 3.5 * 1024 * 1024; // base64 ~4.7MB, sotto i limiti Lambda/API GW
+
+export async function extractPdfHandler(event) {
+    try {
+        if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: getCorsHeaders(event), body: '' };
+        if (event.httpMethod !== 'POST') return createResponse(405, { error: 'Metodo non supportato. Usa POST.' });
+
+        let user;
+        try { user = await requireAuth(event); } catch (e) { return createResponse(401, { error: e.message, code: 'AUTH_REQUIRED' }); }
+
+        let body;
+        try { body = JSON.parse(event.body); } catch { return createResponse(400, { error: 'Body non valido', code: 'INVALID_JSON' }); }
+        if (!body.dataBase64 || typeof body.dataBase64 !== 'string') {
+            return createResponse(400, { error: 'dataBase64 è richiesto', code: 'MISSING_FILE' });
+        }
+
+        let buffer;
+        try { buffer = Buffer.from(body.dataBase64, 'base64'); } catch { return createResponse(400, { error: 'File non decodificabile', code: 'INVALID_FILE' }); }
+        if (!buffer.length) return createResponse(400, { error: 'File vuoto', code: 'INVALID_FILE' });
+        if (buffer.length > PDF_UPLOAD_MAX_BYTES) {
+            return createResponse(413, { error: 'PDF troppo grande.', code: 'PDF_TOO_LARGE', maxBytes: PDF_UPLOAD_MAX_BYTES });
+        }
+        // Firma del formato: %PDF-. Evita di passare a pdfjs un file che non e' un PDF.
+        if (buffer.subarray(0, 5).toString('latin1') !== '%PDF-') {
+            return createResponse(400, { error: 'Il file non è un PDF.', code: 'NOT_A_PDF' });
+        }
+
+        let text;
+        try {
+            text = await extractPdfText(buffer);
+        } catch (err) {
+            console.error('extractPdfHandler: estrazione fallita:', err?.message);
+            return createResponse(422, { error: 'PDF non leggibile.', code: 'PDF_UNREADABLE' });
+        }
+
+        if (!text || text.length < 50) {
+            return createResponse(422, { error: 'Questo PDF non contiene testo selezionabile.', code: 'PDF_NO_TEXT' });
+        }
+        // Documento troppo lungo: messaggio esplicito, nessun riassunto parziale
+        // silenzioso (scelta di prodotto: meglio dire che non e' supportato).
+        if (text.length > 80000) {
+            return createResponse(400, { error: 'PDF troppo lungo per un riassunto affidabile.', code: 'CONTENT_TOO_LONG', characters: text.length });
+        }
+
+        const title = typeof body.filename === 'string' && body.filename.trim()
+            ? body.filename.trim().replace(/\.pdf$/i, '').slice(0, 200)
+            : 'Documento PDF';
+        return createResponse(200, { text: text.slice(0, 40000), title, characters: text.length, code: 'OK' });
+    } catch (error) {
+        console.error('Error in extractPdfHandler:', error);
+        return createResponse(500, { error: 'Errore interno', code: 'INTERNAL_ERROR' });
+    }
+}
+
 // Handler principale (router)
 export async function handler(event, context) {
     currentRequestId = event?.requestContext?.requestId || context?.awsRequestId || null;
@@ -1522,6 +1583,8 @@ export async function handler(event, context) {
             return await summarizeHandler(event);
         case '/summarize-url':
             return await summarizeUrlHandler(event);
+        case '/extract-pdf':
+            return await extractPdfHandler(event);
         case '/transcribe':
             return await transcribeHandler(event);
         case '/transcribe-job':

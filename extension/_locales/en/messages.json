@@ -433,5 +433,20 @@
   },
   "err_pdf_local": {
     "message": "This PDF is open from a local file, which the extension cannot read. Open the document from a web address (http/https) and try again."
+  },
+  "popup_pick_pdf": {
+    "message": "Summarize a PDF"
+  },
+  "popup_reading_pdf": {
+    "message": "Reading the PDF…"
+  },
+  "err_pdf_too_large": {
+    "message": "This PDF is too large (max 3.5 MB)."
+  },
+  "err_not_a_pdf": {
+    "message": "The selected file is not a PDF."
+  },
+  "err_pdf_unreadable": {
+    "message": "This PDF could not be read."
   }
 }

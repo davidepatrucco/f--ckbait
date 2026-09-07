@@ -12,7 +12,7 @@ const TOO_LONG_CHARS = parseInt(process.env.TOO_LONG_CHARS || '80000', 10);
 
 // Estrae il testo da un PDF (buffer) con pdfjs-dist (build legacy per Node, no worker).
 // Cap a 50 pagine / 200k char per restare nei 29s di API Gateway.
-async function extractPdfText(buffer) {
+export async function extractPdfText(buffer) {
     const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
     const doc = await pdfjs.getDocument({
         data: new Uint8Array(buffer), isEvalSupported: false, useSystemFonts: true

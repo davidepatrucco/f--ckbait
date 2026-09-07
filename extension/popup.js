@@ -96,6 +96,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const squeezeSelect = document.getElementById('squeeze');
     const historyList = document.getElementById('historyList');
     const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+    const pickPdfBtn = document.getElementById('pickPdfBtn');
+    const pdfFileInput = document.getElementById('pdfFileInput');
     
     // Elementi di autenticazione
     const loginCard = document.getElementById('loginCard');
@@ -175,6 +177,55 @@ document.addEventListener('DOMContentLoaded', async () => {
     for (const el of document.querySelectorAll('[data-i18n-placeholder]')) {
         const translated = message(el.getAttribute('data-i18n-placeholder'));
         if (translated) el.setAttribute('placeholder', translated);
+    }
+
+    // PDF locale: un file aperto da disco ha URL file://, che il backend non puo'
+    // scaricare. Qui l'utente SCEGLIE il file e ne inviamo i byte: nessun permesso
+    // file:// e nessun accesso al filesystem da parte dell'estensione.
+    if (pickPdfBtn && pdfFileInput) {
+        pickPdfBtn.addEventListener('click', () => pdfFileInput.click());
+        pdfFileInput.addEventListener('change', async () => {
+            const file = pdfFileInput.files && pdfFileInput.files[0];
+            pdfFileInput.value = ''; // permette di riselezionare lo stesso file
+            if (!file) return;
+            const MAX_BYTES = 3.5 * 1024 * 1024;
+            const original = pickPdfBtn.textContent;
+            if (file.size > MAX_BYTES) {
+                pickPdfBtn.textContent = t('err_pdf_too_large', undefined, 'PDF too large (max 3.5 MB).');
+                setTimeout(() => { pickPdfBtn.textContent = original; }, 4000);
+                return;
+            }
+            if (!/\.pdf$/i.test(file.name) && file.type !== 'application/pdf') {
+                pickPdfBtn.textContent = t('err_not_a_pdf', undefined, 'The selected file is not a PDF.');
+                setTimeout(() => { pickPdfBtn.textContent = original; }, 4000);
+                return;
+            }
+            pickPdfBtn.disabled = true;
+            pickPdfBtn.textContent = t('popup_reading_pdf', undefined, 'Reading the PDF…');
+            try {
+                const buf = await file.arrayBuffer();
+                // Conversione a base64 a blocchi: String.fromCharCode(...) su un array
+                // di milioni di elementi supererebbe il limite di argomenti.
+                const bytes = new Uint8Array(buf);
+                let binary = '';
+                for (let i = 0; i < bytes.length; i += 0x8000) {
+                    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+                }
+                chrome.runtime.sendMessage({
+                    action: 'summarizePdfFile',
+                    filename: file.name,
+                    dataBase64: btoa(binary),
+                    lang: languageSelect?.value || 'it',
+                    squeeze: Number(squeezeSelect?.value) || 20
+                });
+                window.close(); // il risultato si apre in una scheda dedicata
+            } catch (e) {
+                console.error('[POPUP] lettura PDF fallita:', e);
+                pickPdfBtn.disabled = false;
+                pickPdfBtn.textContent = t('err_pdf_unreadable', undefined, 'This PDF could not be read.');
+                setTimeout(() => { pickPdfBtn.textContent = original; }, 4000);
+            }
+        });
     }
     const brandName = (BRAND && (BRAND.displayName || BRAND.storeName)) || 'LemonSqueezer';
     for (const el of document.querySelectorAll('[data-i18n-brand]')) {
