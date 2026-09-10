@@ -692,9 +692,12 @@
                 </svg>
                 <span data-i18n="popup_summarize">Riassumi questa pagina</span>
             </button>
-            <button id="pickPdfBtn" class="button-secondary" type="button" style="width:100%;margin-top:8px">
-                <span data-i18n="popup_pick_pdf">Riassumi un PDF</span>
-            </button>
+            <div id="localPdfCard" hidden style="margin-top:8px">
+                <div id="localPdfHint" data-i18n="popup_local_pdf_hint" style="font-size:12px;color:#6b7280;margin-bottom:6px;text-align:center">Questo PDF è aperto da un file locale: selezionalo per riassumerlo.</div>
+                <button id="pickPdfBtn" class="button-primary" type="button" style="width:100%">
+                    <span id="pickPdfLabel" data-i18n="popup_pick_this_pdf">Scegli questo PDF dal disco</span>
+                </button>
+            </div>
             <input id="pdfFileInput" type="file" accept="application/pdf,.pdf" hidden>
 
             <!-- User plan -->

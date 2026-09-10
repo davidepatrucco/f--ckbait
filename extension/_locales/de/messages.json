@@ -434,9 +434,6 @@
   "err_pdf_local": {
     "message": "Dieses PDF ist aus einer lokalen Datei geöffnet, die die Erweiterung nicht lesen kann. Öffnen Sie das Dokument über eine Webadresse (http/https) und versuchen Sie es erneut."
   },
-  "popup_pick_pdf": {
-    "message": "PDF zusammenfassen"
-  },
   "popup_reading_pdf": {
     "message": "PDF wird gelesen…"
   },
@@ -448,5 +445,11 @@
   },
   "err_pdf_unreadable": {
     "message": "Dieses PDF konnte nicht gelesen werden."
+  },
+  "popup_pick_this_pdf": {
+    "message": "Dieses PDF von der Festplatte wählen"
+  },
+  "popup_local_pdf_hint": {
+    "message": "Dieses PDF ist aus einer lokalen Datei geöffnet: wählen Sie sie aus, um sie zusammenzufassen."
   }
 }

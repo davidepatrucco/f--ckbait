@@ -434,9 +434,6 @@
   "err_pdf_local": {
     "message": "Ce PDF est ouvert depuis un fichier local, que l’extension ne peut pas lire. Ouvrez le document depuis une adresse web (http/https) et réessayez."
   },
-  "popup_pick_pdf": {
-    "message": "Résumer un PDF"
-  },
   "popup_reading_pdf": {
     "message": "Lecture du PDF…"
   },
@@ -448,5 +445,11 @@
   },
   "err_pdf_unreadable": {
     "message": "Ce PDF n’a pas pu être lu."
+  },
+  "popup_pick_this_pdf": {
+    "message": "Choisir ce PDF sur le disque"
+  },
+  "popup_local_pdf_hint": {
+    "message": "Ce PDF est ouvert depuis un fichier local : sélectionnez-le pour le résumer."
   }
 }

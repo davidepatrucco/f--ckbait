@@ -1,7 +1,6 @@
 <svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
-  <rect x="4" y="4" width="120" height="120" rx="28" fill="#0D1117"/>
-  <circle cx="56" cy="56" r="26" fill="none" stroke="#16A34A" stroke-width="9"/>
-  <line x1="75" y1="75" x2="98" y2="98" stroke="#16A34A" stroke-width="11" stroke-linecap="round"/>
-  <path d="M56 44 l6 12 -12 0 z" fill="#22C55E"/>
-  <circle cx="56" cy="56" r="4" fill="#22C55E"/>
+  <!-- Pieno campo: a 16px una cornice scura mangia l'area e il simbolo sparisce. -->
+  <rect width="128" height="128" rx="30" fill="#16A34A"/>
+  <circle cx="55" cy="55" r="31" fill="none" stroke="#0D1117" stroke-width="11"/>
+  <line x1="78" y1="78" x2="104" y2="104" stroke="#0D1117" stroke-width="14" stroke-linecap="round"/>
 </svg>

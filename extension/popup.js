@@ -98,6 +98,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const clearHistoryBtn = document.getElementById('clearHistoryBtn');
     const pickPdfBtn = document.getElementById('pickPdfBtn');
     const pdfFileInput = document.getElementById('pdfFileInput');
+    const localPdfCard = document.getElementById('localPdfCard');
     
     // Elementi di autenticazione
     const loginCard = document.getElementById('loginCard');
@@ -179,9 +180,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (translated) el.setAttribute('placeholder', translated);
     }
 
-    // PDF locale: un file aperto da disco ha URL file://, che il backend non puo'
-    // scaricare. Qui l'utente SCEGLIE il file e ne inviamo i byte: nessun permesso
-    // file:// e nessun accesso al filesystem da parte dell'estensione.
+    // Il selettore di PDF non e' la funzione principale: resta nascosto e compare
+    // SOLO quando la scheda aperta e' un PDF locale (URL file://), cioe' l'unico
+    // caso in cui il pulsante "Riassumi questa pagina" non puo' funzionare — il
+    // backend non puo' scaricare un file dal disco dell'utente. In quel momento
+    // diventa l'azione principale, e il pulsante normale viene nascosto per non
+    // offrire un'azione destinata a fallire.
+    (async () => {
+        try {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            const url = tab?.url || '';
+            const isLocalPdf = /^file:\/\//i.test(url) && /\.pdf($|\?|#)/i.test(url);
+            if (isLocalPdf && localPdfCard) {
+                localPdfCard.hidden = false;
+                if (summarizeBtn) summarizeBtn.hidden = true;
+            }
+        } catch (e) { /* nessun tab accessibile: si resta sul comportamento normale */ }
+    })();
+
+    // Lettura del file scelto dall'utente: nessun permesso file:// e nessun accesso
+    // al filesystem da parte dell'estensione.
     if (pickPdfBtn && pdfFileInput) {
         pickPdfBtn.addEventListener('click', () => pdfFileInput.click());
         pdfFileInput.addEventListener('change', async () => {

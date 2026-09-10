@@ -434,9 +434,6 @@
   "err_pdf_local": {
     "message": "This PDF is open from a local file, which the extension cannot read. Open the document from a web address (http/https) and try again."
   },
-  "popup_pick_pdf": {
-    "message": "Summarize a PDF"
-  },
   "popup_reading_pdf": {
     "message": "Reading the PDF…"
   },
@@ -448,5 +445,11 @@
   },
   "err_pdf_unreadable": {
     "message": "This PDF could not be read."
+  },
+  "popup_pick_this_pdf": {
+    "message": "Choose this PDF from disk"
+  },
+  "popup_local_pdf_hint": {
+    "message": "This PDF is open from a local file: pick it to summarize it."
   }
 }
