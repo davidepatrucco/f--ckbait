@@ -1261,10 +1261,31 @@ export async function transcribeHandler(event) {
             });
         }
 
+        // Gli stessi limiti del path asincrono. Prima erano applicati solo ai job:
+        // il path sincrono restava una via libera con lo stesso costo per minuto.
+        // Si registra anche qui un job, cosi' i due percorsi condividono il conteggio
+        // invece di avere due budget separati (o nessuno).
+        let accounting = null;
+        try {
+            const { active, last24h } = await countUserJobs(user.id);
+            if (active >= MAX_ACTIVE_JOBS) {
+                return createResponse(429, { error: `Hai già ${active} trascrizioni in corso.`, code: 'TRANSCRIBE_BUSY', active });
+            }
+            if (last24h >= MAX_JOBS_PER_DAY) {
+                return createResponse(429, { error: 'Limite giornaliero di trascrizioni raggiunto.', code: 'TRANSCRIBE_DAILY_LIMIT' });
+            }
+            accounting = await createJob({ userId: user.id, brandId, mediaUrl: body.mediaUrl, mediaKind: 'file', lang: body.lang || 'it' });
+            await updateJob(accounting.jobId, { status: 'running' });
+        } catch (limitErr) {
+            console.error('conteggio trascrizioni non disponibile (sincrono):', limitErr?.message);
+        }
+
         try {
             const { text, model } = await transcribeMedia(body.mediaUrl);
+            if (accounting) await updateJob(accounting.jobId, { status: 'done' }).catch(() => {});
             return createResponse(200, { transcript: text, model, code: 'OK' });
         } catch (err) {
+            if (accounting) await updateJob(accounting.jobId, { status: 'error', code: err?.code || 'TRANSCRIPTION_FAILED' }).catch(() => {});
             const map = {
                 INVALID_MEDIA_URL: [400, 'URL del media non valido'],
                 BLOCKED_URL: [400, 'URL non consentito (indirizzo privato o locale).'],
@@ -1439,6 +1460,9 @@ export async function extractPdfHandler(event) {
         try {
             text = await extractPdfText(buffer);
         } catch (err) {
+            if (err?.code === 'CONTENT_TOO_LONG' || /TOO_LONG/.test(String(err?.message))) {
+                return createResponse(400, { error: 'PDF troppo lungo per un riassunto affidabile.', code: 'CONTENT_TOO_LONG' });
+            }
             console.error('extractPdfHandler: estrazione fallita:', err?.message);
             return createResponse(422, { error: 'PDF non leggibile.', code: 'PDF_UNREADABLE' });
         }

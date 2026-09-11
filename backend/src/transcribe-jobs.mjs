@@ -87,7 +87,7 @@ export async function getJob(jobId) {
 
 // Aggiornamento parziale: solo i campi passati (status/progress/transcript/code).
 export async function updateJob(jobId, fields) {
-    const allowed = ['status', 'progress', 'transcript', 'code', 'error', 'chunks', 'durationSeconds'];
+    const allowed = ['status', 'progress', 'transcript', 'code', 'error', 'chunks', 'durationSeconds', 'partial', 'coverage'];
     const sets = [];
     const names = {};
     const values = {};
@@ -119,6 +119,10 @@ export function publicJobView(job) {
         status: job.status,
         progress: job.progress || null,
         transcript: job.status === JOB_STATUS.DONE ? (job.transcript || '') : undefined,
+        // La parzialita' va esposta: un riassunto su una trascrizione incompleta
+        // deve poterlo dire all'utente.
+        partial: job.status === JOB_STATUS.DONE ? Boolean(job.partial) : undefined,
+        coverage: job.status === JOB_STATUS.DONE && job.partial ? job.coverage : undefined,
         code: job.status === JOB_STATUS.ERROR ? (job.code || 'TRANSCRIPTION_FAILED') : undefined
     };
 }

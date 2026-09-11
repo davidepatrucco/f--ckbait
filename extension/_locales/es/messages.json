@@ -457,5 +457,8 @@
   },
   "popup_trial_left_one": {
     "message": "Queda 1 resumen de prueba"
+  },
+  "note_transcript_partial": {
+    "message": "Una parte del vídeo no se pudo transcribir: el resumen cubre solo el resto."
   }
 }

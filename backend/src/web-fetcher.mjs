@@ -17,7 +17,16 @@ export async function extractPdfText(buffer) {
     const doc = await pdfjs.getDocument({
         data: new Uint8Array(buffer), isEvalSupported: false, useSystemFonts: true
     }).promise;
-    const maxPages = Math.min(doc.numPages, 50);
+    // Oltre questa soglia il documento NON viene letto per intero: restituire
+    // comunque un testo parziale produrrebbe un riassunto che ignora il resto senza
+    // dirlo. Si rifiuta, coerentemente con la regola sui contenuti troppo lunghi.
+    const MAX_PDF_PAGES = Number(process.env.MAX_PDF_PAGES || 50);
+    if (doc.numPages > MAX_PDF_PAGES) {
+        const e = new Error(`TOO_LONG: PDF di ${doc.numPages} pagine (massimo ${MAX_PDF_PAGES})`);
+        e.code = 'CONTENT_TOO_LONG';
+        throw e;
+    }
+    const maxPages = Math.min(doc.numPages, MAX_PDF_PAGES);
     let out = '';
     for (let i = 1; i <= maxPages; i++) {
         const page = await doc.getPage(i);

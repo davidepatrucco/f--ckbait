@@ -125,7 +125,7 @@ async function transcribeAll(client, paths, jobId) {
         throw fail('TRANSCRIPTION_FAILED', `tutti i ${paths.length} segmenti falliti: ${failures[0]?.message}`);
     }
     if (failures.length) console.warn(`${failures.length}/${paths.length} segmenti persi`);
-    return results;
+    return { results, lost: failures.length };
 }
 
 export async function handler(event) {
@@ -160,17 +160,30 @@ export async function handler(event) {
         await updateJob(jobId, { chunks: files.length, progress: `0/${files.length}` });
 
         const client = await getOpenAIClient();
-        const parts = await transcribeAll(client, files.map((f) => join(WORK_DIR, f)), jobId);
+        const { results: parts, lost } = await transcribeAll(client, files.map((f) => join(WORK_DIR, f)), jobId);
         const transcript = parts.filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
 
         if (transcript.length < 20) throw fail('NO_SPEECH', 'nessun parlato riconosciuto');
 
+        // Copertura dichiarata esplicitamente. Prima il job risultava "done" anche
+        // quando alcuni segmenti erano andati persi, e il taglio a 120.000 caratteri
+        // non veniva comunicato: l'utente riceveva un riassunto parziale credendolo
+        // completo. Ora la parzialita' e' un dato del job e arriva fino alla UI.
+        const MAX_TRANSCRIPT = 120000;
+        const truncated = transcript.length > MAX_TRANSCRIPT;
+        const coverage = {
+            segmentsTotal: files.length,
+            segmentsLost: lost,
+            truncated
+        };
         await updateJob(jobId, {
             status: JOB_STATUS.DONE,
-            transcript: transcript.slice(0, 120000), // limite accettato da /summarize-url
-            progress: `${files.length}/${files.length}`
+            transcript: transcript.slice(0, MAX_TRANSCRIPT),
+            progress: `${files.length}/${files.length}`,
+            partial: lost > 0 || truncated,
+            coverage
         });
-        return { ok: true, chunks: files.length, characters: transcript.length };
+        return { ok: true, chunks: files.length, characters: transcript.length, ...coverage };
     } catch (error) {
         console.error('transcribe-worker error:', error?.code || '', error?.message);
         try {

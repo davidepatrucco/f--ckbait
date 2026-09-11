@@ -447,7 +447,8 @@
         CAPTIONS_FAILED: 'note_captions_failed',
         STT_FAILED: 'note_stt_failed',
         CAPTIONS_TRANSLATED: 'note_captions_translated',
-        TRANSCRIPT_TRUNCATED: 'note_transcript_truncated'
+        TRANSCRIPT_TRUNCATED: 'note_transcript_truncated',
+        TRANSCRIPT_PARTIAL: 'note_transcript_partial'
     };
 
     // Etichetta di trasparenza: dice SEMPRE quale fonte è stata riassunta (buco A).
@@ -1614,6 +1615,12 @@
                         requestBody.truncated = true;
                         notes.push('TRANSCRIPT_TRUNCATED');
                     }
+                    // Il backend segnala se parte del video non e' stata trascritta:
+                    // va detto, altrimenti il riassunto sembra completo e non lo e'.
+                    if (res && res.partial) {
+                        requestBody.truncated = true;
+                        notes.push('TRANSCRIPT_PARTIAL');
+                    }
                     requestBody.title = mediaTitle(page.title);
                     return { ok: true, source: 'video', notes, alternative };
                 }
@@ -1672,7 +1679,7 @@
             delay = Math.min(delay * 1.3, 10000);
             const st = await chrome.runtime.sendMessage({ action: 'transcribeJobStatus', jobId: start.jobId });
             if (!st || !st.success) continue;
-            if (st.status === 'done') return { success: true, transcript: st.transcript };
+            if (st.status === 'done') return { success: true, transcript: st.transcript, partial: Boolean(st.partial) };
             if (st.status === 'error') return { success: false, code: st.code || 'TRANSCRIBE_ERROR' };
             if (st.progress) setModalProgress(t('modal_transcribing_progress', [String(st.progress)]));
         }

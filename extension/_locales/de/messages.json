@@ -457,5 +457,8 @@
   },
   "popup_trial_left_one": {
     "message": "Noch 1 kostenlose Zusammenfassung"
+  },
+  "note_transcript_partial": {
+    "message": "Ein Teil des Videos konnte nicht transkribiert werden: die Zusammenfassung deckt nur den Rest ab."
   }
 }

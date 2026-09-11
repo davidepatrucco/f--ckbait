@@ -457,5 +457,8 @@
   },
   "popup_trial_left_one": {
     "message": "1 résumé d’essai restant"
+  },
+  "note_transcript_partial": {
+    "message": "Une partie de la vidéo n’a pas pu être transcrite : le résumé ne couvre que le reste."
   }
 }

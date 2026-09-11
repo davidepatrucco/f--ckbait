@@ -220,13 +220,13 @@
             <div class="lemonsqueezer-modal-overlay">
                 <div class="lemonsqueezer-modal-content">
                     <div class="lemonsqueezer-modal-header">
-                        <h3>🍋 LemonSqueezer - TL;DR</h3>
+                        <h3>LemonSqueezer - TL;DR</h3>
                         <button class="lemonsqueezer-modal-close">&times;</button>
                     </div>
                     <div class="lemonsqueezer-modal-body" id="lemonsqueezer-modal-body">
                         <div class="lemonsqueezer-loading">
                             <div class="lemonsqueezer-spinner"></div>
-                            <div class="lemonsqueezer-loading-text">🍋 Squeezing...</div>
+                            <div class="lemonsqueezer-loading-text">Squeezing...</div>
                             <div class="lemonsqueezer-url-preview">${data.url}</div>
                         </div>
                     </div>
@@ -249,7 +249,7 @@
             <div class="lemonsqueezer-summary-meta">
                 <strong>${data.title || 'Riassunto'}</strong>
                 <div class="lemonsqueezer-stats">
-                    📖 ${data.readingTime || 'N/A'} min • ${data.wordsCount || 'N/A'} parole
+                    ${data.readingTime || 'N/A'} min • ${data.wordsCount || 'N/A'} parole
                 </div>
                 <div class="lemonsqueezer-url">
                     <a href="${data.originalUrl}" target="_blank">${data.originalUrl}</a>
@@ -266,8 +266,8 @@
             const footer = document.createElement('div');
             footer.className = 'lemonsqueezer-modal-footer';
             footer.innerHTML = `
-                <button class="lemonsqueezer-btn-secondary" id="lemonsqueezer-copy-summary">📋 Copia</button>
-                <button class="lemonsqueezer-btn-primary" id="lemonsqueezer-open-link">🔗 Apri Link</button>
+                <button class="lemonsqueezer-btn-secondary" id="lemonsqueezer-copy-summary">Copia</button>
+                <button class="lemonsqueezer-btn-primary" id="lemonsqueezer-open-link">Apri Link</button>
             `;
             modal.querySelector('.lemonsqueezer-modal-content').appendChild(footer);
             
@@ -283,7 +283,7 @@
         
         modalBody.innerHTML = `
             <div class="lemonsqueezer-error">
-                <div class="lemonsqueezer-error-icon">❌</div>
+                <div class="lemonsqueezer-error-icon"></div>
                 <div class="lemonsqueezer-error-title">Errore</div>
                 <div class="lemonsqueezer-error-message">${data.error}</div>
                 <button class="lemonsqueezer-btn-secondary" onclick="document.getElementById('lemonsqueezer-modal').remove()">Chiudi</button>
@@ -531,7 +531,7 @@
             copyBtn.addEventListener('click', () => {
                 navigator.clipboard.writeText(data.summary).then(() => {
                     const originalText = copyBtn.textContent;
-                    copyBtn.textContent = '✅ Copiato!';
+                    copyBtn.textContent = 'Copiato!';
                     setTimeout(() => {
                         copyBtn.textContent = originalText;
                     }, 2000);
@@ -563,14 +563,14 @@
             <div class="lemonsqueezer-modal-overlay">
                 <div class="lemonsqueezer-modal-content">
                     <div class="lemonsqueezer-modal-header">
-                        <h3>🍋 LemonSqueezer - TL;DR</h3>
+                        <h3>LemonSqueezer - TL;DR</h3>
                         <button class="lemonsqueezer-modal-close">&times;</button>
                     </div>
                     <div class="lemonsqueezer-modal-body">
                         <div class="lemonsqueezer-summary-meta">
                             <strong>${data.title}</strong>
                             <div class="lemonsqueezer-stats">
-                                📖 ${data.readingTime} min • ${data.wordsCount} parole
+                                ${data.readingTime} min • ${data.wordsCount} parole
                             </div>
                             <div class="lemonsqueezer-url">
                                 <a href="${data.originalUrl}" target="_blank">${data.originalUrl}</a>
@@ -581,8 +581,8 @@
                         </div>
                     </div>
                     <div class="lemonsqueezer-modal-footer">
-                        <button class="lemonsqueezer-btn-secondary" id="lemonsqueezer-copy-summary">📋 Copia</button>
-                        <button class="lemonsqueezer-btn-primary" id="lemonsqueezer-open-link">🔗 Apri Link</button>
+                        <button class="lemonsqueezer-btn-secondary" id="lemonsqueezer-copy-summary">Copia</button>
+                        <button class="lemonsqueezer-btn-primary" id="lemonsqueezer-open-link">Apri Link</button>
                     </div>
                 </div>
             </div>
@@ -752,7 +752,7 @@
             navigator.clipboard.writeText(data.summary).then(() => {
                 const btn = modal.querySelector('#lemonsqueezer-copy-summary');
                 const originalText = btn.textContent;
-                btn.textContent = '✅ Copiato!';
+                btn.textContent = 'Copiato!';
                 setTimeout(() => {
                     btn.textContent = originalText;
                 }, 2000);

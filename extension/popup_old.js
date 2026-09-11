@@ -146,9 +146,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     copyBtn.addEventListener('click', async () => {
         try {
             await navigator.clipboard.writeText(`• ${currentSummary}`);
-            copyBtn.textContent = '✅ Copiato!';
+            copyBtn.textContent = 'Copiato!';
             setTimeout(() => {
-                copyBtn.textContent = '📋 Copia negli appunti';
+                copyBtn.textContent = 'Copia negli appunti';
             }, 2000);
         } catch (error) {
             showError('Impossibile copiare negli appunti');

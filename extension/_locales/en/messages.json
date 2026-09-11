@@ -457,5 +457,8 @@
   },
   "popup_trial_left_one": {
     "message": "1 free summary left"
+  },
+  "note_transcript_partial": {
+    "message": "Part of the video could not be transcribed: the summary covers only the rest."
   }
 }

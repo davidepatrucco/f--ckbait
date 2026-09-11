@@ -457,5 +457,8 @@
   },
   "popup_trial_left_one": {
     "message": "1 riassunto di prova rimasto"
+  },
+  "note_transcript_partial": {
+    "message": "Una parte del video non è stata trascritta: il riassunto copre solo il resto."
   }
 }
