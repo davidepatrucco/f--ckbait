@@ -451,5 +451,11 @@
   },
   "popup_local_pdf_hint": {
     "message": "Dieses PDF ist aus einer lokalen Datei geöffnet: wählen Sie sie aus, um sie zusammenzufassen."
+  },
+  "popup_trial_left": {
+    "message": "Noch $1 kostenlose Zusammenfassungen"
+  },
+  "popup_trial_left_one": {
+    "message": "Noch 1 kostenlose Zusammenfassung"
   }
 }

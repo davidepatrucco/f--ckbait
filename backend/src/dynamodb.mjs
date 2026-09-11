@@ -148,6 +148,53 @@ async function ensureBrandEntitlement(userId, brandId, init) {
 }
 
 /**
+ * Consuma una delle prove gratuite iniziali del brand (piano free).
+ *
+ * Le prove precedono il limite giornaliero: 1 riassunto al giorno e' troppo ruvido
+ * per chi installa l'estensione e vuole capire se serve. La condizione
+ * `trial_remaining > 0` rende l'operazione atomica: richieste concorrenti non
+ * possono portare il contatore sotto zero.
+ * Ritorna l'utente aggiornato, oppure null se non ci sono prove disponibili
+ * (il chiamante prosegue con la quota giornaliera).
+ */
+export async function consumeBrandTrial(userId, brandId, init) {
+    await ensureBrandEntitlement(userId, brandId, init);
+    try {
+        const result = await docClient.send(new UpdateCommand({
+            TableName: TABLE_NAME,
+            Key: { id: userId },
+            UpdateExpression: 'SET entitlements.#b.trial_remaining = entitlements.#b.trial_remaining - :one',
+            ConditionExpression: 'attribute_exists(entitlements.#b.trial_remaining) AND entitlements.#b.trial_remaining > :zero',
+            ExpressionAttributeNames: { '#b': brandId },
+            ExpressionAttributeValues: { ':one': 1, ':zero': 0 },
+            ReturnValues: 'ALL_NEW'
+        }));
+        return result.Attributes;
+    } catch (error) {
+        if (error.name === 'ConditionalCheckFailedException') return null; // prove esaurite
+        throw error;
+    }
+}
+
+/**
+ * Restituisce una prova consumata (il riassunto e' fallito dopo la prenotazione).
+ */
+export async function refundBrandTrial(userId, brandId) {
+    try {
+        await docClient.send(new UpdateCommand({
+            TableName: TABLE_NAME,
+            Key: { id: userId },
+            UpdateExpression: 'SET entitlements.#b.trial_remaining = entitlements.#b.trial_remaining + :one',
+            ConditionExpression: 'attribute_exists(entitlements.#b.trial_remaining)',
+            ExpressionAttributeNames: { '#b': brandId },
+            ExpressionAttributeValues: { ':one': 1 }
+        }));
+    } catch (error) {
+        if (error.name !== 'ConditionalCheckFailedException') throw error;
+    }
+}
+
+/**
  * Incrementa il contatore di utilizzo per uno specifico brand.
  * Gestisce inizializzazione lazy dell'entitlement e reset mensile.
  */
@@ -308,6 +355,10 @@ export function formatUserFromDynamoDB(dynamoUser) {
                 usage_used: dynamoUser.usage_used || 0,
                 usage_limit: dynamoUser.usage_limit || getFreeLimit(DEFAULT_BRAND),
                 usage_reset_date: dynamoUser.usage_reset_date || null,
+                // Le prove iniziali vanno riportate anche per gli utenti legacy:
+                // altrimenti chi aveva gia' esaurito la quota se le vedrebbe
+                // riassegnate a ogni lettura.
+                ...(Number.isFinite(dynamoUser.trial_remaining) ? { trial_remaining: dynamoUser.trial_remaining } : {}),
                 subscription_status: dynamoUser.subscription_status || 'none',
                 stripe_customer_id: dynamoUser.stripe_customer_id || null,
                 stripe_subscription_id: dynamoUser.stripe_subscription_id || null

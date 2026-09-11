@@ -5,6 +5,10 @@
 
 // Free = 1 summary/giorno (reset giornaliero, vedi getNextResetDate in auth.mjs).
 const FREE_LIMIT_DEFAULT = parseInt(process.env.FREE_PLAN_LIMIT || '1', 10);
+// Prove gratuite iniziali, consumate PRIMA che entri in vigore il limite giornaliero:
+// 1 riassunto al giorno e' troppo ruvido per chi installa l'estensione e deve capire
+// se gli serve. Una tantum per brand, non si ricaricano.
+const FREE_TRIAL_DEFAULT = parseInt(process.env.FREE_TRIAL_BONUS || '5', 10);
 
 export const DEFAULT_BRAND = 'lemonsqueezer';
 
@@ -16,9 +20,10 @@ export const BRANDS = {
         outputSchema: 'summary',
         defaultMode: 'standard',
         freeLimit: FREE_LIMIT_DEFAULT,
+        freeTrial: FREE_TRIAL_DEFAULT,
         stripe: {
-            monthlyPriceKey: 'STRIPE_PREMIUM_MONTHLY_PRICE_ID',
-            yearlyPriceKey: 'STRIPE_PREMIUM_YEARLY_PRICE_ID'
+            monthlyPriceKey: 'STRIPE_LEMONSQUEEZER_PREMIUM_MONTHLY_PRICE_ID',
+            yearlyPriceKey: 'STRIPE_LEMONSQUEEZER_PREMIUM_YEARLY_PRICE_ID'
         }
     },
     scout: {
@@ -28,6 +33,7 @@ export const BRANDS = {
         outputSchema: 'attention',
         defaultMode: 'standard',
         freeLimit: FREE_LIMIT_DEFAULT,
+        freeTrial: FREE_TRIAL_DEFAULT,
         stripe: {
             monthlyPriceKey: 'STRIPE_SCOUT_PREMIUM_MONTHLY_PRICE_ID',
             yearlyPriceKey: 'STRIPE_SCOUT_PREMIUM_YEARLY_PRICE_ID'
@@ -40,6 +46,7 @@ export const BRANDS = {
         outputSchema: 'insights',
         defaultMode: 'standard',
         freeLimit: FREE_LIMIT_DEFAULT,
+        freeTrial: FREE_TRIAL_DEFAULT,
         stripe: {
             monthlyPriceKey: 'STRIPE_SIGNAL_PREMIUM_MONTHLY_PRICE_ID',
             yearlyPriceKey: 'STRIPE_SIGNAL_PREMIUM_YEARLY_PRICE_ID'
@@ -52,6 +59,7 @@ export const BRANDS = {
         outputSchema: 'brief',
         defaultMode: 'standard',
         freeLimit: FREE_LIMIT_DEFAULT,
+        freeTrial: FREE_TRIAL_DEFAULT,
         stripe: {
             monthlyPriceKey: 'STRIPE_BRIEFLY_PREMIUM_MONTHLY_PRICE_ID',
             yearlyPriceKey: 'STRIPE_BRIEFLY_PREMIUM_YEARLY_PRICE_ID'
@@ -64,6 +72,7 @@ export const BRANDS = {
         outputSchema: 'noise',
         defaultMode: 'standard',
         freeLimit: FREE_LIMIT_DEFAULT,
+        freeTrial: FREE_TRIAL_DEFAULT,
         stripe: {
             monthlyPriceKey: 'STRIPE_NOBULL_PREMIUM_MONTHLY_PRICE_ID',
             yearlyPriceKey: 'STRIPE_NOBULL_PREMIUM_YEARLY_PRICE_ID'
@@ -86,6 +95,12 @@ export function getBrand(id) {
 export function getFreeLimit(id) {
     return getBrand(id).freeLimit;
 }
+// Prove gratuite iniziali del brand (0 = disattivate).
+export function getFreeTrial(brandId) {
+    const b = BRANDS[brandId] || BRANDS[DEFAULT_BRAND];
+    return Number.isFinite(b?.freeTrial) ? b.freeTrial : FREE_TRIAL_DEFAULT;
+}
+
 
 export function listBrands() {
     return Object.keys(BRANDS);

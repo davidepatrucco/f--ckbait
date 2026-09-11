@@ -451,5 +451,11 @@
   },
   "popup_local_pdf_hint": {
     "message": "Ce PDF est ouvert depuis un fichier local : sélectionnez-le pour le résumer."
+  },
+  "popup_trial_left": {
+    "message": "$1 résumés d’essai restants"
+  },
+  "popup_trial_left_one": {
+    "message": "1 résumé d’essai restant"
   }
 }

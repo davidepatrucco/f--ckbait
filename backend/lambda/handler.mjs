@@ -460,7 +460,7 @@ export async function summarizeUrlHandler(event) {
                     cached: true,
                     cachedAt: cachedSummary.cachedAt,
                     cacheHits: cachedSummary.cacheHits,
-                    user: { usage: entHit.usage, plan: entHit.plan }
+                    user: { usage: entHit.usage, plan: entHit.plan, trialRemaining: entHit.trialRemaining }
                 });
             }
             console.log('❌ [CACHE] Content hash miss:', { elapsedMs: Date.now() - cacheStartTime });
@@ -566,7 +566,7 @@ export async function summarizeUrlHandler(event) {
             sourceType: hasTranscript ? 'video' : 'web',
             videoDurationSeconds: hasTranscript && Number.isFinite(videoDurationSeconds) ? videoDurationSeconds : undefined,
             brand: brandId,
-            user: { usage: entitlement.usage, plan: entitlement.plan }
+            user: { usage: entitlement.usage, plan: entitlement.plan, trialRemaining: entitlement.trialRemaining }
         };
         if (summary.text) {
             return createResponse(200, {
@@ -863,8 +863,10 @@ export async function pricingHandler(event) {
     if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: cors, body: '' };
     if (event.httpMethod !== 'GET') return { statusCode: 405, headers: cors, body: JSON.stringify({ error: 'Usa GET' }) };
     const json = (obj) => ({ statusCode: 200, headers: { ...cors, 'Content-Type': 'application/json' }, body: JSON.stringify(obj) });
-    // Non esporre `source` (stripe|fallback) nel payload pubblico.
-    const pub = (p) => ({ brand: p.brand, monthly: pubPlan(p.monthly), yearly: pubPlan(p.yearly) });
+    // Non esporre `source` (stripe|fallback) nel payload pubblico: si espone solo
+    // il booleano `configured`, che al client serve per decidere se mostrare la CTA
+    // di acquisto (senza price id il checkout fallirebbe).
+    const pub = (p) => ({ brand: p.brand, monthly: pubPlan(p.monthly), yearly: pubPlan(p.yearly), configured: Boolean(p.configured) });
     const pubPlan = (x) => ({ amount: x.amount, currency: x.currency, interval: x.interval });
     try {
         const q = event.queryStringParameters || {};

@@ -25,10 +25,31 @@ describe('E08 payments — brand resolution from Stripe metadata', () => {
 });
 
 describe('E08 payments — per-brand Stripe config & validation', () => {
-    it('each brand declares its own SSM price keys', () => {
-        assert.equal(getBrand('lemonsqueezer').stripe.monthlyPriceKey, 'STRIPE_PREMIUM_MONTHLY_PRICE_ID');
-        assert.equal(getBrand('scout').stripe.monthlyPriceKey, 'STRIPE_SCOUT_PREMIUM_MONTHLY_PRICE_ID');
-        assert.notEqual(getBrand('scout').stripe.monthlyPriceKey, getBrand('lemonsqueezer').stripe.monthlyPriceKey);
+    // Difetto reale trovato in produzione: lemonsqueezer usava le chiavi CONDIVISE
+    // legacy (STRIPE_PREMIUM_*), che puntavano a prezzi vecchi e sbagliati — il
+    // brand mostrava 9,99 EUR/anno come mensile. Il test ora fissa la proprieta'
+    // che conta: ogni brand ha chiavi proprie e nessuna e' condivisa con altri.
+    it('ogni brand ha chiavi SSM proprie e distinte, nessuna condivisa', () => {
+        const brands = ['lemonsqueezer', 'scout', 'signal', 'briefly', 'nobull'];
+        const seen = new Map();
+        for (const b of brands) {
+            const { monthlyPriceKey, yearlyPriceKey } = getBrand(b).stripe;
+            for (const key of [monthlyPriceKey, yearlyPriceKey]) {
+                assert.ok(key, `${b}: chiave mancante`);
+                assert.ok(/^STRIPE_[A-Z]+_PREMIUM_(MONTHLY|YEARLY)_PRICE_ID$/.test(key),
+                    `${b}: "${key}" non e' una chiave per-brand (le legacy STRIPE_PREMIUM_* sono condivise)`);
+                assert.ok(!seen.has(key), `chiave "${key}" condivisa tra ${seen.get(key)} e ${b}`);
+                seen.set(key, b);
+            }
+        }
+        assert.equal(seen.size, brands.length * 2, 'ogni brand deve avere due chiavi distinte');
+    });
+
+    it('mensile e annuale non sono la stessa chiave', () => {
+        for (const b of ['lemonsqueezer', 'scout', 'signal', 'briefly', 'nobull']) {
+            const s = getBrand(b).stripe;
+            assert.notEqual(s.monthlyPriceKey, s.yearlyPriceKey, `${b}: mensile e annuale puntano alla stessa chiave`);
+        }
     });
 
     it('checkout with an invalid brand is rejected before any Stripe call (E08-012)', async () => {

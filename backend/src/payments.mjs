@@ -84,7 +84,11 @@ export async function getBrandPricing(brandId) {
         fromStripe(products.premium_monthly.price_id, PRICING_FALLBACK.monthly, 'month'),
         fromStripe(products.premium_yearly.price_id, PRICING_FALLBACK.yearly, 'year')
     ]);
-    const data = { brand: brandId, monthly, yearly };
+    // `configured` dice se ENTRAMBI i prezzi vengono davvero da Stripe. Serve al
+    // client per non mostrare una CTA di acquisto che finirebbe in errore: senza
+    // price id il checkout risponde 500 ("You must provide one of price...").
+    const configured = monthly.source === 'stripe' && yearly.source === 'stripe';
+    const data = { brand: brandId, monthly, yearly, configured };
     pricingCache.set(brandId, { at: Date.now(), data });
     return data;
 }

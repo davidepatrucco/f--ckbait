@@ -9,9 +9,11 @@ import {
     updateLastLogin,
     incrementBrandUsage,
     decrementBrandUsage,
+    consumeBrandTrial,
+    refundBrandTrial,
     formatUserFromDynamoDB
 } from './dynamodb.mjs';
-import { getFreeLimit, DEFAULT_BRAND } from './brands.mjs';
+import { getFreeTrial, getFreeLimit, DEFAULT_BRAND } from './brands.mjs';
 import { SecretsManager } from './secrets.mjs';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -227,7 +229,7 @@ export function getEntitlement(user, brandId) {
     const freeLimit = getFreeLimit(brandId);
     const raw = user?.entitlements?.[brandId];
     if (!raw) {
-        return { plan: 'free', usage: { used: 0, limit: freeLimit, resetDate: null }, subscriptionStatus: 'none', exists: false };
+        return { plan: 'free', usage: { used: 0, limit: freeLimit, resetDate: null }, trialRemaining: getFreeTrial(brandId), subscriptionStatus: 'none', exists: false };
     }
     return {
         plan: raw.plan || 'free',
@@ -236,6 +238,9 @@ export function getEntitlement(user, brandId) {
             limit: raw.usage_limit || freeLimit,
             resetDate: raw.usage_reset_date || null
         },
+        // Prove iniziali: assenti sugli entitlement creati prima di questa funzione,
+        // dove valgono come "non ancora usate" (l'utente riceve comunque le prove).
+        trialRemaining: Number.isFinite(raw.trial_remaining) ? raw.trial_remaining : getFreeTrial(brandId),
         subscriptionStatus: raw.subscription_status || 'none',
         stripeCustomerId: raw.stripe_customer_id || null,
         stripeSubscriptionId: raw.stripe_subscription_id || null,
@@ -251,6 +256,10 @@ export function canUserSummarize(user, brandId = DEFAULT_BRAND) {
     const ent = getEntitlement(user, brandId);
     if (ent.plan === 'premium') {
         return { canSummarize: true };
+    }
+    // Le prove gratuite iniziali precedono il limite giornaliero.
+    if (ent.trialRemaining > 0) {
+        return { canSummarize: true, usingTrial: true, trialRemaining: ent.trialRemaining };
     }
     // Se il periodo è scaduto, l'utilizzo effettivo riparte da 0.
     const expired = ent.usage.resetDate && new Date() > new Date(ent.usage.resetDate);
@@ -273,6 +282,27 @@ export async function incrementUsage(user, brandId = DEFAULT_BRAND) {
     if (ent.plan === 'premium') {
         return user;
     }
+    // Prima si consumano le prove iniziali. Il seed include trial_remaining cosi'
+    // l'entitlement nasce completo; su quelli preesistenti l'attributo viene creato
+    // al primo uso con il valore pieno (l'utente riceve comunque le prove).
+    if (ent.trialRemaining > 0) {
+        const afterTrial = await consumeBrandTrial(user.id, brandId, {
+            plan: ent.plan,
+            usage_used: ent.usage.used,
+            usage_limit: ent.usage.limit,
+            usage_reset_date: ent.usage.resetDate || getNextResetDate(),
+            trial_remaining: ent.trialRemaining,
+            subscription_status: ent.subscriptionStatus,
+            stripe_customer_id: ent.stripeCustomerId,
+            stripe_subscription_id: ent.stripeSubscriptionId
+        });
+        if (afterTrial) {
+            const u = formatUserFromDynamoDB(afterTrial);
+            u.lastConsumption = 'trial'; // serve a refundUsage per restituire la cosa giusta
+            return u;
+        }
+        // Prove esaurite tra la lettura e la scrittura: si prosegue con la quota.
+    }
     const expired = ent.usage.resetDate && new Date() > new Date(ent.usage.resetDate);
     // Semina l'entitlement con i valori correnti (continuità per utenti legacy).
     const updated = await incrementBrandUsage(user.id, brandId, {
@@ -290,7 +320,9 @@ export async function incrementUsage(user, brandId = DEFAULT_BRAND) {
         // Guardia atomica anti-race: non superare il limite (lancia USAGE_LIMIT_REACHED).
         limit: ent.usage.limit
     });
-    return formatUserFromDynamoDB(updated);
+    const result = formatUserFromDynamoDB(updated);
+    result.lastConsumption = 'daily';
+    return result;
 }
 
 /**
@@ -300,6 +332,13 @@ export async function incrementUsage(user, brandId = DEFAULT_BRAND) {
 export async function refundUsage(user, brandId = DEFAULT_BRAND) {
     const ent = getEntitlement(user, brandId);
     if (ent.plan === 'premium') return;
+    // Va restituito cio' che e' stato effettivamente consumato: incrementUsage lo
+    // annota su lastConsumption. Senza, un fallimento dopo una prova rimborserebbe
+    // la quota giornaliera (mai consumata) e la prova resterebbe persa.
+    if (user?.lastConsumption === 'trial') {
+        await refundBrandTrial(user.id, brandId);
+        return;
+    }
     await decrementBrandUsage(user.id, brandId);
 }
 

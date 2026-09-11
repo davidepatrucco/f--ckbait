@@ -382,6 +382,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     
     // Inizializza UI basata sullo stato di login
+    // Disponibilita' dei pagamenti: nota prima di disegnare lo stato utente, cosi'
+    // la CTA premium non lampeggia e non appare quando il checkout non funzionerebbe.
+    paymentsEnabled = await loadPaymentsAvailability();
     updateUIForAuthState();
     
     // Controllo autenticazione utente
@@ -503,9 +506,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             const plan = currentUser.plan || 'free';
             const usage = currentUser.usage || { used: 0, limit: 10 };
             const planText = plan === 'premium' ? text.premium : text.free;
-            const usageText = plan === 'premium' 
+            // Con prove residue si mostra quelle: "0/1 riassunti" sarebbe fuorviante
+            // per chi puo' ancora riassumere grazie alle prove iniziali.
+            const trialLeft = Number(currentUser?.trialRemaining);
+            const usageText = plan === 'premium'
                 ? text.unlimited
-                : `${usage.used}/${usage.limit} ${text.summaries}`;
+                : (trialLeft > 0
+                    ? (trialLeft === 1
+                        ? t('popup_trial_left_one', undefined, '1 free summary left')
+                        : t('popup_trial_left', [String(trialLeft)], `${trialLeft} free summaries left`))
+                    : `${usage.used}/${usage.limit} ${text.summaries}`);
             
             // Aggiorna con statistiche di tempo (async)
             updateUserPlanWithStats(planText, usageText);
@@ -618,12 +628,31 @@ if (!email || !password) {
     }
     
     // Aggiunge bottone Premium se necessario
+    // I pagamenti sono attivi solo se il brand ha price id reali su Stripe. Senza,
+    // il checkout risponde 500: mostrare comunque "Passa a Premium" significherebbe
+    // offrire un'azione che fallisce (ed e' motivo di rifiuto in review).
+    let paymentsEnabled = null; // null = non ancora noto
+    async function loadPaymentsAvailability() {
+        try {
+            const res = await fetch(`${CONFIG.API_URL}/pricing?brand=${encodeURIComponent((BRAND && BRAND.apiBrand) || 'lemonsqueezer')}`);
+            if (!res.ok) return false;
+            const data = await res.json();
+            return Boolean(data && data.configured);
+        } catch (e) {
+            return false; // in dubbio non si mostra: meglio nascondere che rompere
+        }
+    }
+
     function addPremiumButtonIfNeeded(plan) {
         // Rimuovi bottone esistente se presente
         const existingBtn = document.getElementById('premiumBtn');
         if (existingBtn) existingBtn.remove();
         
-        if (plan === 'free') {
+        // paymentsEnabled === false -> Stripe non configurato per questo brand:
+        // niente CTA, altrimenti l'utente finisce su un checkout che da' errore.
+        // Si mostra SOLO se la disponibilita' e' nota e positiva: in caso di dubbio
+        // (fetch non ancora conclusa o fallita) meglio nessuna CTA che una rotta.
+        if (plan === 'free' && paymentsEnabled === true) {
             const premiumBtn = document.createElement('button');
             premiumBtn.id = 'premiumBtn';
             premiumBtn.className = 'premium-btn';

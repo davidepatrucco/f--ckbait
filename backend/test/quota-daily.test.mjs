@@ -11,21 +11,21 @@ describe('A3 quota free = 1/giorno', () => {
         for (const b of listBrands()) assert.equal(getFreeLimit(b), 1, `freeLimit ${b}`);
     });
     it('free con 1 uso nel giorno corrente → bloccato (limite giornaliero)', () => {
-        const user = { entitlements: { scout: { plan: 'free', usage_used: 1, usage_limit: 1, usage_reset_date: future } } };
+        const user = { entitlements: { scout: { plan: 'free', trial_remaining: 0, usage_used: 1, usage_limit: 1, usage_reset_date: future } } };
         const r = canUserSummarize(user, 'scout');
         assert.equal(r.canSummarize, false);
         assert.match(r.reason, /giornaliero/);
     });
     it('free con 0 usi → consentito', () => {
-        const user = { entitlements: { scout: { plan: 'free', usage_used: 0, usage_limit: 1, usage_reset_date: future } } };
+        const user = { entitlements: { scout: { plan: 'free', trial_remaining: 0, usage_used: 0, usage_limit: 1, usage_reset_date: future } } };
         assert.equal(canUserSummarize(user, 'scout').canSummarize, true);
     });
     it('periodo scaduto (resetDate passato) → riparte da 0, consentito', () => {
-        const user = { entitlements: { scout: { plan: 'free', usage_used: 1, usage_limit: 1, usage_reset_date: past } } };
+        const user = { entitlements: { scout: { plan: 'free', trial_remaining: 0, usage_used: 1, usage_limit: 1, usage_reset_date: past } } };
         assert.equal(canUserSummarize(user, 'scout').canSummarize, true);
     });
     it('premium → sempre consentito', () => {
-        const user = { entitlements: { scout: { plan: 'premium', usage_used: 999, usage_limit: 1, usage_reset_date: future } } };
+        const user = { entitlements: { scout: { plan: 'premium', trial_remaining: 0, usage_used: 999, usage_limit: 1, usage_reset_date: future } } };
         assert.equal(canUserSummarize(user, 'scout').canSummarize, true);
     });
 });

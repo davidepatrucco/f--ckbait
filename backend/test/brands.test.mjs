@@ -27,7 +27,7 @@ describe('per-brand entitlements', () => {
     });
 
     it('maps stored snake_case fields to the entitlement view', () => {
-        const user = { entitlements: { scout: { plan: 'premium', usage_used: 3, usage_limit: 10, usage_reset_date: nextMonth } } };
+        const user = { entitlements: { scout: { plan: 'premium', trial_remaining: 0, usage_used: 3, usage_limit: 10, usage_reset_date: nextMonth } } };
         const ent = getEntitlement(user, 'scout');
         assert.equal(ent.plan, 'premium');
         assert.equal(ent.usage.used, 3);
@@ -40,27 +40,27 @@ describe('canUserSummarize (per-brand quota)', () => {
     const past = new Date(Date.now() - 86400000).toISOString();
 
     it('premium can always summarize', () => {
-        const user = { entitlements: { lemonsqueezer: { plan: 'premium', usage_used: 999, usage_limit: 10, usage_reset_date: nextMonth } } };
+        const user = { entitlements: { lemonsqueezer: { plan: 'premium', trial_remaining: 0, usage_used: 999, usage_limit: 10, usage_reset_date: nextMonth } } };
         assert.equal(canUserSummarize(user, 'lemonsqueezer').canSummarize, true);
     });
 
     it('free under limit can summarize', () => {
-        const user = { entitlements: { lemonsqueezer: { plan: 'free', usage_used: 5, usage_limit: 10, usage_reset_date: nextMonth } } };
+        const user = { entitlements: { lemonsqueezer: { plan: 'free', trial_remaining: 0, usage_used: 5, usage_limit: 10, usage_reset_date: nextMonth } } };
         assert.equal(canUserSummarize(user, 'lemonsqueezer').canSummarize, true);
     });
 
     it('free at limit cannot summarize', () => {
-        const user = { entitlements: { lemonsqueezer: { plan: 'free', usage_used: 10, usage_limit: 10, usage_reset_date: nextMonth } } };
+        const user = { entitlements: { lemonsqueezer: { plan: 'free', trial_remaining: 0, usage_used: 10, usage_limit: 10, usage_reset_date: nextMonth } } };
         assert.equal(canUserSummarize(user, 'lemonsqueezer').canSummarize, false);
     });
 
     it('free at limit but expired period can summarize (lazy reset)', () => {
-        const user = { entitlements: { lemonsqueezer: { plan: 'free', usage_used: 10, usage_limit: 10, usage_reset_date: past } } };
+        const user = { entitlements: { lemonsqueezer: { plan: 'free', trial_remaining: 0, usage_used: 10, usage_limit: 10, usage_reset_date: past } } };
         assert.equal(canUserSummarize(user, 'lemonsqueezer').canSummarize, true);
     });
 
     it('quota is independent per brand', () => {
-        const user = { entitlements: { lemonsqueezer: { plan: 'free', usage_used: 10, usage_limit: 10, usage_reset_date: nextMonth } } };
+        const user = { entitlements: { lemonsqueezer: { plan: 'free', trial_remaining: 0, usage_used: 10, usage_limit: 10, usage_reset_date: nextMonth } } };
         assert.equal(canUserSummarize(user, 'lemonsqueezer').canSummarize, false); // exhausted
         assert.equal(canUserSummarize(user, 'scout').canSummarize, true);          // no entitlement yet -> fresh
     });

@@ -451,5 +451,11 @@
   },
   "popup_local_pdf_hint": {
     "message": "Questo PDF è aperto da un file locale: selezionalo per riassumerlo."
+  },
+  "popup_trial_left": {
+    "message": "$1 riassunti di prova rimasti"
+  },
+  "popup_trial_left_one": {
+    "message": "1 riassunto di prova rimasto"
   }
 }

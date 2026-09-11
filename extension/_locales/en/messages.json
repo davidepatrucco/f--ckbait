@@ -451,5 +451,11 @@
   },
   "popup_local_pdf_hint": {
     "message": "This PDF is open from a local file: pick it to summarize it."
+  },
+  "popup_trial_left": {
+    "message": "$1 free summaries left"
+  },
+  "popup_trial_left_one": {
+    "message": "1 free summary left"
   }
 }
