@@ -125,3 +125,79 @@ export const SUPPORTED_ENV = [
     'RATE_LIMIT_PER_MINUTE', 'RATE_LIMIT_PER_HOUR', 'RATE_LIMIT_PER_DAY',
     'PREMIUM_WORDCOUNT_THRESHOLD'
 ];
+
+// --- Override amministrabili a runtime ----------------------------------------
+// Gli oggetti esportati sopra sono la base (default + variabili d'ambiente). Qui si
+// applicano gli override persistiti, che hanno la precedenza. La mutazione in posto
+// e' volutamente scelta invece di una firma asincrona: ogni modulo importa questi
+// oggetti al caricamento, e cambiare tutte le firme avrebbe significato riscrivere
+// mezzo backend per un beneficio nullo. L'aggiornamento avviene una volta per
+// invocazione (con cache), quindi non esistono letture parziali a metà richiesta.
+const OVERRIDE_TARGETS = {
+    'plan.free.trialSummaries': (v) => { PLAN_POLICY.free.trialSummaries = v; },
+    'plan.free.dailySummaries': (v) => { PLAN_POLICY.free.dailySummaries = v; },
+    'transcription.maxActiveJobs': (v) => { TRANSCRIPTION_LIMITS.maxActiveJobs = v; },
+    'transcription.maxJobsPerDay': (v) => { TRANSCRIPTION_LIMITS.maxJobsPerDay = v; },
+    'transcription.maxMinutesPerDay': (v) => { TRANSCRIPTION_LIMITS.maxMinutesPerDay = v; },
+    'content.tooLongChars': (v) => { CONTENT_LIMITS.tooLongChars = v; },
+    'content.maxTextChars': (v) => { CONTENT_LIMITS.maxTextChars = v; },
+    'content.maxPdfPages': (v) => { CONTENT_LIMITS.maxPdfPages = v; },
+    'media.sttSyncMaxSeconds': (v) => { MEDIA_LIMITS.sttSyncMaxSeconds = v; },
+    'media.sttAsyncMaxSeconds': (v) => { MEDIA_LIMITS.sttAsyncMaxSeconds = v; },
+    'media.videoMinSeconds': (v) => { MEDIA_LIMITS.videoMinSeconds = v; },
+    'rate.perMinute': (v) => { RATE_LIMITS.perMinute.limit = v; },
+    'rate.perHour': (v) => { RATE_LIMITS.perHour.limit = v; },
+    'rate.perDay': (v) => { RATE_LIMITS.perDay.limit = v; },
+    'model.premiumWordCount': (v) => { MODEL_POLICY.premiumWordCount = v; }
+};
+
+// Valori di partenza, catturati prima di qualunque override: servono a poter
+// TOGLIERE un override senza riavviare il processo.
+const BASELINE = Object.fromEntries(Object.keys(OVERRIDE_TARGETS).map((k) => [k, currentValue(k)]));
+
+function currentValue(key) {
+    switch (key) {
+        case 'plan.free.trialSummaries': return PLAN_POLICY.free.trialSummaries;
+        case 'plan.free.dailySummaries': return PLAN_POLICY.free.dailySummaries;
+        case 'transcription.maxActiveJobs': return TRANSCRIPTION_LIMITS.maxActiveJobs;
+        case 'transcription.maxJobsPerDay': return TRANSCRIPTION_LIMITS.maxJobsPerDay;
+        case 'transcription.maxMinutesPerDay': return TRANSCRIPTION_LIMITS.maxMinutesPerDay;
+        case 'content.tooLongChars': return CONTENT_LIMITS.tooLongChars;
+        case 'content.maxTextChars': return CONTENT_LIMITS.maxTextChars;
+        case 'content.maxPdfPages': return CONTENT_LIMITS.maxPdfPages;
+        case 'media.sttSyncMaxSeconds': return MEDIA_LIMITS.sttSyncMaxSeconds;
+        case 'media.sttAsyncMaxSeconds': return MEDIA_LIMITS.sttAsyncMaxSeconds;
+        case 'media.videoMinSeconds': return MEDIA_LIMITS.videoMinSeconds;
+        case 'rate.perMinute': return RATE_LIMITS.perMinute.limit;
+        case 'rate.perHour': return RATE_LIMITS.perHour.limit;
+        case 'rate.perDay': return RATE_LIMITS.perDay.limit;
+        case 'model.premiumWordCount': return MODEL_POLICY.premiumWordCount;
+        default: return undefined;
+    }
+}
+
+// Stato dell'override applicato, esposto per diagnostica e per GET /admin/config.
+export const POLICY_STATE = { version: null, appliedAt: null, values: {} };
+
+// Applica un insieme di override. I parametri assenti tornano al valore di partenza,
+// così rimuovere una voce dalla configurazione la riporta al default senza riavvio.
+export function applyOverrides(values = {}, version = null) {
+    const applied = {};
+    for (const [key, setter] of Object.entries(OVERRIDE_TARGETS)) {
+        const next = Object.prototype.hasOwnProperty.call(values, key) ? Number(values[key]) : BASELINE[key];
+        if (Number.isFinite(next)) {
+            setter(next);
+            if (Object.prototype.hasOwnProperty.call(values, key)) applied[key] = next;
+        }
+    }
+    POLICY_STATE.version = version;
+    POLICY_STATE.appliedAt = new Date().toISOString();
+    POLICY_STATE.values = applied;
+    return applied;
+}
+
+// Valori effettivi correnti, per l'interfaccia amministrativa.
+export function effectiveValues() {
+    return Object.fromEntries(Object.keys(OVERRIDE_TARGETS).map((k) => [k, currentValue(k)]));
+}
+

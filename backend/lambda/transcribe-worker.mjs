@@ -17,6 +17,8 @@ import { toFile } from 'openai';
 import { getOpenAIClient } from '../src/openai.mjs';
 import { assertPublicUrl } from '../src/web-fetcher.mjs';
 import { updateJob, claimJob, JOB_STATUS } from '../src/transcribe-jobs.mjs';
+import { applyOverrides } from '../src/policy.mjs';
+import { readActiveConfig } from '../src/config-store.mjs';
 import { TRANSCRIPTION_LIMITS, CONTENT_LIMITS } from '../src/policy.mjs';
 
 const FFMPEG = process.env.FFMPEG_PATH || '/opt/bin/ffmpeg';
@@ -136,6 +138,12 @@ export async function handler(event) {
         return { ok: false };
     }
     const mediaUrl = event.mediaUrl;
+    // Anche il worker deve rispettare gli override: i suoi limiti (segmenti, durata
+    // massima) sono gli stessi che l'API ha usato per accettare il job.
+    try {
+        const active = await readActiveConfig();
+        applyOverrides(active?.values || {}, active?.version ?? null);
+    } catch (e) { /* si usano i valori correnti */ }
     // Presa in carico esclusiva: se un'altra invocazione dello stesso evento ha gia'
     // preso il job, questa esce senza fare nulla (nessun doppio scaricamento, nessun
     // doppio addebito di trascrizione).

@@ -5,7 +5,8 @@ import { validateSubscription } from '../src/subscription.mjs';
 import { checkRateLimit } from '../src/rate-limit.mjs';
 import { fetchWebContent, assertPublicUrl, extractPdfText } from '../src/web-fetcher.mjs';
 import { transcribeMedia } from '../src/transcribe.mjs';
-import { CONTENT_LIMITS, publicLimits } from '../src/policy.mjs';
+import { CONTENT_LIMITS, publicLimits, applyOverrides, effectiveValues, POLICY_STATE } from '../src/policy.mjs';
+import { CONFIG_SCHEMA, validateConfig, checkConsistency, readActiveConfig, writeConfig, listConfigVersions } from '../src/config-store.mjs';
 import { createJob, getJob, updateJob, publicJobView, countUserJobs, MAX_ACTIVE_JOBS, MAX_JOBS_PER_DAY, MAX_MINUTES_PER_DAY } from '../src/transcribe-jobs.mjs';
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 
@@ -1574,13 +1575,85 @@ export async function configHandler(event) {
     };
 }
 
+// Caricamento degli override con cache: una lettura per container ogni CONFIG_TTL,
+// non una per richiesta. Se la lettura fallisce si resta sui valori correnti: una
+// configurazione non raggiungibile non deve bloccare il servizio.
+const CONFIG_TTL_MS = Number(process.env.CONFIG_TTL_MS || 60 * 1000);
+let lastConfigLoad = 0;
+async function refreshPolicy() {
+    if (Date.now() - lastConfigLoad < CONFIG_TTL_MS) return;
+    lastConfigLoad = Date.now();
+    try {
+        const active = await readActiveConfig();
+        applyOverrides(active?.values || {}, active?.version ?? null);
+    } catch (e) {
+        console.warn('override di configurazione non leggibili, si usano i valori correnti:', e?.message);
+    }
+}
+
+// GET /admin/config — valori effettivi, schema e storico delle versioni.
+// POST /admin/config — nuova versione, validata. Protetto dalla chiave admin.
+export async function adminConfigHandler(event) {
+    const cors = getCorsHeaders(event);
+    if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: cors, body: '' };
+    if (!(await dashboardAuthorized(event))) {
+        return createResponse(401, { error: 'Chiave amministrativa mancante o non valida', code: 'ADMIN_KEY_REQUIRED' });
+    }
+
+    if (event.httpMethod === 'GET') {
+        const [active, history] = await Promise.all([
+            readActiveConfig().catch(() => null),
+            listConfigVersions().catch(() => ({ versions: [] }))
+        ]);
+        return createResponse(200, {
+            effective: effectiveValues(),
+            overrides: active?.values || {},
+            version: active?.version ?? null,
+            updatedAt: active?.updatedAt ?? null,
+            schema: CONFIG_SCHEMA,
+            history: history.versions || []
+        });
+    }
+
+    if (event.httpMethod !== 'POST') {
+        return createResponse(405, { error: 'Usa GET o POST', code: 'METHOD_NOT_ALLOWED' });
+    }
+
+    let body;
+    try { body = JSON.parse(event.body || '{}'); } catch { return createResponse(400, { error: 'Body non valido', code: 'INVALID_JSON' }); }
+
+    const { values, errors } = validateConfig(body.values || {});
+    if (errors.length) {
+        // Nessuna applicazione parziale: un cambio con voci non valide viene
+        // rifiutato per intero, altrimenti lo stato risultante e' imprevedibile.
+        return createResponse(400, { error: 'Valori non validi', code: 'INVALID_CONFIG', errors });
+    }
+    const problems = checkConsistency({ ...effectiveValues(), ...values });
+    if (problems.length) {
+        return createResponse(400, { error: 'Configurazione incoerente', code: 'INCONSISTENT_CONFIG', problems });
+    }
+
+    const record = await writeConfig(values, body.updatedBy || 'admin');
+    applyOverrides(record.values, record.version);
+    return createResponse(200, {
+        applied: POLICY_STATE.values,
+        effective: effectiveValues(),
+        version: record.version,
+        updatedAt: record.updatedAt
+    });
+}
+
 // Handler principale (router)
 export async function handler(event, context) {
     currentRequestId = event?.requestContext?.requestId || context?.awsRequestId || null;
     console.log('Request received:', { path: event.path || event.rawPath, method: event.httpMethod, requestId: currentRequestId });
 
     const path = event.path || event.rawPath;
-    
+
+    // Gli override sono validi per tutta l'invocazione: si caricano qui, una volta,
+    // prima di qualunque decisione che dipenda da un limite.
+    await refreshPolicy();
+
     switch (path) {
         case '/summarize-url':
             return await summarizeUrlHandler(event);
@@ -1630,6 +1703,8 @@ export async function handler(event, context) {
             return await adminMetricsHandler(event);
         case '/admin/dashboard':
             return await adminDashboardHandler(event);
+        case '/admin/config':
+            return await adminConfigHandler(event);
         case '/config':
             return await configHandler(event);
         case '/pricing':

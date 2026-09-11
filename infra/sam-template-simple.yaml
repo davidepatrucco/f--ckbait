@@ -73,6 +73,7 @@ Resources:
           SUMMARY_MAX_WORDS: !Ref SummaryMaxWords
           TRANSCRIBE_JOBS_TABLE_NAME: !Ref TranscribeJobsTable
           TRANSCRIBE_WORKER_FUNCTION: !Ref TranscribeWorkerFunction
+          CONFIG_TABLE_NAME: !Ref ConfigTable
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref UsersTable
@@ -90,6 +91,8 @@ Resources:
             TableName: !Ref AnalyticsTable
         - DynamoDBCrudPolicy:
             TableName: !Ref TranscribeJobsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConfigTable
         - LambdaInvokePolicy:
             FunctionName: !Ref TranscribeWorkerFunction
         - SSMParameterReadPolicy:
@@ -157,10 +160,13 @@ Resources:
       Environment:
         Variables:
           TRANSCRIBE_JOBS_TABLE_NAME: !Ref TranscribeJobsTable
+          CONFIG_TABLE_NAME: !Ref ConfigTable
           FFMPEG_PATH: '/opt/bin/ffmpeg'
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref TranscribeJobsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref ConfigTable
         - SSMParameterReadPolicy:
             ParameterName: !Sub 'reading-intelligence/${Environment}/*'
 
@@ -301,6 +307,23 @@ Resources:
       TimeToLiveSpecification:
         AttributeName: ttl
         Enabled: true
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+
+  # Configurazione amministrabile a runtime: override persistiti e versionati.
+  # Chiave singola: `active` e' il puntatore, `v<n>` le versioni storiche, cosi' un
+  # cambio sbagliato resta ricostruibile.
+  ConfigTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'reading-intelligence-config-${Environment}'
+      AttributeDefinitions:
+        - AttributeName: configKey
+          AttributeType: S
+      KeySchema:
+        - AttributeName: configKey
+          KeyType: HASH
       BillingMode: PAY_PER_REQUEST
       SSESpecification:
         SSEEnabled: true
