@@ -2,7 +2,7 @@
 
 // Config del brand (iniettata da brand-config.js). Determina l'header X-Brand.
 // source-decision.js fornisce parseVtt (usato per i sottotitoli scaricati qui).
-try { importScripts('browser-polyfill.js', 'brand-config.js', 'source-decision.js'); } catch (e) { console.warn('brand-config/polyfill non caricati via importScripts (atteso su event-page):', e?.message); }
+try { importScripts('browser-polyfill.js', 'brand-config.js', 'policy-config.js', 'source-decision.js'); } catch (e) { console.warn('brand-config/polyfill non caricati via importScripts (atteso su event-page):', e?.message); }
 const BRAND_ID = (self.__BRAND__ && self.__BRAND__.apiBrand) || 'lemonsqueezer';
 
 // API base per ambiente: iniettata dal build in __BRAND__.apiBase (dev|staging|prod).

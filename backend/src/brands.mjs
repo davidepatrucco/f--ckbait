@@ -4,11 +4,13 @@
 // Nessuna logica di business brand-specifica: solo dati di configurazione.
 
 // Free = 1 summary/giorno (reset giornaliero, vedi getNextResetDate in auth.mjs).
-const FREE_LIMIT_DEFAULT = parseInt(process.env.FREE_PLAN_LIMIT || '1', 10);
+import { PLAN_POLICY } from './policy.mjs';
+
+const FREE_LIMIT_DEFAULT = PLAN_POLICY.free.dailySummaries;
 // Prove gratuite iniziali, consumate PRIMA che entri in vigore il limite giornaliero:
 // 1 riassunto al giorno e' troppo ruvido per chi installa l'estensione e deve capire
 // se gli serve. Una tantum per brand, non si ricaricano.
-const FREE_TRIAL_DEFAULT = parseInt(process.env.FREE_TRIAL_BONUS || '5', 10);
+const FREE_TRIAL_DEFAULT = PLAN_POLICY.free.trialSummaries;
 
 export const DEFAULT_BRAND = 'lemonsqueezer';
 

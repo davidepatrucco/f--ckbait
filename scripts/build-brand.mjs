@@ -8,6 +8,7 @@ import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync, rmSyn
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { generateBrandConfigJs } from './lib/brand-config-gen.mjs';
+import { generatePolicyJs } from './lib/policy-gen.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const EXT = join(ROOT, 'extension');
@@ -17,7 +18,7 @@ const EXT = join(ROOT, 'extension');
 // a oauth-config.example.js così build/test funzionano senza il file reale.
 const SHARED_FILES = ['manifest.json', 'popup.html', 'popup.js', 'service_worker.js', 'content.js', 'browser-polyfill.js', 'summary.html', 'summary.js', 'source-decision.js'];
 const ASSET_FILES = ['icon.svg', 'icon-16.png', 'icon-48.png', 'icon-128.png'];
-const REQUIRED_OUTPUT = ['manifest.json', 'popup.html', 'popup.js', 'service_worker.js', 'content.js', 'browser-polyfill.js', 'brand-config.js', 'summary.html', 'summary.js', 'source-decision.js',
+const REQUIRED_OUTPUT = ['manifest.json', 'popup.html', 'popup.js', 'service_worker.js', 'content.js', 'browser-polyfill.js', 'brand-config.js', 'policy-config.js', 'summary.html', 'summary.js', 'source-decision.js',
     'assets/icon-16.png', 'assets/icon-48.png', 'assets/icon-128.png',
     '_locales/en/messages.json', '_locales/it/messages.json'];
 
@@ -31,7 +32,7 @@ function applyBrowserManifest(manifest, browser, brandId) {
     const swFile = manifest.background?.service_worker || 'service_worker.js';
     // Firefox usa un event page: importScripts non è disponibile, quindi le dipendenze
     // (incluso source-decision.js per parseVtt) vanno dichiarate qui.
-    manifest.background = { scripts: ['browser-polyfill.js', 'brand-config.js', 'source-decision.js', swFile] };
+    manifest.background = { scripts: ['browser-polyfill.js', 'brand-config.js', 'policy-config.js', 'source-decision.js', swFile] };
     manifest.browser_specific_settings = {
         gecko: { id: `${brandId}@bifa.digital`, strict_min_version: '121.0' }
     };
@@ -80,6 +81,10 @@ export function buildBrand(brandId, options = {}) {
     cpSync(localesSrc, join(outDir, '_locales'), { recursive: true });
     const locales = readdirSync(join(outDir, '_locales'));
     if (!locales.includes('en')) throw new Error('_locales senza la lingua di default (en)');
+
+    // 1d. Soglie generate dalla fonte unica del backend: il pacchetto non contiene
+    //     numeri scritti a mano, quindi browser e server non possono divergere.
+    writeFileSync(join(outDir, 'policy-config.js'), generatePolicyJs());
 
     // 2. brand-config.js generato dal brand pack
     writeFileSync(join(outDir, 'brand-config.js'), generateBrandConfigJs(cfg, env));

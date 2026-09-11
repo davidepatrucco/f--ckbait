@@ -42,6 +42,7 @@
       "js": [
         "browser-polyfill.js",
         "brand-config.js",
+        "policy-config.js",
         "source-decision.js",
         "content.js"
       ],

@@ -11,11 +11,12 @@
 import { toFile } from 'openai';
 import { getOpenAIClient } from './openai.mjs';
 import { assertPublicUrl } from './web-fetcher.mjs';
+import { MEDIA_LIMITS } from './policy.mjs';
 
-const MAX_MEDIA_BYTES = 24 * 1024 * 1024; // < 25MB (hard limit OpenAI)
+const MAX_MEDIA_BYTES = MEDIA_LIMITS.maxMediaBytes; // < 25MB (hard limit OpenAI)
 const TRANSCRIBE_MODEL = process.env.TRANSCRIBE_MODEL || 'gpt-4o-mini-transcribe';
-const FETCH_TIMEOUT_MS = 20000;
-const MAX_REDIRECTS = 5;
+const FETCH_TIMEOUT_MS = MEDIA_LIMITS.fetchTimeoutMs;
+const MAX_REDIRECTS = MEDIA_LIMITS.maxRedirects;
 
 // Content-type accettati (estrazione audio lato OpenAI). octet-stream ammesso solo se
 // l'estensione del path è nota.

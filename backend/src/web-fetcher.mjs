@@ -3,12 +3,13 @@ import { JSDOM } from 'jsdom';
 import { Readability } from '@mozilla/readability';
 import { isIP } from 'node:net';
 import { lookup } from 'node:dns/promises';
+import { CONTENT_LIMITS } from './policy.mjs';
 
 // Config
-const MAX_TEXT_CHARS = parseInt(process.env.MAX_TEXT_CHARS || '40000', 10);
+const MAX_TEXT_CHARS = CONTENT_LIMITS.maxTextChars;
 // Oltre questa soglia il contenuto è troppo lungo per un riassunto affidabile:
 // meglio un messaggio chiaro che un riassunto parziale (niente chunking per ora).
-const TOO_LONG_CHARS = parseInt(process.env.TOO_LONG_CHARS || '80000', 10);
+const TOO_LONG_CHARS = CONTENT_LIMITS.tooLongChars;
 
 // Estrae il testo da un PDF (buffer) con pdfjs-dist (build legacy per Node, no worker).
 // Cap a 50 pagine / 200k char per restare nei 29s di API Gateway.
@@ -20,7 +21,7 @@ export async function extractPdfText(buffer) {
     // Oltre questa soglia il documento NON viene letto per intero: restituire
     // comunque un testo parziale produrrebbe un riassunto che ignora il resto senza
     // dirlo. Si rifiuta, coerentemente con la regola sui contenuti troppo lunghi.
-    const MAX_PDF_PAGES = Number(process.env.MAX_PDF_PAGES || 50);
+    const MAX_PDF_PAGES = CONTENT_LIMITS.maxPdfPages;
     if (doc.numPages > MAX_PDF_PAGES) {
         const e = new Error(`TOO_LONG: PDF di ${doc.numPages} pagine (massimo ${MAX_PDF_PAGES})`);
         e.code = 'CONTENT_TOO_LONG';

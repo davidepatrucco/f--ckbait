@@ -17,14 +17,15 @@ import { toFile } from 'openai';
 import { getOpenAIClient } from '../src/openai.mjs';
 import { assertPublicUrl } from '../src/web-fetcher.mjs';
 import { updateJob, JOB_STATUS } from '../src/transcribe-jobs.mjs';
+import { TRANSCRIPTION_LIMITS, CONTENT_LIMITS } from '../src/policy.mjs';
 
 const FFMPEG = process.env.FFMPEG_PATH || '/opt/bin/ffmpeg';
 const WORK_DIR = '/tmp/transcribe';
-const SEGMENT_SECONDS = Number(process.env.SEGMENT_SECONDS || 600); // 10 min
-const MAX_SEGMENTS = Number(process.env.MAX_SEGMENTS || 18);        // ~3h, allineato al client
-const CONCURRENCY = Number(process.env.TRANSCRIBE_CONCURRENCY || 3);
+const SEGMENT_SECONDS = TRANSCRIPTION_LIMITS.segmentSeconds; // 10 min
+const MAX_SEGMENTS = TRANSCRIPTION_LIMITS.maxSegments;              // ~3h, allineato al client
+const CONCURRENCY = TRANSCRIPTION_LIMITS.concurrency;
 const TRANSCRIBE_MODEL = process.env.TRANSCRIBE_MODEL || 'gpt-4o-mini-transcribe';
-const FFMPEG_TIMEOUT_MS = Number(process.env.FFMPEG_TIMEOUT_MS || 8 * 60 * 1000);
+const FFMPEG_TIMEOUT_MS = TRANSCRIPTION_LIMITS.ffmpegTimeoutMs;
 
 // Codici che il client sa tradurre in un messaggio. Qualunque altro codice (es.
 // quelli del provider di trascrizione, come "invalid_value") viene normalizzato:
@@ -169,7 +170,7 @@ export async function handler(event) {
         // quando alcuni segmenti erano andati persi, e il taglio a 120.000 caratteri
         // non veniva comunicato: l'utente riceveva un riassunto parziale credendolo
         // completo. Ora la parzialita' e' un dato del job e arriva fino alla UI.
-        const MAX_TRANSCRIPT = 120000;
+        const MAX_TRANSCRIPT = CONTENT_LIMITS.maxTranscriptChars;
         const truncated = transcript.length > MAX_TRANSCRIPT;
         const coverage = {
             segmentsTotal: files.length,

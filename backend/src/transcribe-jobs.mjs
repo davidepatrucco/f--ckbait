@@ -7,6 +7,7 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand, GetCommand, UpdateCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { randomUUID } from 'node:crypto';
+import { TRANSCRIPTION_LIMITS } from './policy.mjs';
 
 const client = new DynamoDBClient({ region: process.env.AWS_REGION || 'eu-west-1' });
 const doc = DynamoDBDocumentClient.from(client, { marshallOptions: { removeUndefinedValues: true } });
@@ -37,11 +38,11 @@ export async function createJob({ userId, brandId, mediaUrl, mediaKind, lang }) 
 
 // Limiti anti-abuso. La trascrizione ha un costo per minuto: senza un tetto, un
 // singolo account (o un token rubato) puo' accodare job illimitati.
-export const MAX_ACTIVE_JOBS = Number(process.env.MAX_ACTIVE_TRANSCRIBE_JOBS || 2);
-export const MAX_JOBS_PER_DAY = Number(process.env.MAX_TRANSCRIBE_JOBS_PER_DAY || 20);
+export const MAX_ACTIVE_JOBS = TRANSCRIPTION_LIMITS.maxActiveJobs;
+export const MAX_JOBS_PER_DAY = TRANSCRIPTION_LIMITS.maxJobsPerDay;
 // Oltre questa eta' un job pending/running e' considerato morto (il worker ha timeout
 // a 15'): senza questa finestra, un worker crashato bloccherebbe l'utente per sempre.
-const STALE_AFTER_MS = 20 * 60 * 1000;
+const STALE_AFTER_MS = TRANSCRIPTION_LIMITS.staleAfterMs;
 
 // Classificazione PURA dei job letti dall'indice: separata dall'accesso a DynamoDB
 // per poter essere verificata senza infrastruttura.
