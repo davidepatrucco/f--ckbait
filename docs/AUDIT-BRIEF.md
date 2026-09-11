@@ -1,237 +1,179 @@
-# Reading Intelligence Platform — dossier per audit esterno
+# Reading Intelligence Platform — dossier per audit (revisione 2)
 
-**Destinatario:** sviluppatore esterno incaricato della peer review finale prima della pubblicazione.
-**Stato del codice:** commit `1bbbd0c` su `main`. 131 commit, 218 test automatici verdi.
-**Data:** settembre 2026.
+**Per:** lo sviluppatore che ha eseguito la prima revisione.
+**Commit:** `main` @ 235 test verdi. **Data:** settembre 2026.
 
-Questo documento è scritto per chi non conosce il progetto. Contiene ciò che serve per
-metterlo in discussione: architettura, decisioni prese e perché, ciò che è stato
-verificato e **come**, e soprattutto ciò che è noto essere debole o incompleto.
+Questa revisione nasce dai tuoi reperti. La prima versione del dossier attribuiva ad
+alcune protezioni garanzie che il codice non offriva: quelle affermazioni sono
+corrette qui sotto, non riscritte in silenzio.
 
-Dove un'affermazione è stata misurata, è indicato. Dove non lo è, è indicato lo stesso.
-
----
-
-## 1. Cos'è
-
-Estensione browser (Chrome/Firefox, MV3) che riassume una pagina web, un video o un PDF,
-appoggiandosi a un backend serverless su AWS che chiama un LLM.
-
-Particolarità: **una sola codebase genera cinque prodotti** (`lemonsqueezer`, `scout`,
-`signal`, `briefly`, `nobull`). Cambiano nome, colori, icona, prompt e schema di output;
-l'identità utente è condivisa, ma **quota, piano e abbonamento sono indipendenti per
-brand**. Il primo a essere pubblicato è LemonSqueezer.
-
-| | |
-|---|---|
-| Backend | ~6.800 righe (Node ESM, AWS Lambda) |
-| Estensione | ~4.500 righe (JS, nessun framework, nessun bundler) |
-| Test | 218, in 32 file |
-| Endpoint | 25 |
-| Lingue UI | 5 (153 chiavi) |
+Regola di lettura: **verificato** = eseguito contro staging o riprodotto con uno
+script; **letto** = dedotto dal codice senza esecuzione. Dove ho sbagliato io, è detto.
 
 ---
 
-## 2. Architettura
+## 1. Esito dei tuoi reperti
 
-```
-Estensione (MV3)                        AWS (eu-west-1)
-┌────────────────────────┐              ┌─────────────────────────────────┐
-│ popup.js    UI, login  │              │ API Gateway (REST)              │
-│ content.js  estrazione │──HTTPS──────▶│   └─ Lambda "summarize"         │
-│ service_worker  rete   │              │        (router, 25 endpoint)    │
-│ source-decision  scelta│              │   └─ Lambda "transcribe-worker" │
-│ summary.html  risultati│              │        (async, ffmpeg, 15')     │
-└────────────────────────┘              │ DynamoDB ×9  ·  SSM  ·  S3      │
-                                        └─────────────────────────────────┘
-```
-
-**Tre ambienti isolati** — dev, staging, prod. Stack CloudFormation separati, tabelle e
-segreti separati. `dev → staging` è automatico a ogni push su `main`; **prod richiede
-approvazione manuale** (GitHub Environments).
-
-**Scelta non ovvia: l'estrazione del testo avviene nel browser, non sul server.**
-Il backend faceva il fetch della pagina e l'estrazione con JSDOM+Readability, ma su
-pagine grandi superava il limite di 29 secondi di API Gateway (HTTP 504), e vedeva una
-pagina diversa da quella dell'utente (paywall, contenuti dietro login, SPA). Ora il
-content script legge il DOM già renderizzato e invia il testo. Il fetch server-side resta
-come fallback per i link aperti dal menu contestuale.
+| # | Reperto | Verifica indipendente | Esito |
+|---|---|---|---|
+| 1 | `/summarize` accetta una chiave inventata | **Confermato in live**: chiave arbitraria → HTTP 200 con riassunto reale | **Endpoint rimosso** (route, evento SAM, funzione morta nel client). 404 su dev, staging, prod |
+| 2 | SSRF aggirabile | **Confermato**: `::ffff:127.0.0.1`, `::ffff:7f00:1`, `::ffff:169.254.169.254`, `64:ff9b::127.0.0.1` passavano | Normalizzazione IPv4-incapsulato + CGNAT/multicast; redirect seguiti a mano con rivalidazione di ogni salto |
+| 3 | Prove, reset e rimborso | **Tutti e tre confermati** | Vedi §2: è il gruppo dove avevo sbagliato la verifica |
+| 4 | Signup Google | Quota 10/mese **confermata**; campi `undefined` **NON riprodotti** | Inizializzazione unificata. Vedi §3 |
+| 5 | Checkout vecchio riattiva premium | **Confermato** | Ora autenticato, vincolato al proprietario, richiede abbonamento `active`/`trialing`/`past_due` |
+| 6a | Price ID per-brand invisibili | **Confermato con prova prima/dopo** su un parametro reale: `undefined` → valore | `getSecret` risolve i nomi non precaricati |
+| 6b | Abbonamento indicizzato per solo `user_id` | **Confermato, e peggiore**: vedi §4 | Riscritto sulla tabella corretta, per brand |
+| 6c | `subscription_id` vs `stripe_subscription_id` | **Confermato** | Allineato; le due scritture divergenti unificate |
+| 6d | Cancellazione account non annulla su Stripe | **Confermato** | Ora annulla ogni abbonamento, poi pulisce |
+| 7 | Limiti solo sui job asincroni | **Confermato** | Percorso sincrono e asincrono condividono **un** conteggio. Aggiunto il budget minuti |
+| 8 | Riassunti parziali silenziosi | **Confermato** | Copertura esplicita fino alla UI; PDF oltre soglia **rifiutato** |
+| 9 | Fonte sbagliata (video) | **Riprodotto il tuo caso esatto** | Guardia su prominenza/durata estesa al ramo STT |
 
 ---
 
-## 3. Dove guardare per primo
+## 2. Il gruppo #3: dove la mia verifica era sbagliata, non solo il codice
 
-In ordine di rischio decrescente. Sono i punti dove un errore costa di più.
+Avevo dichiarato le prove gratuite "verificate end-to-end su staging". Erano
+verificate su un utente creato **senza entitlement**, cioè su un percorso che non
+esiste in produzione. Un utente reale passa da `createUser`, che scriveva
+l'entitlement **senza** `trial_remaining`; `ensureBrandEntitlement` usa
+`if_not_exists` sull'**intera mappa del brand**, quindi il singolo attributo non
+veniva mai aggiunto. Il lettore mostrava 5 prove, la scrittura non ne consumava
+nessuna.
 
-| # | Area | File | Perché conta |
-|---|------|------|--------------|
-| 1 | Quota e prove gratuite | `backend/src/auth.mjs`, `dynamodb.mjs` | Un errore qui significa riassunti illimitati gratis (costo) o utenti bloccati a torto |
-| 2 | Decisione della fonte | `extension/source-decision.js` | Decide *cosa* riassumere. Un errore = riassunto silenziosamente sbagliato |
-| 3 | Job di trascrizione | `backend/lambda/transcribe-worker.mjs`, `src/transcribe-jobs.mjs` | Unico path con costo per minuto; limiti anti-abuso |
-| 4 | SSRF / input non fidati | `backend/src/web-fetcher.mjs`, `transcribe.mjs` | Gli URL arrivano dalla pagina visitata, quindi da un potenziale attaccante |
-| 5 | Prompt injection | `backend/src/prompts/untrusted.mjs` | Il testo della pagina e i sottotitoli finiscono nel prompt |
+Il difetto non era nel codice che avevo testato: era nel percorso che **non** avevo
+testato. È l'errore di metodo più significativo di questa sessione.
 
----
+Correzioni: `createUser` inizializza il campo; il consumo lo inizializza comunque in
+una sola operazione atomica (`if_not_exists` dentro la `SET`); il reset del periodo
+è diventato un compare-and-swap sulla data letta, con ritentativo se perde la corsa;
+il rimborso viaggia con una ricevuta `{type, brandId, period}` e senza ricevuta non
+rimborsa nulla.
 
-## 4. Decisioni di progetto e loro motivazione
-
-Elencate perché sono i punti su cui vorrei più dissenso, non conferma.
-
-**4.1 Quota: 5 prove iniziali, poi 1 riassunto al giorno.**
-Due contatori distinti sull'entitlement per-brand: `trial_remaining` (una tantum, non si
-ricarica) e `usage_used` (giornaliero, reset a mezzanotte UTC). Le prove precedono la
-quota. Motivo: 1/giorno secco non permette di capire se il prodotto serve.
-
-**4.2 Prenota-poi-agisci sulla quota.**
-La quota viene decrementata *prima* di chiamare l'LLM, con un aggiornamento condizionale
-DynamoDB (`usage_used < limit`), e **rimborsata** se il riassunto fallisce. L'alternativa
-(incrementare dopo il successo) consente a richieste concorrenti di superare il limite.
-`refundUsage` deve restituire *ciò che è stato consumato*: incrementUsage lo annota su
-`lastConsumption`. **Questo è un punto fragile: è stato messo tardi, va guardato.**
-
-**4.3 Il piano non sta nel JWT.**
-Il token contiene solo `userId` ed `email`. Il piano viene riletto dal database a ogni
-richiesta. Un token rubato non può auto-promuoversi a premium.
-
-**4.4 Video: i sottotitoli prima della trascrizione.**
-Se la pagina espone una traccia WebVTT, si usa quella: gratis, istantanea, **nessun
-limite di durata**, e funziona anche con stream protetti (la traccia è separata dal
-video). Solo in assenza di sottotitoli si trascrive l'audio, che costa per minuto ed è
-riservato al premium.
-
-**4.5 Decisione della fonte come funzione pura con regole ordinate.**
-`probe (DOM) → decide (puro) → esegui`. Le regole sono ordinate e chiuse da un catch-all,
-quindi ogni input mappa a esattamente un'azione. La catena di degrado (sottotitoli
-falliti, STT non disponibile, piano sbagliato) è implementata **ri-decidendo su un
-inventario ridotto**, così termina sempre e riusa la logica già testata.
-
-**4.6 Contenuti troppo lunghi: errore esplicito, non riassunto parziale.**
-Oltre 80.000 caratteri si rifiuta con un messaggio. Un riassunto che ignora metà del
-documento senza dirlo è peggio di un rifiuto. **Conseguenza accettata**: niente libri.
-
-**4.7 L'interfaccia segue la lingua del browser, l'output la scelta dell'utente.**
-Sono due cose diverse: `chrome.i18n` per la UI (5 lingue), un selettore per la lingua del
-riassunto.
+**Riverificato sul percorso reale** (`createUser`, come il signup): 6 riassunti
+riusciti (5 prove + 1 quota), settimo 429, stato finale `trial=0, used=1`.
 
 ---
 
-## 5. Sicurezza — cosa è stato verificato, con quale metodo
+## 3. Un tuo reperto che non si riproduce
 
-Tutto ciò che segue è stato **eseguito** contro l'ambiente staging reale, non dedotto.
+Il sotto-punto di #4 sui campi `undefined` passati a `createUser`: il document client
+tollera gli attributi `undefined` di **primo livello** (l'errore riguarda solo
+map/array/set annidati) e il percorso reale funziona. Verificato eseguendo
+`createUser` con gli stessi argomenti del signup Google contro staging.
 
-| Verifica | Metodo | Esito |
-|---|---|---|
-| SSRF | 11 vettori (IMDS `169.254.169.254`, `localhost`, `::1`, 10/172/192.168, `0.0.0.0`, `file://`, `gopher://`, `metadata.google.internal`) | 11/11 bloccati prima di qualunque fetch |
-| Prompt injection | Trascrizione contenente "ignora le istruzioni precedenti" **più** un tentativo di uscire dai marcatori `⟦/SORGENTE⟧` | Respinta: ha riassunto il contenuto vero |
-| Autenticazione | 5 endpoint senza token; token con firma manomessa | 401 su tutti |
-| Ownership dei job | Lettura del job di un altro utente | 404 (indistinguibile da inesistente) |
-| Gate premium | Utente **free reale** creato in DynamoDB, poi rimosso | Respinto su entrambi i path video |
-| Quota | Utente free, due richieste | 200 poi 429 |
-| Prove gratuite | Utente nuovo, 7 richieste consecutive | 6× 200 (5 prove + 1 quota), poi 429 |
-| Limite di concorrenza job | 5 job in parallelo | 2 accettati, 3 respinti |
-| Esposizione dati | Vista pubblica del job | Non espone `mediaUrl` (contiene firme CDN) né `userId` |
-
-**Difese in essere:** guard SSRF condiviso (risoluzione DNS, non solo parsing), contenuto
-non fidato racchiuso tra marcatori con istruzione esplicita al modello, confronto a tempo
-costante per la chiave admin, segreti solo in SSM (mai nel codice né nei pacchetti),
-`Cache-Control: no-store` sulle risposte.
+Il mio primo tentativo di riprodurlo era sbagliato — avevo passato un `id` non
+definito e ottenuto una `ValidationException` diversa, che stavo per attribuire al
+difetto segnalato.
 
 ---
 
-## 6. Problemi noti e non risolti
+## 4. Un difetto che l'audit ha sfiorato ma sottostimato
 
-Sezione più importante del documento. Sono consapevoli, non dimenticanze.
+Il reperto 6b diceva "acquistare un secondo brand sovrascrive il primo". In realtà la
+persistenza degli abbonamenti **non funzionava affatto**: `saveSubscription` e
+`getUserSubscription` scrivevano e leggevano sulla tabella dei **pagamenti** con
+`Key: { user_id }`, mentre quella tabella ha chiave `paymentId`.
 
-**6.1 [MEDIA] Il limite di job concorrenti non è un tetto rigido.**
-Il controllo è leggi-poi-scrivi: sotto concorrenza perfetta qualche richiesta in più può
-passare prima che i job precedenti siano visibili. Nel test si è fermato esattamente a 2,
-ma **non è garantito**. È una protezione di costo, non un vincolo di sicurezza. Un tetto
-rigido richiede un contatore atomico sul record utente.
+Verificato: `ValidationException — Missing the key paymentId in the item`.
 
-**6.2 [MEDIA] Nessun budget di minuti per la trascrizione.**
-Esiste il limite di job concorrenti (2) e giornalieri (20), ma non un tetto ai *minuti*
-trascritti. 20 job da 3 ore al giorno restano ~20 $/giorno per utente premium a 1,99 €/mese.
-
-**6.3 [BASSA] `/admin/dashboard` è pubblica.**
-Serve la shell HTML senza autenticazione. Ispezionata: nessun dato, nessuna chiave,
-nessuna email, nessun endpoint interno. I dati stanno su `/admin/metrics`, che risponde
-401. È divulgazione dell'esistenza della dashboard.
-
-**6.4 [BASSA] Il margine del contatore nella catena di degrado è esattamente sufficiente.**
-Simulando 3.072 stati iniziali con ogni tentativo fallito: 0 cicli, massimo 4 passi
-contro un budget di 4. Esaurirlo è comunque sicuro (si finisce su `INSUFFICIENT_CONTENT`),
-ma non c'è margine per un livello di degrado in più.
-
-**6.5 Stripe non è configurato in produzione.**
-Le chiavi sono in modalità test e nessun brand ha price id reali. Il checkout risponde
-**500** (verificato). Mitigazione attuale: il backend espone `configured: false` e il
-client **non mostra** la CTA di acquisto. Da completare prima del lancio commerciale.
-
-**6.6 Copertura di test disomogenea.**
-Backend e logica pura sono coperti bene. **Non coperti da test automatici**: il flusso
-OAuth completo, il webhook Stripe end-to-end, e la UI dell'estensione oltre al popup.
-
-**6.7 Non supportati (per scelta o per limite).**
-Twitter/X (richiede login), documenti oltre ~30 pagine dense, video lunghi senza
-sottotitoli oltre 3 ore, dirette in corso, Google Docs in modalità modifica. Tutti
-producono un messaggio esplicito, non un errore tecnico.
-
-**6.8 Le icone degli altri 4 brand.**
-Corrette tutte e 5, ma solo LemonSqueezer ha screenshot per lo store.
+Nessun record esisteva in nessun ambiente (0 in dev, staging, prod), quindi non c'era
+migrazione da fare. Ora si usa la tabella degli abbonamenti, che ha già la chiave
+composta `userId` + `subscriptionId`, con il brand sull'elemento.
 
 ---
 
-## 7. Come verificare in autonomia
+## 5. Correzioni al dossier precedente
 
-```bash
-cd backend && npm ci && node --test        # 218 test, nessuna credenziale richiesta
-node scripts/build-brand.mjs lemonsqueezer --env prod --browser chromium --store
-node qa/i18n-runtime.mjs                   # 5 lingue in un browser reale (richiede Playwright)
-node qa/extract-qa.mjs                     # euristiche di estrazione
-```
-
-Ambienti pubblici (nessuna credenziale necessaria per `/health` e `/pricing`):
-- staging `https://rjayfeyebe.execute-api.eu-west-1.amazonaws.com/staging`
-- prod `https://l6ykaxiveh.execute-api.eu-west-1.amazonaws.com/prod`
-
-**Note sui test, per giudicarne il valore:**
-- Il test di esaustività della decisione gira sul **prodotto cartesiano** di 7.760
-  combinazioni e verifica che nessuna produca un'azione, un codice o una nota indefiniti.
-- I test i18n leggono **il file realmente spedito** (`extension/source-decision.js`
-  caricato in un sandbox `vm`), non una copia.
-- I test aggiunti di recente sono stati **falsificati**: reintrodotto il difetto, il test
-  fallisce; ripristinato, torna verde. Un test che non è mai stato visto fallire non
-  dimostra nulla.
+- **§6.4**: avevo scritto "budget di 4". È `numeroTracce + 4`. Errore mio.
+- **Prompt injection**: il test era **un caso**, non una garanzia. Lo presento ora
+  come evidenza puntuale su quel payload (istruzioni contrarie + tentativo di uscire
+  dai marcatori), non come proprietà dimostrata.
+- **Test cartesiano**: dimostra che l'azione restituita appartiene al vocabolario
+  previsto, **non che sia quella corretta**. È esattamente perché il reperto #9 gli è
+  sfuggito, e ora lo dico nel dossier invece di lasciarlo intendere.
+- **"11 vettori SSRF"**: erano insufficienti. Ora sono 11 + 7 forme IPv6 incapsulate,
+  e resta il limite noto in §8.
 
 ---
 
-## 8. Domande su cui vorrei un parere
+## 6. Matrice endpoint → autenticazione → limiti → costo
 
-1. **Prenota-poi-rimborsa** (4.2): il meccanismo `lastConsumption` che distingue prova da
-   quota è corretto in tutti i percorsi di errore, o esiste un caso in cui si rimborsa la
-   cosa sbagliata?
-2. **Job concorrenti** (6.1): vale la pena del contatore atomico, o il limite morbido è
-   proporzionato al rischio?
-3. **Permessi ampi**: `host_permissions` su `http://*/*` e `https://*/*`. Necessari per
-   leggere qualunque pagina, ma sono il punto di attrito numero uno nella review dello
-   store. Esiste un'alternativa praticabile con `activeTab`?
-4. **Cinque estensioni quasi identiche**: rischio concreto di violare la policy
-   "contenuto ripetitivo" del Chrome Web Store. Vale la pena pubblicarne una sola e
-   vedere l'esito prima di esporre il portfolio?
-5. **Contenuti lunghi** (4.6): rifiutare è la scelta giusta, o è preferibile un
-   map-reduce (riassunti per sezione, poi fusione) accettando più token e più latenza?
-6. **Cosa manca in questo documento** che ti servirebbe per dare un giudizio.
+Compilata a mano dai percorsi verificati (una generazione automatica dava righe
+sbagliate, quindi non la uso).
+
+| endpoint | autenticazione | limiti applicati | costo esterno |
+|---|---|---|---|
+| `POST /summarize-url` | utente | prove + quota giornaliera (prenota-poi-rimborsa) | **LLM** |
+| `POST /extract-pdf` | utente | dimensione ≤3,5 MB, pagine ≤50, testo ≤80k | parsing locale |
+| `POST /transcribe` (sync) | utente + **premium** | job concorrenti, job/giorno, **minuti/giorno** | **STT** |
+| `POST /transcribe-job` (async) | utente + **premium** | idem, più presa in carico esclusiva | **STT** |
+| `GET /transcribe-job` | utente + **proprietà** | — | no |
+| `POST /payments/create-checkout` | utente | — | Stripe |
+| `POST /payments/verify-checkout` | utente + **proprietà sessione** | richiede abbonamento attivo | Stripe (lettura) |
+| `POST /payments/webhook` | **firma Stripe** | — | no |
+| `POST /payments/cancel` | utente | per brand | Stripe |
+| `POST /account/delete` | utente | — | annulla su Stripe |
+| `GET /pricing` | **pubblico** | — | no |
+| `GET /health` | **pubblico** | — | no |
+| `GET /admin/dashboard` | **pubblico** (solo shell HTML) | — | no |
+| `GET /admin/metrics` | chiave admin (confronto a tempo costante) | — | no |
+| `POST /analytics/event` | utente | tipi di evento in allowlist | no |
 
 ---
 
-## 9. Stato rispetto al lancio
+## 7. La causa strutturale che hai indicato
 
-Pronto: 3 ambienti allineati, 5 brand, pipeline con approvazione manuale su prod,
-i18n, dashboard interna, documenti legali pubblicati, pacchetto store, screenshot per
-LemonSqueezer, copy e giustificazione permessi.
+La misura, prima dell'intervento: `80000` duplicato in 3 file, `120000` in 4, `40000`
+in 3; **40 variabili d'ambiente lette dal codice contro 14 presenti nel template**,
+cioè 26 override solo teorici.
 
-Mancante: Stripe LIVE, dominio per i siti e gli URL di ritorno del checkout, account
-sviluppatore Chrome Web Store, screenshot per gli altri 4 brand, pacchetto Safari.
+`backend/src/policy.mjs` è ora la dichiarazione unica di policy commerciali, limiti di
+trascrizione, soglie di contenuto e media, rate limit e soglia di routing. I moduli
+importano invece di ridichiarare, e le soglie dell'estensione sono **generate** da
+quella fonte al build (`policy-config.js` nel pacchetto): il browser non contiene più
+numeri scritti a mano.
 
-Nessun utente reale su produzione: il momento per cambiare idea su qualsiasi cosa è
-adesso.
+Sei test lo proteggono, incluso uno che **falsifica la propagazione** (cambio la
+fonte, il browser deve adottare il nuovo valore) e uno di coerenza reciproca (il
+worker non può produrre più segmenti di quanti ne accetti il limite).
+
+---
+
+## 8. Cosa resta aperto
+
+1. **SSRF nel worker**: ffmpeg riceve l'URL e i suoi accessi successivi (segmenti HLS)
+   non passano dal guard JavaScript. Attenuazione verificata: le Lambda **non sono in
+   VPC** e Lambda non espone IMDS, quindi non c'è rotta verso reti private. Resta un
+   buco di principio se il deployment cambiasse.
+2. **Limite job non rigido**: il controllo è leggi-poi-scrivi. Sotto concorrenza
+   perfetta qualche richiesta in più può passare. È protezione di costo, non vincolo
+   di sicurezza. Il tuo suggerimento del contatore atomico resta valido.
+3. **Budget minuti stimato dai segmenti**, non dalla durata reale del media: un video
+   rifiutato dopo il download non consuma budget, uno troncato lo consuma per intero.
+4. **`/admin/dashboard` pubblica** (solo shell, ispezionata: nessun dato né segreto).
+5. **Copertura test**: OAuth completo, ciclo Stripe end-to-end e UI dell'estensione
+   oltre al popup restano non coperti da test automatici. I test sui contatori
+   aggiunti ora sono **strutturali** (verificano l'espressione DynamoDB), non
+   comportamentali: la verifica comportamentale è quella end-to-end su staging.
+6. **Prod**: allineato fino al lotto precedente. L'ultimo lotto (abbonamenti, Stripe,
+   budget minuti, idempotenza) è su dev e staging; il deploy in produzione richiede
+   un'approvazione esplicita non ancora data.
+
+---
+
+## 9. Domande per il secondo giro
+
+1. La ricevuta `{type, brandId, period}` copre tutti i percorsi di errore del rimborso,
+   o resta un caso in cui si restituisce la cosa sbagliata?
+2. Il compare-and-swap sul reset con ritentativo come incremento normale: esiste una
+   sequenza concorrente che lo scavalca?
+3. `claimJob` rende il worker idempotente rispetto alla doppia consegna, ma un'invocazione
+   che muore dopo il claim lascia il job `running` fino alla finestra di 20 minuti. È un
+   compromesso accettabile o serve un heartbeat?
+4. Il budget minuti stimato dai segmenti (§8.3) è sufficiente, o va misurata la durata
+   prima di iniziare?
+5. Sulla proposta dei permessi: `activeTab` + iniezione su richiesta è praticabile, ma
+   perdiamo il menu contestuale sui link e la lettura dei sottotitoli da CDN terze.
+   Vale lo scambio?
+6. Cosa manca ancora in questo dossier.
