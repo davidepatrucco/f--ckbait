@@ -189,7 +189,10 @@ export async function handler(event) {
             transcript: transcript.slice(0, MAX_TRANSCRIPT),
             progress: `${files.length}/${files.length}`,
             partial: lost > 0 || truncated,
-            coverage
+            coverage,
+            // Consumo esplicito, non ricavato dai segmenti dal lettore: rende il
+            // budget indipendente dalla forma del job.
+            minutesUsed: Math.ceil((files.length * SEGMENT_SECONDS) / 60)
         });
         return { ok: true, chunks: files.length, characters: transcript.length, ...coverage };
     } catch (error) {

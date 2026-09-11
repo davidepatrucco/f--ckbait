@@ -5,6 +5,7 @@ import { validateSubscription } from '../src/subscription.mjs';
 import { checkRateLimit } from '../src/rate-limit.mjs';
 import { fetchWebContent, assertPublicUrl, extractPdfText } from '../src/web-fetcher.mjs';
 import { transcribeMedia } from '../src/transcribe.mjs';
+import { CONTENT_LIMITS } from '../src/policy.mjs';
 import { createJob, getJob, updateJob, publicJobView, countUserJobs, MAX_ACTIVE_JOBS, MAX_JOBS_PER_DAY, MAX_MINUTES_PER_DAY } from '../src/transcribe-jobs.mjs';
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 
@@ -41,6 +42,7 @@ import {
     cancelSubscription,
     reactivateSubscription,
     deleteUserSubscription,
+    canDeleteLocalData,
     getBrandPricing
 } from '../src/payments.mjs';
 import { deleteUser } from '../src/dynamodb.mjs';
@@ -653,7 +655,18 @@ export async function accountDeleteHandler(event) {
         return createResponse(401, apiErrorBody('AUTH_REQUIRED'));
     }
     try {
-        await deleteUserSubscription(user.id); // best-effort (non blocca)
+        // Se un abbonamento non e' stato annullato su Stripe, NON si cancellano i
+        // dati locali: l'addebito continuerebbe e non resterebbe traccia con cui
+        // fermarlo. Si risponde con un errore ritentabile.
+        const subs = await deleteUserSubscription(user.id);
+        if (!canDeleteLocalData(subs)) {
+            console.error('account/delete interrotto: abbonamenti non annullati', subs);
+            return createResponse(503, {
+                error: 'Non è stato possibile annullare l’abbonamento. Riprova tra poco: nessun dato è stato cancellato.',
+                code: 'SUBSCRIPTION_CANCEL_FAILED',
+                retryable: true
+            });
+        }
         await deleteUser(user.id);
         console.log('Account deleted:', user.id);
         return createResponse(200, { deleted: true, userId: user.id });
@@ -1275,9 +1288,14 @@ export async function transcribeHandler(event) {
         // invece di avere due budget separati (o nessuno).
         let accounting = null;
         try {
-            const { active, last24h, minutes } = await countUserJobs(user.id);
+            const { active, last24h, minutes, incomplete } = await countUserJobs(user.id);
             if (active >= MAX_ACTIVE_JOBS) {
                 return createResponse(429, { error: `Hai già ${active} trascrizioni in corso.`, code: 'TRANSCRIBE_BUSY', active });
+            }
+            if (incomplete) {
+                // Conteggio non attendibile: su un limite che protegge da un costo
+                // reale si sceglie di rifiutare, non di concedere.
+                return createResponse(429, { error: 'Verifica dei consumi non disponibile, riprova tra poco.', code: 'TRANSCRIBE_BUSY' });
             }
             if (minutes >= MAX_MINUTES_PER_DAY) {
                 return createResponse(429, { error: 'Limite giornaliero di minuti trascritti raggiunto.', code: 'TRANSCRIBE_MINUTES_LIMIT', minutes });
@@ -1292,8 +1310,16 @@ export async function transcribeHandler(event) {
         }
 
         try {
-            const { text, model } = await transcribeMedia(body.mediaUrl);
-            if (accounting) await updateJob(accounting.jobId, { status: 'done' }).catch(() => {});
+            const { text, model, durationSeconds } = await transcribeMedia(body.mediaUrl);
+            // Minuti effettivamente consumati: senza questo dato il budget non
+            // vedeva nulla del percorso sincrono (20 trascrizioni = 0 minuti).
+            if (accounting) {
+                await updateJob(accounting.jobId, {
+                    status: 'done',
+                    durationSeconds: Math.round(durationSeconds || 0),
+                    minutesUsed: Math.max(1, Math.ceil((durationSeconds || 0) / 60))
+                }).catch(() => {});
+            }
             return createResponse(200, { transcript: text, model, code: 'OK' });
         } catch (err) {
             if (accounting) await updateJob(accounting.jobId, { status: 'error', code: err?.code || 'TRANSCRIPTION_FAILED' }).catch(() => {});
@@ -1356,13 +1382,18 @@ export async function transcribeJobStartHandler(event) {
         // Anti-abuso: la trascrizione ha un costo per minuto. Il controllo sta PRIMA
         // della creazione del job, cosi' non si accoda lavoro che poi va scartato.
         try {
-            const { active, last24h, minutes } = await countUserJobs(user.id);
+            const { active, last24h, minutes, incomplete } = await countUserJobs(user.id);
             if (active >= MAX_ACTIVE_JOBS) {
                 return createResponse(429, {
                     error: `Hai già ${active} trascrizioni in corso. Attendi che finiscano.`,
                     code: 'TRANSCRIBE_BUSY',
                     active
                 });
+            }
+            if (incomplete) {
+                // Conteggio non attendibile: su un limite che protegge da un costo
+                // reale si sceglie di rifiutare, non di concedere.
+                return createResponse(429, { error: 'Verifica dei consumi non disponibile, riprova tra poco.', code: 'TRANSCRIBE_BUSY' });
             }
             if (minutes >= MAX_MINUTES_PER_DAY) {
                 return createResponse(429, { error: 'Limite giornaliero di minuti trascritti raggiunto.', code: 'TRANSCRIBE_MINUTES_LIMIT', minutes });
@@ -1445,6 +1476,23 @@ export async function transcribeJobStatusHandler(event) {
 // riassunto resta su /summarize-url, dove vivono quota, cache e routing modelli.
 const PDF_UPLOAD_MAX_BYTES = 3.5 * 1024 * 1024; // base64 ~4.7MB, sotto i limiti Lambda/API GW
 
+// Forma della risposta di estrazione. Pura per poter verificare che un taglio non
+// sia mai silenzioso: un PDF di una pagina con 60.000 caratteri veniva riassunto sui
+// primi 40.000 e la risposta era indistinguibile da una completa.
+export function buildPdfExtractionResult(text, title) {
+    const limit = CONTENT_LIMITS.maxTextChars;
+    const characters = String(text || '').length;
+    const truncated = characters > limit;
+    return {
+        text: String(text || '').slice(0, limit),
+        title,
+        characters,
+        usedCharacters: Math.min(characters, limit),
+        truncated,
+        code: 'OK'
+    };
+}
+
 export async function extractPdfHandler(event) {
     try {
         if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: getCorsHeaders(event), body: '' };
@@ -1493,7 +1541,11 @@ export async function extractPdfHandler(event) {
         const title = typeof body.filename === 'string' && body.filename.trim()
             ? body.filename.trim().replace(/\.pdf$/i, '').slice(0, 200)
             : 'Documento PDF';
-        return createResponse(200, { text: text.slice(0, 40000), title, characters: text.length, code: 'OK' });
+        // Il taglio a maxTextChars non puo' essere silenzioso: un PDF di una pagina
+        // con 60.000 caratteri veniva riassunto sui primi 40.000 e la risposta era
+        // indistinguibile da una completa. La parzialita' e' un dato esplicito, e il
+        // client la mostra come avviso.
+        return createResponse(200, buildPdfExtractionResult(text, title));
     } catch (error) {
         console.error('Error in extractPdfHandler:', error);
         return createResponse(500, { error: 'Errore interno', code: 'INTERNAL_ERROR' });

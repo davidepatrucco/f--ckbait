@@ -127,15 +127,20 @@ export async function transcribeMedia(mediaUrl) {
     const client = await getOpenAIClient();
     const file = await toFile(buffer, filename);
     let text;
+    let durationSeconds = 0;
     try {
-        const out = await client.audio.transcriptions.create({ file, model: TRANSCRIBE_MODEL, response_format: 'text' });
+        // verbose_json restituisce anche la DURATA dell'audio: serve a contabilizzare
+        // i minuti consumati dal percorso sincrono, che non produce segmenti e quindi
+        // risultava a consumo zero nel budget.
+        const out = await client.audio.transcriptions.create({ file, model: TRANSCRIBE_MODEL, response_format: 'verbose_json' });
         text = typeof out === 'string' ? out : (out?.text || '');
+        durationSeconds = Number(out?.duration) || 0;
     } catch (err) {
         const e = new Error(`Trascrizione fallita: ${err.message}`); e.code = 'TRANSCRIPTION_FAILED'; throw e;
     }
     text = (text || '').trim();
     if (text.length < 20) { const e = new Error('Nessun parlato riconosciuto nel media'); e.code = 'NO_SPEECH'; throw e; }
-    return { text, model: TRANSCRIBE_MODEL, bytes };
+    return { text, model: TRANSCRIBE_MODEL, bytes, durationSeconds };
 }
 
 export const _test = { MAX_MEDIA_BYTES, TRANSCRIBE_MODEL, extOf };

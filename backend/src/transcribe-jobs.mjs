@@ -55,8 +55,14 @@ export function classifyJobs(items, now = Date.now()) {
         last24h++;
         // Minuti gia' trascritti: i segmenti hanno durata nota, quindi il consumo si
         // ricava senza dover misurare il media.
-        const chunks = Number(item.chunks) || 0;
-        if (chunks) minutes += (chunks * TRANSCRIPTION_LIMITS.segmentSeconds) / 60;
+        // minutesUsed e' scritto da entrambi i percorsi. I segmenti restano solo
+        // come ripiego per i job creati prima che il campo esistesse.
+        const explicit = Number(item.minutesUsed) || 0;
+        if (explicit) minutes += explicit;
+        else {
+            const chunks = Number(item.chunks) || 0;
+            if (chunks) minutes += (chunks * TRANSCRIPTION_LIMITS.segmentSeconds) / 60;
+        }
         const isOpen = item.status === JOB_STATUS.PENDING || item.status === JOB_STATUS.RUNNING;
         const age = now - Date.parse(item.createdAt || 0);
         if (isOpen && age < STALE_AFTER_MS) active++;
@@ -71,6 +77,7 @@ export async function countUserJobs(userId, now = Date.now()) {
     let active = 0;
     let last24h = 0;
     let minutes = 0;
+    let incomplete = false;
     do {
         const out = await doc.send(new QueryCommand({
             TableName: TABLE,
@@ -86,19 +93,33 @@ export async function countUserJobs(userId, now = Date.now()) {
         let detailed = out.Items || [];
         if (ids.length) {
             try {
-                const batch = await doc.send(new BatchGetCommand({
-                    RequestItems: {
-                        [TABLE]: {
-                            Keys: ids.map((jobId) => ({ jobId })),
-                            ProjectionExpression: 'jobId, #s, createdAt, chunks',
-                            ExpressionAttributeNames: { '#s': 'status' }
+                const collected = [];
+                let pending = ids.map((jobId) => ({ jobId }));
+                // BatchGet puo' restituire UnprocessedKeys: ignorarle significa
+                // contare meno minuti del reale (visto: 20 job conteggiati come 1).
+                for (let attempt = 0; attempt < 4 && pending.length; attempt++) {
+                    const batch = await doc.send(new BatchGetCommand({
+                        RequestItems: {
+                            [TABLE]: {
+                                Keys: pending,
+                                ProjectionExpression: 'jobId, #s, createdAt, chunks, minutesUsed',
+                                ExpressionAttributeNames: { '#s': 'status' }
+                            }
                         }
-                    }
-                }));
-                const full = batch.Responses?.[TABLE] || [];
-                if (full.length) detailed = full;
+                    }));
+                    collected.push(...(batch.Responses?.[TABLE] || []));
+                    pending = batch.UnprocessedKeys?.[TABLE]?.Keys || [];
+                    if (pending.length) await new Promise((r) => setTimeout(r, 50 * (attempt + 1)));
+                }
+                if (pending.length) {
+                    // Lettura incompleta: il conteggio sarebbe sottostimato, quindi si
+                    // dichiara non attendibile e il chiamante applica il caso peggiore.
+                    incomplete = true;
+                }
+                if (collected.length) detailed = collected;
             } catch (e) {
-                console.warn('lettura dettagli job fallita, minuti non conteggiati:', e?.message);
+                console.warn('lettura dettagli job fallita:', e?.message);
+                incomplete = true;
             }
         }
         const page = classifyJobs(detailed, now);
@@ -107,7 +128,7 @@ export async function countUserJobs(userId, now = Date.now()) {
         minutes += page.minutes;
         ExclusiveStartKey = out.LastEvaluatedKey;
     } while (ExclusiveStartKey);
-    return { active, last24h, minutes };
+    return { active, last24h, minutes, incomplete };
 }
 
 // Prende in carico il job in modo esclusivo. Lambda asincrona puo' consegnare lo
@@ -116,13 +137,22 @@ export async function countUserJobs(userId, now = Date.now()) {
 // Ritorna false se un'altra invocazione lo ha gia' preso o se e' gia' concluso.
 export async function claimJob(jobId) {
     try {
+        // Si prende il job se e' in attesa OPPURE se e' rimasto `running` oltre la
+        // finestra di scadenza: un'invocazione morta dopo il claim lasciava il job
+        // bloccato per sempre, perche' la sola condizione `pending` non lo recuperava.
+        const staleBefore = new Date(Date.now() - STALE_AFTER_MS).toISOString();
         await doc.send(new UpdateCommand({
             TableName: TABLE,
             Key: { jobId },
             UpdateExpression: 'SET #s = :running, startedAt = :now',
-            ConditionExpression: 'attribute_exists(jobId) AND #s = :pending',
+            ConditionExpression: 'attribute_exists(jobId) AND (#s = :pending OR (#s = :running AND (attribute_not_exists(startedAt) OR startedAt < :stale)))',
             ExpressionAttributeNames: { '#s': 'status' },
-            ExpressionAttributeValues: { ':running': JOB_STATUS.RUNNING, ':pending': JOB_STATUS.PENDING, ':now': new Date().toISOString() }
+            ExpressionAttributeValues: {
+                ':running': JOB_STATUS.RUNNING,
+                ':pending': JOB_STATUS.PENDING,
+                ':now': new Date().toISOString(),
+                ':stale': staleBefore
+            }
         }));
         return true;
     } catch (error) {
@@ -139,7 +169,7 @@ export async function getJob(jobId) {
 
 // Aggiornamento parziale: solo i campi passati (status/progress/transcript/code).
 export async function updateJob(jobId, fields) {
-    const allowed = ['status', 'progress', 'transcript', 'code', 'error', 'chunks', 'durationSeconds', 'partial', 'coverage'];
+    const allowed = ['status', 'progress', 'transcript', 'code', 'error', 'chunks', 'durationSeconds', 'partial', 'coverage', 'minutesUsed'];
     const sets = [];
     const names = {};
     const values = {};

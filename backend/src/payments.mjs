@@ -229,7 +229,12 @@ export async function verifyCheckoutSession(sessionId, expectedUserId) {
         const customer = session.customer;
 
         // Salva subscription in database
+        // Il brand va risolto PRIMA di salvare: veniva calcolato solo dopo, quindi
+        // l'abbonamento finiva sempre sul brand di default (un acquisto Scout
+        // risultava persistito come LemonSqueezer).
+        const brand = resolveStripeBrand(session);
         await saveSubscription(userId, {
+            brand,
             stripeCustomerId: customer.id,
             stripeSubscriptionId: subscription.id,
             status: subscription.status,
@@ -240,8 +245,8 @@ export async function verifyCheckoutSession(sessionId, expectedUserId) {
             currency: session.currency
         });
 
-        // Aggiorna il piano del brand corretto a premium
-        const brand = resolveStripeBrand(session);
+        // Aggiorna il piano SOLO dopo che l'abbonamento e' stato scritto: se la
+        // scrittura fallisce non si resta con un utente premium senza abbonamento.
         await updateUserPlan(userId, brand, 'premium', {
             subscriptionStatus: subscription.status,
             stripeCustomerId: customer.id,
@@ -414,11 +419,19 @@ export async function reactivateSubscription(userId, brandId = DEFAULT_BRAND) {
 /**
  * Cancella il record subscription dell'utente (best-effort, per cancellazione account).
  */
+// Decide se i dati locali possono essere cancellati. Pura, perche' la regola e'
+// l'unica cosa che conta: cancellare dopo un errore di annullamento fa perdere
+// l'unico riferimento a un abbonamento ancora addebitato.
+export function canDeleteLocalData(result) {
+    if (!result) return false;
+    return (result.retryable?.length || 0) === 0 && (result.errors?.length || 0) === 0;
+}
+
 export async function deleteUserSubscription(userId) {
     // Cancellare l'account deve interrompere anche gli addebiti: prima venivano
     // rimossi solo i record locali (per giunta dalla tabella sbagliata), quindi
     // l'abbonamento restava attivo su Stripe e l'utente continuava a pagare.
-    const result = { canceledOnStripe: 0, deleted: 0, errors: [] };
+    const result = { canceledOnStripe: 0, deleted: 0, errors: [], retryable: [] };
     let items = [];
     try {
         const res = await docClient.send(new QueryCommand({
@@ -435,6 +448,7 @@ export async function deleteUserSubscription(userId) {
 
     for (const item of items) {
         const subId = item.subscriptionId || item.stripe_subscription_id;
+        let stripeOk = !subId; // senza id non c'e' nulla da annullare
         if (subId) {
             try {
                 const { stripe } = await initializeStripe();
@@ -442,23 +456,42 @@ export async function deleteUserSubscription(userId) {
                 // lasciarlo attivo fino a fine periodo.
                 await stripe.subscriptions.cancel(subId);
                 result.canceledOnStripe++;
+                stripeOk = true;
             } catch (error) {
                 // Un abbonamento gia' annullato o inesistente non e' un errore.
-                if (!/No such subscription|already canceled/i.test(String(error.message))) {
+                if (/No such subscription|already canceled/i.test(String(error.message))) {
+                    stripeOk = true; // gia' inesistente o annullato: nulla da fermare
+                } else {
                     console.error(`Cancellazione Stripe fallita per ${subId}:`, error.message);
                     result.errors.push(subId);
                 }
             }
         }
-        try {
-            await docClient.send(new DeleteCommand({
-                TableName: SUBSCRIPTIONS_TABLE,
-                Key: { userId, subscriptionId: item.subscriptionId }
-            }));
-            result.deleted++;
-        } catch (error) {
-            console.warn('Cancellazione record locale fallita:', error.message);
-            result.errors.push('local');
+        // Il record locale si rimuove SOLO se l'abbonamento e' stato davvero
+        // annullato: e' l'unico riferimento all'abbonamento su Stripe, e cancellarlo
+        // dopo un errore renderebbe l'addebito impossibile da fermare.
+        if (stripeOk) {
+            try {
+                await docClient.send(new DeleteCommand({
+                    TableName: SUBSCRIPTIONS_TABLE,
+                    Key: { userId, subscriptionId: item.subscriptionId }
+                }));
+                result.deleted++;
+            } catch (error) {
+                console.warn('Cancellazione record locale fallita:', error.message);
+                result.errors.push('local');
+            }
+        } else {
+            // Stato recuperabile: si marca per un ritentativo successivo.
+            try {
+                await docClient.send(new UpdateCommand({
+                    TableName: SUBSCRIPTIONS_TABLE,
+                    Key: { userId, subscriptionId: item.subscriptionId },
+                    UpdateExpression: 'SET pending_cancellation = :t, updated_at = :u',
+                    ExpressionAttributeValues: { ':t': true, ':u': new Date().toISOString() }
+                }));
+            } catch (e) { /* il record resta comunque, con i dati originali */ }
+            result.retryable.push(item.subscriptionId);
         }
     }
     return result;
@@ -486,29 +519,41 @@ async function saveCheckoutSession(userId, sessionId, planType) {
     }
 }
 
-async function saveSubscription(userId, subscriptionData) {
-    try {
-        const command = new PutCommand({
-            TableName: SUBSCRIPTIONS_TABLE,
-            Item: {
-                userId,
-                subscriptionId: subscriptionData.stripeSubscriptionId,
-                brand: subscriptionData.brand || DEFAULT_BRAND,
-                user_id: userId,
-                stripe_customer_id: subscriptionData.stripeCustomerId,
-                stripe_subscription_id: subscriptionData.stripeSubscriptionId,
-                status: subscriptionData.status,
-                plan_type: subscriptionData.planType,
-                current_period_start: subscriptionData.currentPeriodStart,
-                current_period_end: subscriptionData.currentPeriodEnd,
-                amount: subscriptionData.amount,
-                currency: subscriptionData.currency,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-            }
-        });
+// Costruisce l'elemento da scrivere. Estratta e pura per poter essere verificata
+// senza DynamoDB: i difetti di questa classe (nome di campo divergente fra i due
+// chiamanti, brand mancante) producevano scritture senza chiave obbligatoria e non
+// erano visibili ad alcun test.
+export function buildSubscriptionItem(userId, subscriptionData = {}) {
+    const subscriptionId = subscriptionData.stripeSubscriptionId
+        || subscriptionData.stripe_subscription_id
+        || subscriptionData.subscriptionId;
+    const brand = subscriptionData.brand || subscriptionData.brandId;
+    if (!userId) throw new Error('saveSubscription: userId mancante');
+    if (!subscriptionId) throw new Error('saveSubscription: id abbonamento mancante');
+    if (!brand) throw new Error('saveSubscription: brand mancante');
+    const now = new Date().toISOString();
+    return {
+        userId,
+        subscriptionId,
+        brand,
+        user_id: userId,
+        stripe_customer_id: subscriptionData.stripeCustomerId || subscriptionData.stripe_customer_id || null,
+        stripe_subscription_id: subscriptionId,
+        status: subscriptionData.status || 'active',
+        plan_type: subscriptionData.planType || subscriptionData.plan_type || 'premium_monthly',
+        current_period_start: subscriptionData.currentPeriodStart || null,
+        current_period_end: subscriptionData.currentPeriodEnd || null,
+        amount: subscriptionData.amount ?? null,
+        currency: subscriptionData.currency || null,
+        created_at: now,
+        updated_at: now
+    };
+}
 
-        await docClient.send(command);
+async function saveSubscription(userId, subscriptionData) {
+    const Item = buildSubscriptionItem(userId, subscriptionData);
+    try {
+        await docClient.send(new PutCommand({ TableName: SUBSCRIPTIONS_TABLE, Item }));
     } catch (error) {
         console.error('Error saving subscription:', error);
         throw error;
@@ -559,14 +604,24 @@ async function handleCheckoutCompleted(session) {
     console.log(`Processing upgrade for user ${userId} (brand ${brand}) to plan ${planType}`);
 
     try {
-        // updateUserPlan e la PUT del record sono idempotenti: un evento webhook
-        // duplicato non causa doppio addebito né stato incoerente (E08-010).
-        console.log('Calling updateUserPlan...');
+        // Ordine: prima si scrive l'abbonamento, poi si promuove l'utente. Al
+        // contrario, una scrittura fallita lasciava un utente premium SENZA
+        // abbonamento registrato (e quindi non cancellabile).
+        // Entrambe le operazioni sono idempotenti: un evento webhook ripetuto non
+        // produce effetti diversi.
+        const subscriptionData = {
+            brand,
+            stripeSubscriptionId: session.subscription,
+            stripeCustomerId: session.customer,
+            planType,
+            status: 'active'
+        };
+        await saveSubscription(userId, subscriptionData);
+
         await updateUserPlan(userId, brand, 'premium', {
             subscriptionStatus: 'active',
             stripeSubscriptionId: session.subscription
         });
-        console.log('updateUserPlan completed successfully');
 
         // Funnel: conversione a premium (best-effort, metadati soltanto).
         await logEvent({
@@ -574,24 +629,6 @@ async function handleCheckoutCompleted(session) {
             userId, userPlan: 'premium', brandId: brand
         });
 
-        // Salva record subscription
-        const subscriptionData = {
-            user_id: userId,
-            brand,
-            // Stesso nome letto da cancelSubscription/reactivate: prima il webhook
-            // scriveva `subscription_id` mentre la cancellazione cercava
-            // `stripe_subscription_id`, quindi non trovava mai l'abbonamento.
-            stripe_subscription_id: session.subscription,
-            plan_type: planType,
-            status: 'active',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-        };
-        
-        console.log('Saving subscription record...', subscriptionData);
-        await saveSubscriptionRecord(userId, subscriptionData);
-        console.log('Subscription record saved successfully');
-        
         console.log(`User ${userId} upgraded to premium plan: ${planType}`);
         console.log('=== CHECKOUT COMPLETED HANDLER END ===');
         
