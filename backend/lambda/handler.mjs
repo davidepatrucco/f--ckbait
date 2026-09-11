@@ -1075,6 +1075,12 @@ export async function verifyCheckoutHandler(event) {
             return createResponse(405, { error: 'Metodo non supportato. Usa POST.' });
         }
 
+        // L'endpoint era privo di autenticazione e assegnava il piano in base a una
+        // sessione di pagamento: chiunque conoscesse un sessionId poteva far
+        // riattivare il premium all'utente di quella sessione.
+        let user;
+        try { user = await requireAuth(event); } catch (e) { return createResponse(401, { error: e.message, code: 'AUTH_REQUIRED' }); }
+
         let body;
         try {
             body = JSON.parse(event.body);
@@ -1086,7 +1092,8 @@ export async function verifyCheckoutHandler(event) {
             return createResponse(400, { error: 'sessionId richiesto' });
         }
 
-        const verification = await verifyCheckoutSession(body.sessionId);
+        // La sessione deve appartenere a chi chiama.
+        const verification = await verifyCheckoutSession(body.sessionId, user.id);
         
         return createResponse(200, {
             verification,

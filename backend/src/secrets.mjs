@@ -168,7 +168,19 @@ export class SecretsManager {
         if (!this.initialized) {
             await this.initialize();
         }
-        return this.get(secretName);
+        const preloaded = this.get(secretName);
+        if (preloaded !== undefined && preloaded !== null) return preloaded;
+        // La lista precaricata e' solo un riscaldamento della cache, non l'elenco dei
+        // segreti esistenti: i price id per-brand (STRIPE_<BRAND>_PREMIUM_*) non vi
+        // compaiono e risultavano invisibili al checkout ANCHE dopo essere stati
+        // configurati. Qui si legge il singolo parametro e lo si mette in cache.
+        try {
+            const value = await getSecret(secretName);
+            if (value !== undefined && value !== null) this.secrets[secretName] = value;
+            return value;
+        } catch (e) {
+            return undefined;
+        }
     }
 
     // Getter convenience methods

@@ -185,7 +185,7 @@ export async function createCheckoutSession(userId, userEmail, brand = DEFAULT_B
 /**
  * Verifica stato sessione di checkout
  */
-export async function verifyCheckoutSession(sessionId) {
+export async function verifyCheckoutSession(sessionId, expectedUserId) {
     try {
         const { stripe } = await initializeStripe();
         const session = await stripe.checkout.sessions.retrieve(sessionId, {
@@ -204,9 +204,22 @@ export async function verifyCheckoutSession(sessionId) {
         if (!userId) {
             throw new Error('User ID non trovato nella sessione');
         }
+        // La sessione deve appartenere a chi chiama: senza questo vincolo, conoscere
+        // un sessionId altrui bastava per modificare il piano di quell'utente.
+        if (expectedUserId && userId !== expectedUserId) {
+            return { success: false, reason: 'session_owner_mismatch' };
+        }
 
         // Ottieni dettagli subscription
         const subscription = session.subscription;
+
+        // Il pagamento originario "paid" non basta: una sessione vecchia puo'
+        // riferirsi a un abbonamento poi annullato o scaduto. Lo stato commerciale
+        // deve derivare dall'abbonamento CORRENTE, non dalla sessione.
+        const ACTIVE = ['active', 'trialing', 'past_due'];
+        if (!subscription || !ACTIVE.includes(subscription.status)) {
+            return { success: false, reason: 'subscription_not_active', status: subscription?.status || 'none' };
+        }
         const customer = session.customer;
 
         // Salva subscription in database
@@ -515,7 +528,10 @@ async function handleCheckoutCompleted(session) {
         const subscriptionData = {
             user_id: userId,
             brand,
-            subscription_id: session.subscription,
+            // Stesso nome letto da cancelSubscription/reactivate: prima il webhook
+            // scriveva `subscription_id` mentre la cancellazione cercava
+            // `stripe_subscription_id`, quindi non trovava mai l'abbonamento.
+            stripe_subscription_id: session.subscription,
             plan_type: planType,
             status: 'active',
             created_at: new Date().toISOString(),
