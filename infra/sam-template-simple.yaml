@@ -333,10 +333,10 @@ Resources:
           Projection:
             ProjectionType: INCLUDE
             NonKeyAttributes:
+              # La proiezione di un GSI esistente non e' modificabile in place
+              # (CloudFormation: "Cannot update GSI's"): i campi non proiettati si
+              # leggono dalla tabella con una BatchGet mirata. Vedi countUserJobs.
               - status
-              # Serve al conteggio dei minuti trascritti: senza la proiezione il
-              # campo non arriva dalla Query sull'indice e il budget non vedrebbe nulla.
-              - chunks
       TimeToLiveSpecification:
         AttributeName: ttl
         Enabled: true

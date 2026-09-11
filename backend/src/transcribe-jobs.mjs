@@ -5,7 +5,7 @@
 // crea il job e ritorna subito; il worker (Lambda separata, timeout 15') lo esegue;
 // il client fa polling su GET /transcribe-job.
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand, GetCommand, UpdateCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, PutCommand, GetCommand, UpdateCommand, QueryCommand, BatchGetCommand } from '@aws-sdk/lib-dynamodb';
 import { randomUUID } from 'node:crypto';
 import { TRANSCRIPTION_LIMITS } from './policy.mjs';
 
@@ -79,7 +79,29 @@ export async function countUserJobs(userId, now = Date.now()) {
             ExpressionAttributeValues: { ':u': userId, ':since': since },
             ExclusiveStartKey
         }));
-        const page = classifyJobs(out.Items, now);
+        // `chunks` non e' proiettato sull'indice (la proiezione di un GSI esistente
+        // non si puo' modificare in place), quindi si legge dalla tabella con una
+        // sola BatchGet sui job trovati: sono pochi per definizione (tetto giornaliero).
+        const ids = (out.Items || []).map((i) => i.jobId).filter(Boolean).slice(0, 100);
+        let detailed = out.Items || [];
+        if (ids.length) {
+            try {
+                const batch = await doc.send(new BatchGetCommand({
+                    RequestItems: {
+                        [TABLE]: {
+                            Keys: ids.map((jobId) => ({ jobId })),
+                            ProjectionExpression: 'jobId, #s, createdAt, chunks',
+                            ExpressionAttributeNames: { '#s': 'status' }
+                        }
+                    }
+                }));
+                const full = batch.Responses?.[TABLE] || [];
+                if (full.length) detailed = full;
+            } catch (e) {
+                console.warn('lettura dettagli job fallita, minuti non conteggiati:', e?.message);
+            }
+        }
+        const page = classifyJobs(detailed, now);
         active += page.active;
         last24h += page.last24h;
         minutes += page.minutes;
