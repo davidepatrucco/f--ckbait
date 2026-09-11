@@ -5,7 +5,7 @@ import { validateSubscription } from '../src/subscription.mjs';
 import { checkRateLimit } from '../src/rate-limit.mjs';
 import { fetchWebContent, assertPublicUrl, extractPdfText } from '../src/web-fetcher.mjs';
 import { transcribeMedia } from '../src/transcribe.mjs';
-import { CONTENT_LIMITS } from '../src/policy.mjs';
+import { CONTENT_LIMITS, publicLimits } from '../src/policy.mjs';
 import { createJob, getJob, updateJob, publicJobView, countUserJobs, MAX_ACTIVE_JOBS, MAX_JOBS_PER_DAY, MAX_MINUTES_PER_DAY } from '../src/transcribe-jobs.mjs';
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 
@@ -262,7 +262,7 @@ export async function summarizeUrlHandler(event) {
                 : [];
             console.log('Using client-provided video transcript:', { textLength: text.length, descriptionLength: videoDescription.length, comments: videoComments.length });
         } else if (hasPageText) {
-            const MAX_CLIENT_TEXT = 50000;
+            const MAX_CLIENT_TEXT = CONTENT_LIMITS.maxClientTextChars;
             text = body.text.trim().slice(0, MAX_CLIENT_TEXT);
             title = typeof body.title === 'string' && body.title.trim() ? body.title.trim() : 'Contenuto web';
             console.log('Using client-extracted page text:', { textLength: text.length });
@@ -1474,7 +1474,7 @@ export async function transcribeJobStatusHandler(event) {
 // serve alcun permesso file:// nell'estensione.
 // Fa SOLO estrazione (operazione a costo trascurabile, nessuna chiamata LLM): il
 // riassunto resta su /summarize-url, dove vivono quota, cache e routing modelli.
-const PDF_UPLOAD_MAX_BYTES = 3.5 * 1024 * 1024; // base64 ~4.7MB, sotto i limiti Lambda/API GW
+const PDF_UPLOAD_MAX_BYTES = CONTENT_LIMITS.maxPdfUploadBytes; // base64 ~4.7MB, sotto i limiti Lambda/API GW
 
 // Forma della risposta di estrazione. Pura per poter verificare che un taglio non
 // sia mai silenzioso: un PDF di una pagina con 60.000 caratteri veniva riassunto sui
@@ -1534,7 +1534,7 @@ export async function extractPdfHandler(event) {
         }
         // Documento troppo lungo: messaggio esplicito, nessun riassunto parziale
         // silenzioso (scelta di prodotto: meglio dire che non e' supportato).
-        if (text.length > 80000) {
+        if (text.length > CONTENT_LIMITS.tooLongChars) {
             return createResponse(400, { error: 'PDF troppo lungo per un riassunto affidabile.', code: 'CONTENT_TOO_LONG', characters: text.length });
         }
 
@@ -1550,6 +1550,28 @@ export async function extractPdfHandler(event) {
         console.error('Error in extractPdfHandler:', error);
         return createResponse(500, { error: 'Errore interno', code: 'INTERNAL_ERROR' });
     }
+}
+
+// GET /config — limiti pubblici del backend IN ESECUZIONE.
+//
+// Perche' esiste: generare i valori nel pacchetto al build inserisce i DEFAULT, non
+// gli override d'ambiente attivi sull'ambiente distribuito. Senza questo endpoint il
+// browser poteva applicare una soglia diversa da quella che il server fa rispettare.
+// Il server resta l'autorita': il client usa questi valori per decidere in anticipo,
+// ma ogni limite e' comunque riapplicato lato server.
+export async function configHandler(event) {
+    const cors = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET,OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type,X-Brand'
+    };
+    if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: cors, body: '' };
+    if (event.httpMethod !== 'GET') return { statusCode: 405, headers: cors, body: JSON.stringify({ error: 'Usa GET' }) };
+    return {
+        statusCode: 200,
+        headers: { ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=900' },
+        body: JSON.stringify({ limits: publicLimits(), version: API_VERSION })
+    };
 }
 
 // Handler principale (router)
@@ -1608,6 +1630,8 @@ export async function handler(event, context) {
             return await adminMetricsHandler(event);
         case '/admin/dashboard':
             return await adminDashboardHandler(event);
+        case '/config':
+            return await configHandler(event);
         case '/pricing':
             return await pricingHandler(event);
         default:

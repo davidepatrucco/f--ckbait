@@ -1553,6 +1553,14 @@
             return { ok: false, code: 'INSUFFICIENT_CONTENT', notes };
         }
 
+        // Il server e' l'autorita' sui limiti: si allineano prima di decidere, cosi'
+        // un override attivo sull'ambiente distribuito viene rispettato anche dal
+        // browser (i valori nel pacchetto sono i default del build).
+        try {
+            const srv = await chrome.runtime.sendMessage({ action: 'getServerLimits' });
+            if (srv && srv.success && srv.limits) RI.applyServerLimits(srv.limits);
+        } catch (e) { /* restano i valori generati */ }
+
         let stored = {};
         try { stored = await chrome.storage.local.get(['user']); } catch { /* storage non disponibile */ }
         // Il piano è autoritativo lato backend (non è nel JWT): qui è solo un

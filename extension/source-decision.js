@@ -203,7 +203,23 @@
         'CAPTIONS_TRANSLATED', 'TRANSCRIPT_TRUNCATED'
     ];
 
+    // Il server e' l'autorita' sui limiti: se il service worker ha recuperato i
+    // valori effettivi da GET /config (che includono gli override d'ambiente
+    // dell'ambiente distribuito), si sovrascrivono quelli generati al build.
+    function applyServerLimits(limits) {
+        if (!limits || typeof limits !== 'object') return false;
+        var applied = 0;
+        for (var key in C) {
+            if (Object.prototype.hasOwnProperty.call(limits, key) && typeof limits[key] === 'number' && limits[key] > 0) {
+                C[key] = limits[key];
+                applied++;
+            }
+        }
+        return applied > 0;
+    }
+
     root.RI_SOURCE = {
+        applyServerLimits: applyServerLimits,
         CONSTANTS: C,
         ACTIONS: ACTIONS,
         UNSUPPORTED_CODES: UNSUPPORTED_CODES,

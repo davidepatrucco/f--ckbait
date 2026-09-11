@@ -206,7 +206,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const file = pdfFileInput.files && pdfFileInput.files[0];
             pdfFileInput.value = ''; // permette di riselezionare lo stesso file
             if (!file) return;
-            const MAX_BYTES = 3.5 * 1024 * 1024;
+            // Limite dalla fonte unica (policy-config.js, generato dal backend).
+            const MAX_BYTES = (globalThis.RI_POLICY && globalThis.RI_POLICY.MAX_PDF_UPLOAD_BYTES) || 3.5 * 1024 * 1024;
             const original = pickPdfBtn.textContent;
             if (file.size > MAX_BYTES) {
                 pickPdfBtn.textContent = t('err_pdf_too_large', undefined, 'PDF too large (max 3.5 MB).');

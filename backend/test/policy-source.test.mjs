@@ -81,3 +81,43 @@ test('ogni variabile d’ambiente dichiarata e’ effettivamente letta da policy
     const missing = SUPPORTED_ENV.filter((name) => !src.includes(`'${name}'`));
     assert.deepEqual(missing, [], `dichiarate ma non lette: ${missing.join(', ')}`);
 });
+
+// L'assessor ha rilevato un buco nella soluzione precedente: generare i valori al
+// build inserisce i DEFAULT, non gli override d'ambiente attivi sull'ambiente
+// distribuito. Il server deve restare l'autorita'.
+test('i limiti del server sovrascrivono quelli generati al build', () => {
+    const sandbox = createContext({});
+    runInContext(generatePolicyJs(), sandbox);
+    runInContext(read('extension/source-decision.js'), sandbox);
+    const RI = sandbox.RI_SOURCE;
+    assert.equal(typeof RI.applyServerLimits, 'function', 'manca il punto di allineamento');
+
+    const before = RI.CONSTANTS.TOO_LONG_CHARS;
+    const applied = RI.applyServerLimits({ TOO_LONG_CHARS: 12345, MIN_TEXT: 999 });
+    assert.equal(applied, true);
+    assert.equal(RI.CONSTANTS.TOO_LONG_CHARS, 12345, 'il valore del server deve prevalere');
+    assert.equal(RI.CONSTANTS.MIN_TEXT, 999);
+    assert.notEqual(RI.CONSTANTS.TOO_LONG_CHARS, before);
+});
+
+test('valori non validi dal server vengono ignorati, non applicati', () => {
+    const sandbox = createContext({});
+    runInContext(generatePolicyJs(), sandbox);
+    runInContext(read('extension/source-decision.js'), sandbox);
+    const RI = sandbox.RI_SOURCE;
+    const original = RI.CONSTANTS.TOO_LONG_CHARS;
+    for (const bad of [null, undefined, {}, { TOO_LONG_CHARS: 'molti' }, { TOO_LONG_CHARS: -1 }, { TOO_LONG_CHARS: 0 }]) {
+        RI.applyServerLimits(bad);
+    }
+    assert.equal(RI.CONSTANTS.TOO_LONG_CHARS, original, 'un valore non valido non deve corrompere la soglia');
+});
+
+test('nessun letterale duplicato resta nei punti segnalati', () => {
+    // L'assessor aveva trovato numeri ancora scritti a mano nell'handler PDF.
+    const handler = read('backend/lambda/handler.mjs');
+    assert.ok(!/MAX_CLIENT_TEXT = 50000/.test(handler), 'MAX_CLIENT_TEXT ridichiarato');
+    assert.ok(!/PDF_UPLOAD_MAX_BYTES = 3\.5 \* 1024/.test(handler), 'limite upload PDF ridichiarato');
+    assert.ok(!/text\.length > 80000/.test(handler), 'soglia TOO_LONG ridichiarata');
+    const popup = read('extension/popup.js');
+    assert.ok(/RI_POLICY/.test(popup), 'il popup deve leggere il limite dalla fonte');
+});

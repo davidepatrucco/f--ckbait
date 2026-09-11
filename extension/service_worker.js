@@ -104,6 +104,9 @@ async function handlePdfFileSummarize(request, sendResponse) {
             title: exData.title,
             lang: request.lang || 'it'
         };
+        // Il documento e' stato tagliato: va detto nel risultato, altrimenti il
+        // riassunto copre solo la prima parte senza che si veda.
+        if (exData.truncated) body.truncated = true;
         if ([10, 20, 50].includes(Number(request.squeeze))) body.squeeze = Number(request.squeeze);
         const sumRes = await fetch(`${API_BASE}/summarize-url`, { method: 'POST', headers, body: JSON.stringify(body) });
         const sumData = await sumRes.json().catch(() => ({}));
@@ -115,7 +118,7 @@ async function handlePdfFileSummarize(request, sendResponse) {
             sendResponse({ success: false, status: sumRes.status });
             return;
         }
-        await show({ data: sumData, url: body.url });
+        await show({ data: { ...sumData, truncated: sumData.truncated || Boolean(exData.truncated) }, url: body.url });
         sendResponse({ success: true });
     } catch (error) {
         console.error('[PDF FILE] errore:', error?.message);
@@ -243,6 +246,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         transcribeMedia(request, sendResponse);
         return true;
     }
+    if (request.action === 'getServerLimits') {
+        getServerLimits().then((limits) => sendResponse({ success: true, limits })).catch(() => sendResponse({ success: false }));
+        return true;
+    }
     if (request.action === 'fetchCaptions') {
         fetchCaptions(request, sendResponse);
         return true;
@@ -261,6 +268,31 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 // Il fetch parte dal service worker: gli URL sono cross-origin (CDN del video) e
 // un fetch dal content script erediterebbe l'origine della pagina. Nessun costo
 // LLM: i sottotitoli SONO già la trascrizione, quindi questo path è gratuito.
+
+// Limiti effettivi del backend in esecuzione (GET /config). I valori generati nel
+// pacchetto sono i DEFAULT: un override d'ambiente sull'ambiente distribuito li
+// renderebbe diversi da quelli che il server fa rispettare. In cache con scadenza,
+// cosi' non si interroga il backend a ogni riassunto.
+const LIMITS_TTL_MS = 15 * 60 * 1000;
+async function getServerLimits() {
+    try {
+        const cached = await chrome.storage.local.get(['serverLimits', 'serverLimitsAt']);
+        if (cached.serverLimits && Date.now() - (cached.serverLimitsAt || 0) < LIMITS_TTL_MS) {
+            return cached.serverLimits;
+        }
+        const res = await fetch(`${API_BASE}/config`);
+        if (!res.ok) return cached.serverLimits || null;
+        const data = await res.json();
+        if (data && data.limits) {
+            await chrome.storage.local.set({ serverLimits: data.limits, serverLimitsAt: Date.now() });
+            return data.limits;
+        }
+        return cached.serverLimits || null;
+    } catch (e) {
+        return null; // in dubbio restano i valori generati al build
+    }
+}
+
 async function fetchCaptions(request, sendResponse) {
     try {
         const url = request.trackUrl;
