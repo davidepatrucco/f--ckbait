@@ -95,12 +95,6 @@ Resources:
         - SSMParameterReadPolicy:
             ParameterName: !Sub 'reading-intelligence/${Environment}/*'
       Events:
-        SummarizeAPI:
-          Type: Api
-          Properties:
-            RestApiId: !Ref LemonSqueezerAPI
-            Path: /summarize
-            Method: POST
         SummarizeUrlAPI:
           Type: Api
           Properties:

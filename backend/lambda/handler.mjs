@@ -145,123 +145,12 @@ function isYouTubeUrl(value) {
     }
 }
 
-// Handler per l'endpoint /summarize
-export async function summarizeHandler(event) {
-    const createResponse = createResponseFactory(event);
-    console.log('Summarize request received:', { method: event.httpMethod });
-
-    try {
-        // Gestione preflight CORS
-        if (event.httpMethod === 'OPTIONS') {
-            return {
-                statusCode: 200,
-                headers: getCorsHeaders(event),
-                body: ''
-            };
-        }
-        
-        // Solo POST è supportato
-        if (event.httpMethod !== 'POST') {
-            return createResponse(405, {
-                error: 'Metodo non supportato. Usa POST.'
-            });
-        }
-        
-        // Verifica presenza API key
-        const apiKey = event.headers?.['x-api-key'] || event.headers?.['X-Api-Key'];
-        if (!apiKey) {
-            return createResponse(401, {
-                error: 'API key mancante. Aggiungi header x-api-key.'
-            });
-        }
-        
-        // Parse del body
-        let requestBody;
-        try {
-            requestBody = JSON.parse(event.body || '{}');
-        } catch (error) {
-            return createResponse(400, {
-                error: 'Body JSON non valido'
-            });
-        }
-        
-        // Validazione payload
-        const validationErrors = validatePayload(requestBody);
-        if (validationErrors.length > 0) {
-            return createResponse(400, {
-                error: 'Dati non validi',
-                details: validationErrors
-            });
-        }
-        
-        const { url, title, text, lang = 'it' } = requestBody;
-
-        // Rate limiting check - CRITICAL for cost control
-        try {
-            await checkRateLimit(apiKey, resolveBrandId(event.headers?.['x-brand'] || event.headers?.['X-Brand']));
-        } catch (rateLimitError) {
-            return createResponse(429, {
-                error: 'Rate limit superato. Riprova più tardi.',
-                retryAfter: 60
-            });
-        }
-        
-        console.log('Processing authenticated summarize request');
-        
-        // Chiama OpenAI per il riassunto
-        const summary = await summarizeWithOpenAI({
-            url,
-            title,
-            text,
-            language: lang
-        });
-        
-        // Log per monitoraggio (senza il testo per privacy)
-        console.log('Summary generated:', {
-            url,
-            title,
-            language: lang,
-            textLength: text.length,
-            authenticated: true
-        });
-        
-        return createResponse(200, {
-            success: true,
-            summary: summary.text,
-            bullets: summary.text.split(/\r?\n/).filter(Boolean),
-            stats: summary.stats,
-            metadata: {
-                url,
-                title,
-                language: lang,
-                processedAt: new Date().toISOString()
-            }
-        });
-        
-    } catch (error) {
-        console.error('Error in summarizeHandler:', error);
-        
-        // Gestione errori specifici
-        if (error.message.includes('OpenAI')) {
-            return createResponse(502, {
-                error: 'Errore nel servizio di riassunto. Riprova più tardi.',
-                code: 'OPENAI_ERROR'
-            });
-        }
-        
-        if (error.message.includes('rate limit')) {
-            return createResponse(429, {
-                error: 'Troppe richieste. Riprova più tardi.',
-                retryAfter: 60
-            });
-        }
-        
-        return createResponse(500, {
-            error: 'Errore interno del server',
-            code: 'INTERNAL_ERROR'
-        });
-    }
-}
+// L'endpoint legacy /summarize e' stato RIMOSSO (audit esterno, bloccante):
+// verificava solo la PRESENZA dell'header x-api-key, senza validarne il valore ne'
+// autenticare un utente. Una chiave inventata raggiungeva il modello: vettore di
+// costo non autenticato, confermato in live. Nessun client attivo lo usava (il
+// popup non ha piu' il concetto di apiKey), quindi si rimuove invece di autenticarlo.
+// Il percorso in uso e' /summarize-url, che passa da requireAuth + quota.
 
 // Handler per riassumere URL (con autenticazione)
 export async function summarizeUrlHandler(event) {
@@ -1581,8 +1470,6 @@ export async function handler(event, context) {
     const path = event.path || event.rawPath;
     
     switch (path) {
-        case '/summarize':
-            return await summarizeHandler(event);
         case '/summarize-url':
             return await summarizeUrlHandler(event);
         case '/extract-pdf':

@@ -100,8 +100,13 @@ export async function handleGoogleAuth(event) {
         if (!user) {
             console.log('[AUTH] Nuovo utente, creazione in DynamoDB...');
             const userId = randomUUID();
-            const resetDate = getNextMonthDate();
-            
+
+            // L'inizializzazione della quota deve essere UNA sola per tutti i percorsi
+            // di registrazione. Qui restavano i valori storici (10 utilizzi, reset
+            // MENSILE) mentre la registrazione via email usa il limite del brand con
+            // reset giornaliero: un utente Google riceveva un piano diverso.
+            // Non si passa `usage`: createUser applica i default del brand (limite
+            // giornaliero + prove iniziali).
             user = await createUser({
                 id: userId,
                 email,
@@ -109,11 +114,6 @@ export async function handleGoogleAuth(event) {
                 picture,
                 googleId: sub,
                 plan: 'free',
-                usage: {
-                    used: 0,
-                    limit: 10,
-                    resetDate
-                },
                 createdAt: new Date().toISOString(),
                 lastLogin: new Date().toISOString()
             });

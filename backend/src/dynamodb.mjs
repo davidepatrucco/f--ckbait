@@ -2,7 +2,7 @@
 
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
-import { DEFAULT_BRAND, getFreeLimit } from './brands.mjs';
+import { DEFAULT_BRAND, getFreeLimit, getFreeTrial } from './brands.mjs';
 
 // Configurazione DynamoDB
 const client = new DynamoDBClient({
@@ -58,6 +58,13 @@ export async function getUserByEmail(email) {
 /**
  * Crea nuovo utente
  */
+// Prossima mezzanotte UTC. Duplicato volutamente qui invece di importarlo da
+// auth.mjs: dynamodb.mjs e' lo strato piu' basso e non deve dipendere da auth.
+function nextDailyReset() {
+    const d = new Date();
+    return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1)).toISOString();
+}
+
 export async function createUser(userdata) {
     try {
         // Identità condivisa; l'entitlement commerciale è per-brand.
@@ -81,7 +88,15 @@ export async function createUser(userdata) {
                         plan: userdata.plan || 'free',
                         usage_used: userdata.usage?.used || 0,
                         usage_limit: userdata.usage?.limit || getFreeLimit(initBrand),
-                        usage_reset_date: userdata.usage?.resetDate || null,
+                        // Stato completo fin dalla creazione: un reset nullo lascerebbe
+                        // l'entitlement a meta' finche' non arriva il primo utilizzo.
+                        usage_reset_date: userdata.usage?.resetDate || nextDailyReset(),
+                        // Le prove iniziali devono esistere fin dalla creazione: se il
+                        // campo manca, ensureBrandEntitlement non lo aggiunge piu'
+                        // (if_not_exists agisce sull'intera mappa del brand, non sui
+                        // singoli attributi) e le prove risulterebbero disponibili al
+                        // lettore ma non consumabili in scrittura.
+                        trial_remaining: getFreeTrial(initBrand),
                         subscription_status: 'none',
                         stripe_customer_id: null,
                         stripe_subscription_id: null
@@ -160,13 +175,16 @@ async function ensureBrandEntitlement(userId, brandId, init) {
 export async function consumeBrandTrial(userId, brandId, init) {
     await ensureBrandEntitlement(userId, brandId, init);
     try {
+        // Singola operazione atomica che copre due casi: attributo assente (entitlement
+        // creato prima delle prove, o da createUser legacy) -> si inizializza al valore
+        // pieno e si scala subito; attributo presente -> si scala solo se > 0.
         const result = await docClient.send(new UpdateCommand({
             TableName: TABLE_NAME,
             Key: { id: userId },
-            UpdateExpression: 'SET entitlements.#b.trial_remaining = entitlements.#b.trial_remaining - :one',
-            ConditionExpression: 'attribute_exists(entitlements.#b.trial_remaining) AND entitlements.#b.trial_remaining > :zero',
+            UpdateExpression: 'SET entitlements.#b.trial_remaining = if_not_exists(entitlements.#b.trial_remaining, :full) - :one',
+            ConditionExpression: 'attribute_not_exists(entitlements.#b.trial_remaining) OR entitlements.#b.trial_remaining > :zero',
             ExpressionAttributeNames: { '#b': brandId },
-            ExpressionAttributeValues: { ':one': 1, ':zero': 0 },
+            ExpressionAttributeValues: { ':one': 1, ':zero': 0, ':full': Number(init?.trial_remaining) || getFreeTrial(brandId) },
             ReturnValues: 'ALL_NEW'
         }));
         return result.Attributes;
@@ -198,7 +216,7 @@ export async function refundBrandTrial(userId, brandId) {
  * Incrementa il contatore di utilizzo per uno specifico brand.
  * Gestisce inizializzazione lazy dell'entitlement e reset mensile.
  */
-export async function incrementBrandUsage(userId, brandId, { seed, resetIfExpired, resetDate, limit }) {
+export async function incrementBrandUsage(userId, brandId, { seed, resetIfExpired, resetDate, limit, expectedResetDate }) {
     try {
         // `seed` = entitlement corrente (per utenti legacy proviene dagli attributi
         // piatti via shim, così il conteggio non riparte da zero). Se l'entitlement
@@ -217,9 +235,14 @@ export async function incrementBrandUsage(userId, brandId, { seed, resetIfExpire
         let ConditionExpression;
         const ExpressionAttributeValues = { ':one': 1 };
         if (resetIfExpired) {
-            // Nuovo periodo: azzera e conta questo utilizzo come 1.
+            // Nuovo periodo: azzera e conta questo utilizzo come 1. La condizione sulla
+            // data letta rende l'operazione un compare-and-swap: senza, N richieste
+            // concorrenti che vedono lo stesso periodo scaduto scriverebbero tutte 1 e
+            // verrebbero tutte accettate.
             UpdateExpression = 'SET entitlements.#b.usage_used = :one, entitlements.#b.usage_reset_date = :reset';
             ExpressionAttributeValues[':reset'] = resetDate;
+            ConditionExpression = 'attribute_not_exists(entitlements.#b.usage_reset_date) OR entitlements.#b.usage_reset_date = :expected';
+            ExpressionAttributeValues[':expected'] = expectedResetDate ?? null;
         } else {
             UpdateExpression = 'SET entitlements.#b.usage_used = if_not_exists(entitlements.#b.usage_used, :zero) + :one';
             ExpressionAttributeValues[':zero'] = 0;
@@ -243,8 +266,12 @@ export async function incrementBrandUsage(userId, brandId, { seed, resetIfExpire
         return response.Attributes;
     } catch (error) {
         if (error.name === 'ConditionalCheckFailedException') {
-            const e = new Error('USAGE_LIMIT_REACHED');
-            e.code = 'USAGE_LIMIT_REACHED';
+            // Due condizioni diverse producono lo stesso errore DynamoDB: nel ramo di
+            // reset significa che un'altra richiesta ha gia' aperto il nuovo periodo
+            // (va ritentata come incremento normale, cosi' la guardia sul limite si
+            // applica); nel ramo normale significa limite raggiunto.
+            const e = new Error(resetIfExpired ? 'RESET_RACE_LOST' : 'USAGE_LIMIT_REACHED');
+            e.code = resetIfExpired ? 'RESET_RACE_LOST' : 'USAGE_LIMIT_REACHED';
             throw e;
         }
         console.error('Error incrementing brand usage:', error);
@@ -256,15 +283,24 @@ export async function incrementBrandUsage(userId, brandId, { seed, resetIfExpire
  * Rimborsa un utilizzo (refund) se il summary a valle fallisce dopo la prenotazione.
  * Best-effort: non scende sotto 0 (ConditionExpression); ignora l'errore di condizione.
  */
-export async function decrementBrandUsage(userId, brandId) {
+export async function decrementBrandUsage(userId, brandId, periodResetDate) {
     try {
+        // Il rimborso vale solo per lo stesso periodo in cui e' avvenuta la
+        // prenotazione: una richiesta che attraversa la mezzanotte non deve scalare
+        // il contatore del giorno nuovo.
+        const values = { ':one': 1, ':zero': 0 };
+        let condition = 'entitlements.#b.usage_used > :zero';
+        if (periodResetDate) {
+            condition += ' AND entitlements.#b.usage_reset_date = :period';
+            values[':period'] = periodResetDate;
+        }
         await docClient.send(new UpdateCommand({
             TableName: TABLE_NAME,
             Key: { id: userId },
             UpdateExpression: 'SET entitlements.#b.usage_used = entitlements.#b.usage_used - :one',
-            ConditionExpression: 'entitlements.#b.usage_used > :zero',
+            ConditionExpression: condition,
             ExpressionAttributeNames: { '#b': brandId },
-            ExpressionAttributeValues: { ':one': 1, ':zero': 0 }
+            ExpressionAttributeValues: values
         }));
     } catch (error) {
         if (error.name !== 'ConditionalCheckFailedException') {

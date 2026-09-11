@@ -15,6 +15,7 @@ import { assertPublicUrl } from './web-fetcher.mjs';
 const MAX_MEDIA_BYTES = 24 * 1024 * 1024; // < 25MB (hard limit OpenAI)
 const TRANSCRIBE_MODEL = process.env.TRANSCRIBE_MODEL || 'gpt-4o-mini-transcribe';
 const FETCH_TIMEOUT_MS = 20000;
+const MAX_REDIRECTS = 5;
 
 // Content-type accettati (estrazione audio lato OpenAI). octet-stream ammesso solo se
 // l'estensione del path è nota.
@@ -75,9 +76,25 @@ export async function downloadMedia(mediaUrl) {
     const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
     let res;
     try {
-        res = await fetch(url, { signal: controller.signal, redirect: 'follow', headers: { Accept: 'audio/*,video/*,*/*' } });
+        // I redirect si seguono a mano rivalidando OGNI salto: con redirect:'follow'
+        // verrebbe controllato solo l'URL iniziale, e un 302 verso un indirizzo
+        // interno aggirerebbe del tutto il guard.
+        let current = url;
+        for (let hop = 0; ; hop++) {
+            if (hop > MAX_REDIRECTS) { const e = new Error('Troppi redirect'); e.code = 'MEDIA_FETCH_FAILED'; throw e; }
+            res = await fetch(current, { signal: controller.signal, redirect: 'manual', headers: { Accept: 'audio/*,video/*,*/*' } });
+            if (![301, 302, 303, 307, 308].includes(res.status)) break;
+            const location = res.headers.get('location');
+            if (!location) break;
+            let next;
+            try { next = new URL(location, current); } catch { const e = new Error('Redirect non valido'); e.code = 'MEDIA_FETCH_FAILED'; throw e; }
+            if (!['http:', 'https:'].includes(next.protocol)) { const e = new Error('Redirect a protocollo non supportato'); e.code = 'BLOCKED_URL'; throw e; }
+            try { await assertPublicUrl(next); } catch (err) { const e = new Error(err.message); e.code = 'BLOCKED_URL'; throw e; }
+            current = next;
+        }
     } catch (err) {
         clearTimeout(timer);
+        if (err.code) throw err;
         const e = new Error(`Download media fallito: ${err.message}`); e.code = 'MEDIA_FETCH_FAILED'; throw e;
     }
     try {

@@ -183,12 +183,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true; // Mantiene il canale di risposta aperto per chiamate asincrone
     }
     
-    if (request.action === 'summarize') {
-        // Gestisce la richiesta di riassunto
-        handleSummarize(request, sender, sendResponse);
-        return true;
-    }
-    
     if (request.action === 'summarizeUrl') {
         // Gestisce la richiesta di riassunto di un URL
         handleSummarizeUrl(request, sender, sendResponse);
@@ -1196,45 +1190,7 @@ async function handleSummarizeUrl(request, sender, sendResponse) {
     }
 }
 
-// Funzione per gestire la richiesta di riassunto
-async function handleSummarize(request, sender, sendResponse) {
-    try {
-        const { apiUrl, apiKey, pageData, language } = request;
-        
-        if (!apiUrl || !apiKey) {
-            sendResponse({ success: false, error: 'API URL o API Key mancanti' });
-            return;
-        }
-        
-        // Chiama il backend
-        const response = await fetch(`${apiUrl}/summarize`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': apiKey
-            },
-            body: JSON.stringify({
-                url: pageData.url,
-                title: pageData.title,
-                text: pageData.text,
-                lang: language || 'it'
-            })
-        });
-        
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ error: 'Errore di rete' }));
-            sendResponse({ success: false, error: errorData.error || `HTTP ${response.status}` });
-            return;
-        }
-        
-        const data = await response.json();
-        sendResponse({ success: true, data: data });
-        
-    } catch (error) {
-        console.error('Errore nella chiamata API:', error);
-        sendResponse({ success: false, error: error.message });
-    }
-}
+// handleSummarize (endpoint legacy /summarize) rimossa: l'endpoint non esiste piu'.
 
 // Event listener per l'attivazione del tab (per future funzionalità)
 chrome.tabs.onActivated.addListener(async (activeInfo) => {

@@ -31,20 +31,60 @@ export async function extractPdfText(buffer) {
 // e si usa il path cheerio veloce. ~350KB ≈ ≤12s su Lambda, dentro i 29s.
 const MAX_HTML_FOR_READABILITY = parseInt(process.env.MAX_HTML_FOR_READABILITY || '350000', 10);
 
-function isPrivateAddress(address) {
+// Un indirizzo IPv6 puo' incapsulare un IPv4 (::ffff:127.0.0.1, ::ffff:7f00:1,
+// 64:ff9b::127.0.0.1). Senza normalizzare, il controllo IPv6 non riconosce quelle
+// forme e lascia passare loopback e link-local: bypass reale del filtro.
+// Restituisce l'IPv4 in notazione puntata, oppure null.
+export function embeddedIPv4(address) {
+    const a = String(address).toLowerCase();
+    if (isIP(a) !== 6) return null;
+    // Forma con IPv4 gia' puntato in coda (::ffff:127.0.0.1, 64:ff9b::127.0.0.1)
+    const dotted = a.match(/:((?:\d{1,3}\.){3}\d{1,3})$/);
+    if (dotted && isIP(dotted[1]) === 4) return dotted[1];
+    // Forma esadecimale (::ffff:7f00:1 -> 127.0.0.1): si espandono i gruppi e si
+    // interpretano gli ultimi 32 bit come IPv4.
+    const parts = a.split('::');
+    if (parts.length > 2) return null;
+    const head = parts[0] ? parts[0].split(':').filter(Boolean) : [];
+    const tail = parts.length === 2 && parts[1] ? parts[1].split(':').filter(Boolean) : [];
+    if (parts.length === 1 && head.length !== 8) return null;
+    const fill = 8 - head.length - tail.length;
+    if (fill < 0) return null;
+    const groups = [...head, ...Array(parts.length === 2 ? fill : 0).fill('0'), ...tail];
+    if (groups.length !== 8) return null;
+    const isMapped = groups.slice(0, 5).every((g) => parseInt(g, 16) === 0) && parseInt(groups[5], 16) === 0xffff;
+    const isNat64 = parseInt(groups[0], 16) === 0x64 && parseInt(groups[1], 16) === 0xff9b;
+    if (!isMapped && !isNat64) return null;
+    const hi = parseInt(groups[6], 16);
+    const lo = parseInt(groups[7], 16);
+    if (!Number.isFinite(hi) || !Number.isFinite(lo)) return null;
+    return [(hi >> 8) & 255, hi & 255, (lo >> 8) & 255, lo & 255].join('.');
+}
+
+export function isPrivateAddress(address) {
+    // Prima la normalizzazione: un IPv4 incapsulato va giudicato come IPv4.
+    const mapped = embeddedIPv4(address);
+    if (mapped) return isPrivateAddress(mapped);
+
     if (isIP(address) === 4) {
         const [a, b] = address.split('.').map(Number);
         return a === 0 || a === 10 || a === 127 ||
             (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) ||
-            (a === 192 && b === 168);
+            (a === 192 && b === 168) ||
+            (a === 100 && b >= 64 && b <= 127) ||   // CGNAT 100.64.0.0/10
+            a >= 224;                                // multicast e riservati
     }
     if (isIP(address) === 6) {
-        const normalized = address.toLowerCase();
-        return normalized === '::1' || normalized.startsWith('fc') ||
-            normalized.startsWith('fd') || normalized.startsWith('fe80:');
+        const n = address.toLowerCase();
+        return n === '::1' || n === '::' ||
+            /^f[cd]/.test(n) ||      // unique-local fc00::/7
+            n.startsWith('fe80:') || // link-local
+            /^ff/.test(n);           // multicast
     }
+    // Non e' un indirizzo IP: il chiamante risolve il nome e ricontrolla.
     return true;
 }
+
 
 export async function assertPublicUrl(validUrl) {
     const hostname = validUrl.hostname.toLowerCase().replace(/^\[|\]$/g, '');

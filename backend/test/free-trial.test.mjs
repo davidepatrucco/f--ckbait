@@ -73,3 +73,44 @@ test('coerenza delle soglie: le prove superano il limite giornaliero', () => {
         assert.ok(getFreeTrial(brand) >= getFreeLimit(brand), `${brand}: prove (${getFreeTrial(brand)}) sotto il limite giornaliero`);
     }
 });
+
+// Difetti trovati dall'audit esterno: il consumo delle prove non funzionava per gli
+// utenti reali, perche' createUser scriveva l'entitlement SENZA trial_remaining e
+// ensureBrandEntitlement (if_not_exists sull'intera mappa del brand) non aggiungeva
+// piu' il singolo attributo. Il lettore mostrava 5 prove, la scrittura non ne
+// consumava nessuna. Il test precedente non lo vedeva perche' partiva da un utente
+// privo di entitlement.
+test('createUser inizializza le prove nell’entitlement', async () => {
+    const { readFileSync } = await import('node:fs');
+    const src = readFileSync(new URL('../src/dynamodb.mjs', import.meta.url), 'utf8');
+    assert.match(src, /trial_remaining:\s*getFreeTrial\(initBrand\)/,
+        'createUser deve scrivere trial_remaining, altrimenti le prove non sono consumabili');
+});
+
+test('il consumo delle prove funziona anche se l’attributo non esiste ancora', async () => {
+    const { readFileSync } = await import('node:fs');
+    const src = readFileSync(new URL('../src/dynamodb.mjs', import.meta.url), 'utf8');
+    // L'aggiornamento deve inizializzare e scalare in UNA sola operazione atomica.
+    assert.match(src, /if_not_exists\(entitlements\.#b\.trial_remaining, :full\) - :one/,
+        'serve if_not_exists nella SET, altrimenti gli entitlement esistenti non ricevono mai il campo');
+    assert.match(src, /attribute_not_exists\(entitlements\.#b\.trial_remaining\) OR entitlements\.#b\.trial_remaining > :zero/,
+        'la condizione deve coprire entrambi i casi');
+});
+
+test('il reset del periodo e’ un compare-and-swap', async () => {
+    const { readFileSync } = await import('node:fs');
+    const src = readFileSync(new URL('../src/dynamodb.mjs', import.meta.url), 'utf8');
+    // Senza condizione, N richieste concorrenti che leggono lo stesso periodo scaduto
+    // scrivono tutte usage_used = 1 e vengono tutte accettate.
+    const resetBlock = src.slice(src.indexOf('if (resetIfExpired)'), src.indexOf('} else {', src.indexOf('if (resetIfExpired)')));
+    assert.match(resetBlock, /ConditionExpression/, 'il ramo di reset deve avere una condizione');
+    assert.match(resetBlock, /usage_reset_date = :expected/, 'la condizione deve confrontare la data letta');
+});
+
+test('il rimborso della quota e’ legato al periodo della prenotazione', async () => {
+    const { readFileSync } = await import('node:fs');
+    const src = readFileSync(new URL('../src/dynamodb.mjs', import.meta.url), 'utf8');
+    const fn = src.slice(src.indexOf('export async function decrementBrandUsage'));
+    assert.match(fn.slice(0, 900), /usage_reset_date = :period/,
+        'senza il vincolo sul periodo, una richiesta a cavallo della mezzanotte scala il contatore del giorno dopo');
+});

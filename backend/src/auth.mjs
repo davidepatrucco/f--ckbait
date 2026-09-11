@@ -298,14 +298,19 @@ export async function incrementUsage(user, brandId = DEFAULT_BRAND) {
         });
         if (afterTrial) {
             const u = formatUserFromDynamoDB(afterTrial);
-            u.lastConsumption = 'trial'; // serve a refundUsage per restituire la cosa giusta
+            // Ricevuta della prenotazione: refundUsage deve restituire ESATTAMENTE
+            // cio' che e' stato consumato, e per la quota anche nel periodo giusto.
+            u.reservation = { type: 'trial', brandId };
             return u;
         }
         // Prove esaurite tra la lettura e la scrittura: si prosegue con la quota.
     }
     const expired = ent.usage.resetDate && new Date() > new Date(ent.usage.resetDate);
     // Semina l'entitlement con i valori correnti (continuità per utenti legacy).
-    const updated = await incrementBrandUsage(user.id, brandId, {
+    // Se il compare-and-swap sul reset perde la corsa (un'altra richiesta ha gia'
+    // aperto il nuovo periodo), si ritenta come incremento normale: cosi' la guardia
+    // sul limite torna ad applicarsi invece di essere scavalcata.
+    const reserve = (asReset) => incrementBrandUsage(user.id, brandId, {
         seed: {
             plan: ent.plan,
             usage_used: ent.usage.used,
@@ -315,13 +320,23 @@ export async function incrementUsage(user, brandId = DEFAULT_BRAND) {
             stripe_customer_id: ent.stripeCustomerId,
             stripe_subscription_id: ent.stripeSubscriptionId
         },
-        resetIfExpired: expired,
+        resetIfExpired: asReset,
         resetDate: getNextResetDate(),
+        // Data letta: rende il reset un compare-and-swap (vedi incrementBrandUsage).
+        expectedResetDate: ent.usage.resetDate || null,
         // Guardia atomica anti-race: non superare il limite (lancia USAGE_LIMIT_REACHED).
         limit: ent.usage.limit
     });
+    let updated;
+    try {
+        updated = await reserve(expired);
+    } catch (e) {
+        if (expired && e?.code === 'RESET_RACE_LOST') updated = await reserve(false);
+        else throw e;
+    }
     const result = formatUserFromDynamoDB(updated);
-    result.lastConsumption = 'daily';
+    const period = getEntitlement(result, brandId).usage.resetDate || null;
+    result.reservation = { type: 'daily', brandId, period };
     return result;
 }
 
@@ -335,11 +350,15 @@ export async function refundUsage(user, brandId = DEFAULT_BRAND) {
     // Va restituito cio' che e' stato effettivamente consumato: incrementUsage lo
     // annota su lastConsumption. Senza, un fallimento dopo una prova rimborserebbe
     // la quota giornaliera (mai consumata) e la prova resterebbe persa.
-    if (user?.lastConsumption === 'trial') {
+    const receipt = user?.reservation;
+    // Senza ricevuta non si rimborsa: meglio non restituire nulla che scalare il
+    // contatore sbagliato (o quello di un altro brand/periodo).
+    if (!receipt || receipt.brandId !== brandId) return;
+    if (receipt.type === 'trial') {
         await refundBrandTrial(user.id, brandId);
         return;
     }
-    await decrementBrandUsage(user.id, brandId);
+    await decrementBrandUsage(user.id, brandId, receipt.period);
 }
 
 /**

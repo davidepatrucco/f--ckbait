@@ -130,12 +130,16 @@
             var duration = Number(video.durationSeconds) || 0;
             var longEnough = duration === 0 || duration >= C.VIDEO_MIN_SECONDS;
 
+            // Il video vale come FONTE solo se e' davvero il contenuto della pagina:
+            // prominente e non una clip breve, oppure la pagina non ha testo vero.
+            var videoIsTheContent = (video.prominent && longEnough) || !richText;
+
             // 3. sottotitoli disponibili: via preferita (qualsiasi durata, costo zero).
             //    Vince sul testo solo se il video è prominente e non è una clip breve;
             //    altrimenti il testo dell'articolo resta la fonte principale.
             if (tracks.length) {
                 var track = pickCaptionTrack(tracks, opts.userLang);
-                if (track && ((video.prominent && longEnough) || !richText)) {
+                if (track && videoIsTheContent) {
                     return { action: 'VIDEO_CAPTIONS', trackUrl: track.url, trackLang: track.lang || null };
                 }
                 if (track) return { action: 'TEXT', note: 'VIDEO_AVAILABLE' };
@@ -143,7 +147,10 @@
 
             // 4-5. nessun sottotitolo: trascrizione audio (premium).
             var media = video.directMedia && video.directMedia.url ? video.directMedia : null;
-            if (media) {
+            if (media && !videoIsTheContent) {
+                if (richText) return { action: 'TEXT', note: 'VIDEO_AVAILABLE' };
+            }
+            if (media && videoIsTheContent) {
                 var isFile = (media.kind || 'file') === 'file';
                 if (!isPremium) {
                     if (richText) return { action: 'TEXT', note: 'VIDEO_NEEDS_PREMIUM' };
