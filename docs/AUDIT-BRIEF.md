@@ -1,11 +1,13 @@
-# Reading Intelligence Platform — dossier per audit (revisione 2)
+# Reading Intelligence Platform — dossier per audit (revisione 3)
 
-**Per:** lo sviluppatore che ha eseguito la prima revisione.
-**Commit:** `main` @ 235 test verdi. **Data:** settembre 2026.
+**Per:** lo sviluppatore che ha eseguito le prime due revisioni.
+**Commit:** `main` @ 259 test verdi. **Data:** settembre 2026.
 
-Questa revisione nasce dai tuoi reperti. La prima versione del dossier attribuiva ad
-alcune protezioni garanzie che il codice non offriva: quelle affermazioni sono
-corrette qui sotto, non riscritte in silenzio.
+Questa revisione nasce dai reperti del secondo giro. Cinque correzioni che avevo
+dichiarato concluse non reggevano alle tue prove: sono riaperte, corrette e
+verificate qui sotto. **Non resta nulla di aperto per scelta**: l'unico punto che
+avevo classificato "funzionalità da dimensionare" — la configurazione amministrabile
+a runtime — è stato realizzato.
 
 Regola di lettura: **verificato** = eseguito contro staging o riprodotto con uno
 script; **letto** = dedotto dal codice senza esecuzione. Dove ho sbagliato io, è detto.
@@ -118,7 +120,9 @@ sbagliate, quindi non la uso).
 | `GET /health` | **pubblico** | — | no |
 | `GET /admin/dashboard` | **pubblico** (solo shell HTML) | — | no |
 | `GET /admin/metrics` | chiave admin (confronto a tempo costante) | — | no |
-| `POST /analytics/event` | utente | tipi di evento in allowlist | no |
+| `POST /analytics/event` | **opzionale** (eventi pre-login) | tipi di evento in allowlist | no |
+| `GET /config` | **pubblico** | — | no |
+| `GET/POST /admin/config` | chiave admin | validazione + coerenza | no |
 
 ---
 
@@ -128,10 +132,11 @@ La misura, prima dell'intervento: `80000` duplicato in 3 file, `120000` in 4, `4
 in 3; **40 variabili d'ambiente lette dal codice contro 14 presenti nel template**,
 cioè 26 override solo teorici.
 
-`backend/src/policy.mjs` è ora la dichiarazione unica di policy commerciali, limiti di
+`backend/src/policy.mjs` è la dichiarazione unica di policy commerciali, limiti di
 trascrizione, soglie di contenuto e media, rate limit e soglia di routing. I moduli
 importano invece di ridichiarare, e le soglie dell'estensione sono **generate** da
-quella fonte al build (`policy-config.js` nel pacchetto): il browser non contiene più
+quella fonte al build (`policy-config.js` nel pacchetto) e poi **allineate a runtime**
+con quelle effettive del backend via `GET /config` — vedi §8b: il browser non contiene più
 numeri scritti a mano.
 
 Sei test lo proteggono, incluso uno che **falsifica la propagazione** (cambio la
@@ -140,29 +145,78 @@ worker non può produrre più segmenti di quanti ne accetti il limite).
 
 ---
 
-## 8. Cosa resta aperto
+## 8. Esito del secondo giro
+
+I cinque punti che avevi riaperto. Ognuno riprodotto prima di intervenire.
+
+| # | Reperto | Verifica | Correzione |
+|---|---|---|---|
+| 1 | Il webhook salva un abbonamento senza chiave | **Confermato.** La mia correzione precedente aveva rinominato il campo nel posto sbagliato: il webhook passava `stripe_subscription_id`, il salvataggio leggeva `stripeSubscriptionId` | Id accettato in entrambe le convenzioni e **rifiuto esplicito** se manca. Ordine invertito: prima si scrive, poi si promuove a premium |
+| 2 | La verifica checkout salva il brand sbagliato | **Confermato.** `resolveStripeBrand` era chiamata *dopo* il salvataggio | Brand risolto prima |
+| 3 | La cancellazione account elimina i dati anche se Stripe falliscono | **Confermato** | Il record locale si rimuove solo ad annullamento riuscito; altrimenti `pending_cancellation` e **503 ritentabile**, senza cancellare nulla |
+| 4 | Il budget minuti non copre il sincrono; `UnprocessedKeys` ignorate | **Confermati entrambi** | Entrambi i percorsi scrivono `minutesUsed` (il sincrono dalla durata restituita dalla trascrizione); `UnprocessedKeys` ritentate e, se la lettura resta incompleta, la richiesta è **rifiutata invece di concessa** |
+| 5 | I PDF vengono tagliati in silenzio | **Confermato** (59.999 → 40.000, HTTP 200, nessun indicatore) | La risposta espone `truncated`, `characters`, `usedCharacters`; il client mostra l'avviso |
+
+**Test comportamentali**, come richiesto: la forma dell'elemento abbonamento, la
+conservazione del brand, il conteggio dei minuti senza segmenti, la parzialità del
+PDF e la regola di cancellazione sono estratte in funzioni pure ed esercitate
+direttamente. Tutti e cinque **falsificati**: reintroducendo ogni difetto i test
+falliscono, e tornano verdi al ripristino.
+
+Rettifiche accolte: `claimJob` ora recupera un job rimasto `running` oltre la
+finestra (la sola condizione `pending` lo lasciava bloccato per sempre);
+`/analytics/event` ha autenticazione **opzionale** per gli eventi pre-login, con
+allowlist dei tipi — la matrice era sbagliata, non il codice; `activeTab` è
+attivabile dal menu contestuale, la mia nota era imprecisa.
+
+## 8b. Configurazione: il requisito è ora soddisfatto
+
+Avevi chiesto: persistita, versionata, validata, modificabile senza rilascio, con
+cache e pubblicazione al client, e il server come autorità. Tutto realizzato.
+
+- **Persistita e versionata**: tabella dedicata; `active` è il puntatore, `v<n>` le
+  versioni storiche. Ogni scrittura crea una versione nuova e le precedenti restano
+  leggibili, quindi un cambio sbagliato è ricostruibile.
+- **Validata**: 15 parametri dichiarati con tipo, intervallo e descrizione. Un valore
+  fuori intervallo è **rifiutato, non limitato in silenzio** — limitarlo farebbe
+  credere a chi amministra di aver impostato qualcosa che il sistema non applica.
+  Nessuna applicazione parziale: se una voce è invalida, l'intero cambio è respinto.
+  Si verifica anche la **coerenza reciproca** sul risultato combinato (valori
+  singolarmente validi e insieme incoerenti vengono respinti).
+- **Senza rilascio**: `POST /admin/config` con chiave amministrativa. Rimuovere una
+  voce riporta al default **senza riavvio**.
+- **Cache e autorità del server**: refresh una volta per invocazione, non per
+  richiesta; `GET /config` pubblica al client i limiti effettivi, e ogni limite è
+  comunque riapplicato lato server.
+
+Verificato in live su staging: `TOO_LONG_CHARS` 80000 → 55555 → 80000 senza alcun
+rilascio; un valore fuori intervallo respinto con la ragione; un cambio incoerente
+respinto con il problema specifico; lettura senza chiave → 401.
+
+I quattro letterali duplicati che avevi trovato (`MAX_CLIENT_TEXT`, limite di upload
+PDF nell'handler e nel popup, soglia `TOO_LONG`) ora vengono dalla fonte, con un test
+che impedisce di reintrodurli.
+
+## 8c. Cosa resta aperto — e perché
 
 1. **SSRF nel worker**: ffmpeg riceve l'URL e i suoi accessi successivi (segmenti HLS)
-   non passano dal guard JavaScript. Attenuazione verificata: le Lambda **non sono in
-   VPC** e Lambda non espone IMDS, quindi non c'è rotta verso reti private. Resta un
-   buco di principio se il deployment cambiasse.
-2. **Limite job non rigido**: il controllo è leggi-poi-scrivi. Sotto concorrenza
-   perfetta qualche richiesta in più può passare. È protezione di costo, non vincolo
-   di sicurezza. Il tuo suggerimento del contatore atomico resta valido.
-3. **Budget minuti stimato dai segmenti**, non dalla durata reale del media: un video
-   rifiutato dopo il download non consuma budget, uno troncato lo consuma per intero.
+   non passano dal guard JavaScript. Attenuazione **verificata**: le Lambda non sono
+   in VPC e Lambda non espone IMDS, quindi non esiste rotta verso reti private. È un
+   buco di principio, che diventerebbe reale solo cambiando il modello di deployment.
+2. **Limite job non rigido**: il controllo è leggi-poi-scrivi, quindi sotto
+   concorrenza perfetta qualche richiesta in più può passare. Protezione di costo, non
+   vincolo di sicurezza.
+3. **Minuti stimati** dai segmenti per i job asincroni (il sincrono usa la durata
+   reale): un video interrotto a metà consuma budget per intero.
 4. **`/admin/dashboard` pubblica** (solo shell, ispezionata: nessun dato né segreto).
 5. **Copertura test**: OAuth completo, ciclo Stripe end-to-end e UI dell'estensione
-   oltre al popup restano non coperti da test automatici. I test sui contatori
-   aggiunti ora sono **strutturali** (verificano l'espressione DynamoDB), non
-   comportamentali: la verifica comportamentale è quella end-to-end su staging.
-6. **Prod**: allineato fino al lotto precedente. L'ultimo lotto (abbonamenti, Stripe,
-   budget minuti, idempotenza) è su dev e staging; il deploy in produzione richiede
+   oltre al popup restano senza test automatici.
+6. **Prod**: dev e staging sono allineati; il deploy in produzione richiede
    un'approvazione esplicita non ancora data.
 
----
+Nessuno di questi è una correzione rinviata: sono limiti dichiarati, con la ragione.
 
-## 9. Domande per il secondo giro
+## 9. Domande per il terzo giro
 
 1. La ricevuta `{type, brandId, period}` copre tutti i percorsi di errore del rimborso,
    o resta un caso in cui si restituisce la cosa sbagliata?
