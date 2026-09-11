@@ -2,7 +2,7 @@
 
 import Stripe from 'stripe';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand, DeleteCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { updateUserPlan } from './dynamodb.mjs';
 import { getBrand, isValidBrand, DEFAULT_BRAND } from './brands.mjs';
 import { SecretsManager } from './secrets.mjs';
@@ -18,6 +18,12 @@ const client = new DynamoDBClient({
 const docClient = DynamoDBDocumentClient.from(client);
 
 const PAYMENTS_TABLE = process.env.PAYMENTS_TABLE_NAME || 'reading-intelligence-payments-dev';
+// Gli abbonamenti vivono nella LORO tabella, con chiave composta userId+subscriptionId.
+// Prima venivano scritti nella tabella dei pagamenti usando `user_id` come chiave: quella
+// tabella ha invece chiave `paymentId`, quindi ogni scrittura falliva con
+// ValidationException e la persistenza degli abbonamenti non ha mai funzionato.
+// La chiave composta permette anche piu' abbonamenti per utente, uno per brand.
+const SUBSCRIPTIONS_TABLE = process.env.SUBSCRIPTIONS_TABLE_NAME || 'reading-intelligence-subscriptions-dev';
 
 // Client Stripe (chiave segreta globale) + prodotti per-brand (price id per brand).
 let stripeClient;
@@ -320,16 +326,20 @@ async function handleStripeEvent(event) {
 /**
  * Ottieni dettagli subscription utente
  */
-export async function getUserSubscription(userId) {
+export async function getUserSubscription(userId, brandId = DEFAULT_BRAND) {
     try {
-        const command = new GetCommand({
-            TableName: PAYMENTS_TABLE,
-            Key: { user_id: userId }
-        });
-
-        const response = await docClient.send(command);
-        return response.Item || null;
-
+        // Un utente puo' avere un abbonamento per ciascun brand: senza il filtro,
+        // acquistare un secondo brand "sostituiva" il primo agli occhi del codice.
+        const response = await docClient.send(new QueryCommand({
+            TableName: SUBSCRIPTIONS_TABLE,
+            KeyConditionExpression: 'userId = :u',
+            ExpressionAttributeValues: { ':u': userId }
+        }));
+        const items = (response.Items || []).filter((i) => (i.brand || DEFAULT_BRAND) === brandId);
+        if (!items.length) return null;
+        // Il piu' recente: l'ultimo aggiornato vince.
+        items.sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')));
+        return items[0];
     } catch (error) {
         console.error('Error getting user subscription:', error);
         throw new Error('Errore recupero subscription utente');
@@ -339,11 +349,11 @@ export async function getUserSubscription(userId) {
 /**
  * Cancella subscription
  */
-export async function cancelSubscription(userId) {
+export async function cancelSubscription(userId, brandId = DEFAULT_BRAND) {
     try {
         const { stripe } = await initializeStripe();
 
-        const subscription = await getUserSubscription(userId);
+        const subscription = await getUserSubscription(userId, brandId);
         if (!subscription) {
             throw new Error('Subscription non trovata');
         }
@@ -354,7 +364,7 @@ export async function cancelSubscription(userId) {
         });
 
         // Aggiorna status nel database
-        await updateSubscriptionStatus(userId, 'canceled');
+        await updateSubscriptionStatus(userId, 'canceled', brandId);
 
         return {
             success: true,
@@ -372,11 +382,11 @@ export async function cancelSubscription(userId) {
 /**
  * Riattiva subscription cancellata
  */
-export async function reactivateSubscription(userId) {
+export async function reactivateSubscription(userId, brandId = DEFAULT_BRAND) {
     try {
         const { stripe } = await initializeStripe();
 
-        const subscription = await getUserSubscription(userId);
+        const subscription = await getUserSubscription(userId, brandId);
         if (!subscription) {
             throw new Error('Subscription non trovata');
         }
@@ -387,7 +397,7 @@ export async function reactivateSubscription(userId) {
         });
 
         // Aggiorna status nel database
-        await updateSubscriptionStatus(userId, 'active');
+        await updateSubscriptionStatus(userId, 'active', brandId);
 
         return {
             success: true,
@@ -405,16 +415,53 @@ export async function reactivateSubscription(userId) {
  * Cancella il record subscription dell'utente (best-effort, per cancellazione account).
  */
 export async function deleteUserSubscription(userId) {
+    // Cancellare l'account deve interrompere anche gli addebiti: prima venivano
+    // rimossi solo i record locali (per giunta dalla tabella sbagliata), quindi
+    // l'abbonamento restava attivo su Stripe e l'utente continuava a pagare.
+    const result = { canceledOnStripe: 0, deleted: 0, errors: [] };
+    let items = [];
     try {
-        await docClient.send(new DeleteCommand({
-            TableName: PAYMENTS_TABLE,
-            Key: { user_id: userId }
+        const res = await docClient.send(new QueryCommand({
+            TableName: SUBSCRIPTIONS_TABLE,
+            KeyConditionExpression: 'userId = :u',
+            ExpressionAttributeValues: { ':u': userId }
         }));
-        return { deleted: true };
+        items = res.Items || [];
     } catch (error) {
-        console.warn('Error deleting user subscription record:', error.message);
-        return { deleted: false };
+        console.warn('Impossibile elencare gli abbonamenti da cancellare:', error.message);
+        result.errors.push('list');
+        return result;
     }
+
+    for (const item of items) {
+        const subId = item.subscriptionId || item.stripe_subscription_id;
+        if (subId) {
+            try {
+                const { stripe } = await initializeStripe();
+                // cancel() immediato: l'account non esiste piu', non ha senso
+                // lasciarlo attivo fino a fine periodo.
+                await stripe.subscriptions.cancel(subId);
+                result.canceledOnStripe++;
+            } catch (error) {
+                // Un abbonamento gia' annullato o inesistente non e' un errore.
+                if (!/No such subscription|already canceled/i.test(String(error.message))) {
+                    console.error(`Cancellazione Stripe fallita per ${subId}:`, error.message);
+                    result.errors.push(subId);
+                }
+            }
+        }
+        try {
+            await docClient.send(new DeleteCommand({
+                TableName: SUBSCRIPTIONS_TABLE,
+                Key: { userId, subscriptionId: item.subscriptionId }
+            }));
+            result.deleted++;
+        } catch (error) {
+            console.warn('Cancellazione record locale fallita:', error.message);
+            result.errors.push('local');
+        }
+    }
+    return result;
 }
 
 // --- Funzioni helper ---
@@ -442,8 +489,11 @@ async function saveCheckoutSession(userId, sessionId, planType) {
 async function saveSubscription(userId, subscriptionData) {
     try {
         const command = new PutCommand({
-            TableName: PAYMENTS_TABLE,
+            TableName: SUBSCRIPTIONS_TABLE,
             Item: {
+                userId,
+                subscriptionId: subscriptionData.stripeSubscriptionId,
+                brand: subscriptionData.brand || DEFAULT_BRAND,
                 user_id: userId,
                 stripe_customer_id: subscriptionData.stripeCustomerId,
                 stripe_subscription_id: subscriptionData.stripeSubscriptionId,
@@ -465,22 +515,22 @@ async function saveSubscription(userId, subscriptionData) {
     }
 }
 
-async function updateSubscriptionStatus(userId, status) {
+async function updateSubscriptionStatus(userId, status, brandId = DEFAULT_BRAND) {
     try {
-        const command = new UpdateCommand({
-            TableName: PAYMENTS_TABLE,
-            Key: { user_id: userId },
-            UpdateExpression: 'SET #status = :status, updated_at = :updatedAt',
-            ExpressionAttributeNames: {
-                '#status': 'status'
-            },
-            ExpressionAttributeValues: {
-                ':status': status,
-                ':updatedAt': new Date().toISOString()
-            }
-        });
-
-        await docClient.send(command);
+        // Serve la chiave composta: si recupera l'abbonamento del brand e si aggiorna
+        // quello. Prima l'update usava `user_id` su una tabella con chiave `paymentId`.
+        const current = await getUserSubscription(userId, brandId);
+        if (!current || !current.subscriptionId) {
+            console.warn(`updateSubscriptionStatus: nessun abbonamento per ${userId}/${brandId}`);
+            return;
+        }
+        await docClient.send(new UpdateCommand({
+            TableName: SUBSCRIPTIONS_TABLE,
+            Key: { userId, subscriptionId: current.subscriptionId },
+            UpdateExpression: 'SET #s = :s, updated_at = :u',
+            ExpressionAttributeNames: { '#s': 'status' },
+            ExpressionAttributeValues: { ':s': status, ':u': new Date().toISOString() }
+        }));
     } catch (error) {
         console.error('Error updating subscription status:', error);
         throw error;
@@ -563,7 +613,7 @@ async function handleSubscriptionUpdated(subscription) {
     const brand = resolveStripeBrand(subscription);
 
     if (userId) {
-        await updateSubscriptionStatus(userId, subscription.status);
+        await updateSubscriptionStatus(userId, subscription.status, brand);
 
         // Se subscription scaduta, downgrade a free SOLO per il brand interessato
         if (subscription.status === 'canceled' || subscription.status === 'incomplete_expired') {
@@ -579,7 +629,7 @@ async function handleSubscriptionDeleted(subscription) {
 
     if (userId) {
         await updateUserPlan(userId, brand, 'free', { subscriptionStatus: 'deleted' });
-        await updateSubscriptionStatus(userId, 'deleted');
+        await updateSubscriptionStatus(userId, 'deleted', brand);
     }
 }
 
@@ -597,17 +647,7 @@ async function handlePaymentFailed(invoice) {
  * Salva record subscription nel database
  */
 async function saveSubscriptionRecord(userId, subscriptionData) {
-    try {
-        const command = new PutCommand({
-            TableName: PAYMENTS_TABLE,
-            Item: subscriptionData
-        });
-
-        await docClient.send(command);
-        console.log('Subscription record saved for user:', userId);
-
-    } catch (error) {
-        console.error('Error saving subscription record:', error);
-        throw new Error('Errore salvataggio subscription record');
-    }
+    // Delega alla stessa funzione: prima esistevano due scritture divergenti, una
+    // delle quali usava un nome di campo diverso per l'id dell'abbonamento.
+    await saveSubscription(userId, subscriptionData);
 }

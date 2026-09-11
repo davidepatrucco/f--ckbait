@@ -48,7 +48,10 @@ export const TRANSCRIPTION_LIMITS = {
     segmentSeconds: num('SEGMENT_SECONDS', 600),
     maxSegments: num('MAX_SEGMENTS', 18),
     concurrency: num('TRANSCRIBE_CONCURRENCY', 3),
-    ffmpegTimeoutMs: num('FFMPEG_TIMEOUT_MS', 8 * 60 * 1000)
+    ffmpegTimeoutMs: num('FFMPEG_TIMEOUT_MS', 8 * 60 * 1000),
+    // Tetto sui MINUTI trascritti al giorno. I limiti su job concorrenti e job/giorno
+    // non vincolano la durata: 20 job da 3 ore restano ~20$/giorno per utente.
+    maxMinutesPerDay: num('MAX_TRANSCRIBE_MINUTES_PER_DAY', 120)
 };
 
 // --- Limiti tecnici -----------------------------------------------------------
@@ -78,6 +81,20 @@ export const MEDIA_LIMITS = {
     sttAsyncMaxSeconds: num('STT_ASYNC_MAX_SECONDS', 10800)
 };
 
+// Rate limiting per utente (protezione di costo trasversale, non per-piano).
+export const RATE_LIMITS = {
+    perMinute: { window: 60 * 1000, limit: num('RATE_LIMIT_PER_MINUTE', 10) },
+    perHour: { window: 60 * 60 * 1000, limit: num('RATE_LIMIT_PER_HOUR', 100) },
+    perDay: { window: 24 * 60 * 60 * 1000, limit: num('RATE_LIMIT_PER_DAY', 500) }
+};
+
+// Routing dei modelli. Il nome del modello NON e' una policy di prodotto: cambia con
+// i listini del fornitore, quindi resta un override d'ambiente con default per data.
+export const MODEL_POLICY = {
+    // Soglia (parole) oltre cui un utente premium passa al modello premium.
+    premiumWordCount: num('PREMIUM_WORDCOUNT_THRESHOLD', 6000)
+};
+
 // Sottoinsieme che finisce nel pacchetto dell'estensione. Le chiavi corrispondono a
 // quelle usate da source-decision.js: il generatore le scrive, il browser le legge.
 export function publicLimits() {
@@ -100,8 +117,11 @@ export const SUPPORTED_ENV = [
     'FREE_TRIAL_BONUS', 'FREE_PLAN_LIMIT',
     'MAX_ACTIVE_TRANSCRIBE_JOBS', 'MAX_TRANSCRIBE_JOBS_PER_DAY', 'TRANSCRIBE_STALE_AFTER_MS',
     'SEGMENT_SECONDS', 'MAX_SEGMENTS', 'TRANSCRIBE_CONCURRENCY', 'FFMPEG_TIMEOUT_MS',
+    'MAX_TRANSCRIBE_MINUTES_PER_DAY',
     'MIN_USABLE_CHARS', 'RICH_TEXT_CHARS', 'MAX_TEXT_CHARS', 'TOO_LONG_CHARS',
     'MAX_CLIENT_TEXT_CHARS', 'MAX_TRANSCRIPT_CHARS', 'MAX_PDF_PAGES', 'MAX_PDF_UPLOAD_BYTES',
     'MAX_MEDIA_BYTES', 'MEDIA_FETCH_TIMEOUT_MS', 'MEDIA_MAX_REDIRECTS',
-    'VIDEO_MIN_SECONDS', 'STT_SYNC_MAX_SECONDS', 'STT_ASYNC_MAX_SECONDS'
+    'VIDEO_MIN_SECONDS', 'STT_SYNC_MAX_SECONDS', 'STT_ASYNC_MAX_SECONDS',
+    'RATE_LIMIT_PER_MINUTE', 'RATE_LIMIT_PER_HOUR', 'RATE_LIMIT_PER_DAY',
+    'PREMIUM_WORDCOUNT_THRESHOLD'
 ];

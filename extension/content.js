@@ -1500,6 +1500,7 @@
         INSUFFICIENT_CONTENT: 'err_insufficient_content',
         TRANSCRIBE_BUSY: 'err_transcribe_busy',
         TRANSCRIBE_DAILY_LIMIT: 'err_transcribe_daily_limit',
+        TRANSCRIBE_MINUTES_LIMIT: 'err_transcribe_minutes_limit',
         ASYNC_UNAVAILABLE: 'err_transcribe_generic',
         TRANSCRIBE_ERROR: 'err_transcribe_generic',
         TRANSCRIPTION_FAILED: 'err_transcribe_generic',

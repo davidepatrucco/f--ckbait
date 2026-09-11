@@ -5,7 +5,7 @@ import { validateSubscription } from '../src/subscription.mjs';
 import { checkRateLimit } from '../src/rate-limit.mjs';
 import { fetchWebContent, assertPublicUrl, extractPdfText } from '../src/web-fetcher.mjs';
 import { transcribeMedia } from '../src/transcribe.mjs';
-import { createJob, getJob, updateJob, publicJobView, countUserJobs, MAX_ACTIVE_JOBS, MAX_JOBS_PER_DAY } from '../src/transcribe-jobs.mjs';
+import { createJob, getJob, updateJob, publicJobView, countUserJobs, MAX_ACTIVE_JOBS, MAX_JOBS_PER_DAY, MAX_MINUTES_PER_DAY } from '../src/transcribe-jobs.mjs';
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 
 // Client Lambda per invocare il worker di trascrizione (InvocationType Event).
@@ -1164,7 +1164,7 @@ export async function getUserSubscriptionHandler(event) {
         // Richiede autenticazione
         const user = await requireAuth(event);
         
-        const subscription = await getUserSubscription(user.id);
+        const subscription = await getUserSubscription(user.id, resolveBrandId(event.headers?.['x-brand'] || event.headers?.['X-Brand']));
         
         return createResponse(200, {
             user: {
@@ -1206,7 +1206,8 @@ export async function cancelSubscriptionHandler(event) {
         // Richiede autenticazione
         const user = await requireAuth(event);
         
-        const result = await cancelSubscription(user.id);
+        const rawBrandC = event.headers?.['x-brand'] || event.headers?.['X-Brand'];
+        const result = await cancelSubscription(user.id, resolveBrandId(rawBrandC));
         
         return createResponse(200, {
             result,
@@ -1274,9 +1275,12 @@ export async function transcribeHandler(event) {
         // invece di avere due budget separati (o nessuno).
         let accounting = null;
         try {
-            const { active, last24h } = await countUserJobs(user.id);
+            const { active, last24h, minutes } = await countUserJobs(user.id);
             if (active >= MAX_ACTIVE_JOBS) {
                 return createResponse(429, { error: `Hai già ${active} trascrizioni in corso.`, code: 'TRANSCRIBE_BUSY', active });
+            }
+            if (minutes >= MAX_MINUTES_PER_DAY) {
+                return createResponse(429, { error: 'Limite giornaliero di minuti trascritti raggiunto.', code: 'TRANSCRIBE_MINUTES_LIMIT', minutes });
             }
             if (last24h >= MAX_JOBS_PER_DAY) {
                 return createResponse(429, { error: 'Limite giornaliero di trascrizioni raggiunto.', code: 'TRANSCRIBE_DAILY_LIMIT' });
@@ -1352,13 +1356,16 @@ export async function transcribeJobStartHandler(event) {
         // Anti-abuso: la trascrizione ha un costo per minuto. Il controllo sta PRIMA
         // della creazione del job, cosi' non si accoda lavoro che poi va scartato.
         try {
-            const { active, last24h } = await countUserJobs(user.id);
+            const { active, last24h, minutes } = await countUserJobs(user.id);
             if (active >= MAX_ACTIVE_JOBS) {
                 return createResponse(429, {
                     error: `Hai già ${active} trascrizioni in corso. Attendi che finiscano.`,
                     code: 'TRANSCRIBE_BUSY',
                     active
                 });
+            }
+            if (minutes >= MAX_MINUTES_PER_DAY) {
+                return createResponse(429, { error: 'Limite giornaliero di minuti trascritti raggiunto.', code: 'TRANSCRIBE_MINUTES_LIMIT', minutes });
             }
             if (last24h >= MAX_JOBS_PER_DAY) {
                 return createResponse(429, {

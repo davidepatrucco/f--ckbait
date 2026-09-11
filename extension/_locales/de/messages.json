@@ -460,5 +460,8 @@
   },
   "note_transcript_partial": {
     "message": "Ein Teil des Videos konnte nicht transkribiert werden: die Zusammenfassung deckt nur den Rest ab."
+  },
+  "err_transcribe_minutes_limit": {
+    "message": "Tageslimit für Transkriptionsminuten erreicht. Versuchen Sie es morgen erneut."
   }
 }

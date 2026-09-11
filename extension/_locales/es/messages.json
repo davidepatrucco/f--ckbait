@@ -460,5 +460,8 @@
   },
   "note_transcript_partial": {
     "message": "Una parte del vídeo no se pudo transcribir: el resumen cubre solo el resto."
+  },
+  "err_transcribe_minutes_limit": {
+    "message": "Límite diario de minutos de transcripción alcanzado. Inténtalo mañana."
   }
 }

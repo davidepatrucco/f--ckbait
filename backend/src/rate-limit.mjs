@@ -1,6 +1,7 @@
 // rate-limit.mjs - Gestione del rate limiting
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { RATE_LIMITS as POLICY_RATE_LIMITS } from './policy.mjs';
 
 // Inizializza client DynamoDB
 const client = new DynamoDBClient({
@@ -14,23 +15,9 @@ const docClient = DynamoDBDocumentClient.from(client);
 const RATE_LIMIT_TABLE = process.env.RATE_LIMIT_TABLE_NAME || process.env.RATE_LIMIT_TABLE || 'reading-intelligence-rate-limit-dev';
 
 // Configurazione rate limiting
-const RATE_LIMITS = {
-    // Rate limit per minuto
-    perMinute: {
-        window: 60 * 1000, // 1 minuto in ms
-        limit: 10 // 10 richieste per minuto
-    },
-    // Rate limit per ora
-    perHour: {
-        window: 60 * 60 * 1000, // 1 ora in ms
-        limit: 100 // 100 richieste per ora
-    },
-    // Rate limit per giorno
-    perDay: {
-        window: 24 * 60 * 60 * 1000, // 1 giorno in ms
-        limit: 500 // 500 richieste per giorno
-    }
-};
+// Le soglie vengono dalla fonte unica (policy.mjs): qui restavano fisse nel codice.
+const RATE_LIMITS = POLICY_RATE_LIMITS;
+
 
 // Funzione per creare una chiave per il rate limiting (opzionalmente per-brand).
 export function createRateLimitKey(apiKey, window, brand = '') {

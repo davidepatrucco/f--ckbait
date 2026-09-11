@@ -16,7 +16,7 @@ import { join } from 'node:path';
 import { toFile } from 'openai';
 import { getOpenAIClient } from '../src/openai.mjs';
 import { assertPublicUrl } from '../src/web-fetcher.mjs';
-import { updateJob, JOB_STATUS } from '../src/transcribe-jobs.mjs';
+import { updateJob, claimJob, JOB_STATUS } from '../src/transcribe-jobs.mjs';
 import { TRANSCRIPTION_LIMITS, CONTENT_LIMITS } from '../src/policy.mjs';
 
 const FFMPEG = process.env.FFMPEG_PATH || '/opt/bin/ffmpeg';
@@ -136,8 +136,15 @@ export async function handler(event) {
         return { ok: false };
     }
     const mediaUrl = event.mediaUrl;
+    // Presa in carico esclusiva: se un'altra invocazione dello stesso evento ha gia'
+    // preso il job, questa esce senza fare nulla (nessun doppio scaricamento, nessun
+    // doppio addebito di trascrizione).
+    if (!(await claimJob(jobId))) {
+        console.log(`job ${jobId} gia' preso in carico: invocazione duplicata ignorata`);
+        return { ok: true, skipped: 'already-claimed' };
+    }
     try {
-        await updateJob(jobId, { status: JOB_STATUS.RUNNING, progress: 'download' });
+        await updateJob(jobId, { progress: 'download' });
 
         // Guard SSRF anche qui: il worker è invocato internamente, ma non si fida
         // dell'input (difesa in profondità se un domani l'invocazione cambia sorgente).

@@ -1,3 +1,4 @@
+import { MODEL_POLICY } from './policy.mjs';
 // model-router.mjs — cost-aware model routing (PM #3A).
 //
 // Il prezzo del prodotto è slegato dal modello: il router sceglie il modello per
@@ -16,7 +17,7 @@
 export const NANO_DEPRECATION_MS = Date.parse('2026-12-10T00:00:00Z');
 
 // Soglia (parole) oltre la quale un utente Premium viene instradato al modello premium.
-export const PREMIUM_WORDCOUNT = Number(process.env.PREMIUM_WORDCOUNT_THRESHOLD || 6000);
+export const PREMIUM_WORDCOUNT = MODEL_POLICY.premiumWordCount;
 
 export function economyModel(now = Date.now()) {
     // Precedenza: ECONOMY_MODEL > SUMMARY_MODEL (override legacy) > default per data.

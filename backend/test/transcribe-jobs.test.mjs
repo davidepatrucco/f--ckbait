@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { publicJobView, JOB_STATUS, MAX_ACTIVE_JOBS, MAX_JOBS_PER_DAY, classifyJobs } from '../src/transcribe-jobs.mjs';
+import { publicJobView, JOB_STATUS, MAX_ACTIVE_JOBS, MAX_JOBS_PER_DAY, MAX_MINUTES_PER_DAY, classifyJobs } from '../src/transcribe-jobs.mjs';
 
 const job = (over = {}) => ({
     jobId: 'j1',
@@ -73,6 +73,35 @@ test('classifyJobs: un worker morto non blocca l’utente per sempre', () => {
 });
 
 test('classifyJobs: input vuoto o assente', () => {
-    assert.deepEqual(classifyJobs([], Date.now()), { active: 0, last24h: 0 });
-    assert.deepEqual(classifyJobs(undefined, Date.now()), { active: 0, last24h: 0 });
+    assert.deepEqual(classifyJobs([], Date.now()), { active: 0, last24h: 0, minutes: 0 });
+    assert.deepEqual(classifyJobs(undefined, Date.now()), { active: 0, last24h: 0, minutes: 0 });
 });
+
+// Il budget sui MINUTI e' il tetto che mancava: job concorrenti e job/giorno non
+// vincolano la durata, quindi 20 job da 3 ore restavano possibili.
+test('classifyJobs somma i minuti gia’ trascritti', () => {
+    const now = Date.parse('2026-01-01T12:00:00.000Z');
+    const at = (m) => new Date(now - m * 60000).toISOString();
+    // segmenti da 10 minuti: 3 chunk = 30 minuti, 6 chunk = 60 minuti
+    const items = [
+        { status: 'done', createdAt: at(30), chunks: 3 },
+        { status: 'done', createdAt: at(60), chunks: 6 },
+        { status: 'error', createdAt: at(90) }           // senza chunks: non conta
+    ];
+    assert.equal(classifyJobs(items, now).minutes, 90);
+});
+
+test('i minuti non sono limitati dal numero di job', () => {
+    // Due soli job possono valere molti piu' minuti del tetto: e' esattamente il
+    // caso che i limiti su job/giorno non intercettavano.
+    const now = Date.now();
+    const items = [
+        { status: 'done', createdAt: new Date(now - 1000).toISOString(), chunks: 18 },
+        { status: 'done', createdAt: new Date(now - 2000).toISOString(), chunks: 18 }
+    ];
+    const { last24h, minutes } = classifyJobs(items, now);
+    assert.equal(last24h, 2, 'due job soli');
+    assert.equal(minutes, 360, 'ma sei ore di audio');
+    assert.ok(minutes > MAX_MINUTES_PER_DAY, 'il tetto sui minuti deve intercettarlo');
+});
+

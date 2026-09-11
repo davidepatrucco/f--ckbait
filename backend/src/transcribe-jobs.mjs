@@ -40,6 +40,7 @@ export async function createJob({ userId, brandId, mediaUrl, mediaKind, lang }) 
 // singolo account (o un token rubato) puo' accodare job illimitati.
 export const MAX_ACTIVE_JOBS = TRANSCRIPTION_LIMITS.maxActiveJobs;
 export const MAX_JOBS_PER_DAY = TRANSCRIPTION_LIMITS.maxJobsPerDay;
+export const MAX_MINUTES_PER_DAY = TRANSCRIPTION_LIMITS.maxMinutesPerDay;
 // Oltre questa eta' un job pending/running e' considerato morto (il worker ha timeout
 // a 15'): senza questa finestra, un worker crashato bloccherebbe l'utente per sempre.
 const STALE_AFTER_MS = TRANSCRIPTION_LIMITS.staleAfterMs;
@@ -49,13 +50,18 @@ const STALE_AFTER_MS = TRANSCRIPTION_LIMITS.staleAfterMs;
 export function classifyJobs(items, now = Date.now()) {
     let active = 0;
     let last24h = 0;
+    let minutes = 0;
     for (const item of items || []) {
         last24h++;
+        // Minuti gia' trascritti: i segmenti hanno durata nota, quindi il consumo si
+        // ricava senza dover misurare il media.
+        const chunks = Number(item.chunks) || 0;
+        if (chunks) minutes += (chunks * TRANSCRIPTION_LIMITS.segmentSeconds) / 60;
         const isOpen = item.status === JOB_STATUS.PENDING || item.status === JOB_STATUS.RUNNING;
         const age = now - Date.parse(item.createdAt || 0);
         if (isOpen && age < STALE_AFTER_MS) active++;
     }
-    return { active, last24h };
+    return { active, last24h, minutes: Math.round(minutes) };
 }
 
 // Conta i job dell'utente nelle ultime 24h, distinguendo quelli ancora attivi.
@@ -64,6 +70,7 @@ export async function countUserJobs(userId, now = Date.now()) {
     let ExclusiveStartKey;
     let active = 0;
     let last24h = 0;
+    let minutes = 0;
     do {
         const out = await doc.send(new QueryCommand({
             TableName: TABLE,
@@ -75,9 +82,31 @@ export async function countUserJobs(userId, now = Date.now()) {
         const page = classifyJobs(out.Items, now);
         active += page.active;
         last24h += page.last24h;
+        minutes += page.minutes;
         ExclusiveStartKey = out.LastEvaluatedKey;
     } while (ExclusiveStartKey);
-    return { active, last24h };
+    return { active, last24h, minutes };
+}
+
+// Prende in carico il job in modo esclusivo. Lambda asincrona puo' consegnare lo
+// STESSO evento piu' di una volta (at-least-once, anche senza errori): senza questo
+// lucchetto il video verrebbe scaricato e trascritto due volte, pagandolo due volte.
+// Ritorna false se un'altra invocazione lo ha gia' preso o se e' gia' concluso.
+export async function claimJob(jobId) {
+    try {
+        await doc.send(new UpdateCommand({
+            TableName: TABLE,
+            Key: { jobId },
+            UpdateExpression: 'SET #s = :running, startedAt = :now',
+            ConditionExpression: 'attribute_exists(jobId) AND #s = :pending',
+            ExpressionAttributeNames: { '#s': 'status' },
+            ExpressionAttributeValues: { ':running': JOB_STATUS.RUNNING, ':pending': JOB_STATUS.PENDING, ':now': new Date().toISOString() }
+        }));
+        return true;
+    } catch (error) {
+        if (error.name === 'ConditionalCheckFailedException') return false;
+        throw error;
+    }
 }
 
 export async function getJob(jobId) {
