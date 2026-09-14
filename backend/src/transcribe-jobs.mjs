@@ -45,6 +45,85 @@ export const MAX_MINUTES_PER_DAY = TRANSCRIPTION_LIMITS.maxMinutesPerDay;
 // a 15'): senza questa finestra, un worker crashato bloccherebbe l'utente per sempre.
 const STALE_AFTER_MS = TRANSCRIPTION_LIMITS.staleAfterMs;
 
+// --- Prenotazione atomica degli slot ------------------------------------------
+// Il controllo leggi-poi-scrivi (Query + confronto) non e' un tetto rigido: sotto
+// concorrenza due richieste leggono lo stesso conteggio e passano entrambe. Qui il
+// posto si PRENOTA con un incremento condizionale su un contatore dedicato, che e'
+// atomico lato DynamoDB: oltre il limite la condizione fallisce e basta.
+const slotKey = (userId) => `slots#${userId}`;
+
+// Prova a prendere un posto. Ritorna true se riservato, false se non ci sono posti.
+export async function reserveSlot(userId, max = MAX_ACTIVE_JOBS) {
+    try {
+        await doc.send(new UpdateCommand({
+            TableName: TABLE,
+            Key: { jobId: slotKey(userId) },
+            UpdateExpression: 'SET active = if_not_exists(active, :zero) + :one, updatedAt = :now',
+            ConditionExpression: 'attribute_not_exists(active) OR active < :max',
+            ExpressionAttributeValues: { ':one': 1, ':zero': 0, ':max': max, ':now': new Date().toISOString() }
+        }));
+        return true;
+    } catch (error) {
+        if (error.name !== 'ConditionalCheckFailedException') throw error;
+        // Il contatore puo' essere rimasto alto per un worker morto senza rilascio.
+        // Si riconcilia con lo stato reale dei job prima di rifiutare, altrimenti una
+        // perdita bloccherebbe l'utente in modo permanente.
+        const healed = await reconcileSlots(userId, max);
+        if (!healed) return false;
+        try {
+            await doc.send(new UpdateCommand({
+                TableName: TABLE,
+                Key: { jobId: slotKey(userId) },
+                UpdateExpression: 'SET active = if_not_exists(active, :zero) + :one, updatedAt = :now',
+                ConditionExpression: 'attribute_not_exists(active) OR active < :max',
+                ExpressionAttributeValues: { ':one': 1, ':zero': 0, ':max': max, ':now': new Date().toISOString() }
+            }));
+            return true;
+        } catch (retryError) {
+            if (retryError.name === 'ConditionalCheckFailedException') return false;
+            throw retryError;
+        }
+    }
+}
+
+// Rilascia un posto. Idempotente rispetto allo zero: non scende mai sotto.
+export async function releaseSlot(userId) {
+    if (!userId) return;
+    try {
+        await doc.send(new UpdateCommand({
+            TableName: TABLE,
+            Key: { jobId: slotKey(userId) },
+            UpdateExpression: 'SET active = active - :one, updatedAt = :now',
+            ConditionExpression: 'attribute_exists(active) AND active > :zero',
+            ExpressionAttributeValues: { ':one': 1, ':zero': 0, ':now': new Date().toISOString() }
+        }));
+    } catch (error) {
+        if (error.name !== 'ConditionalCheckFailedException') {
+            console.warn('rilascio slot fallito:', error?.message);
+        }
+    }
+}
+
+// Riallinea il contatore al numero di job realmente aperti e recenti. Ritorna true
+// se dopo la correzione c'e' spazio. Serve a non lasciare posti persi per sempre
+// quando un worker muore senza passare dal rilascio.
+export async function reconcileSlots(userId, max = MAX_ACTIVE_JOBS) {
+    try {
+        const { active } = await countUserJobs(userId);
+        if (active >= max) return false;
+        await doc.send(new UpdateCommand({
+            TableName: TABLE,
+            Key: { jobId: slotKey(userId) },
+            UpdateExpression: 'SET active = :real, updatedAt = :now',
+            ExpressionAttributeValues: { ':real': active, ':now': new Date().toISOString() }
+        }));
+        return true;
+    } catch (error) {
+        console.warn('riconciliazione slot fallita:', error?.message);
+        return false;
+    }
+}
+
 // Classificazione PURA dei job letti dall'indice: separata dall'accesso a DynamoDB
 // per poter essere verificata senza infrastruttura.
 export function classifyJobs(items, now = Date.now()) {

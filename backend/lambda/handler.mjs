@@ -7,7 +7,7 @@ import { fetchWebContent, assertPublicUrl, extractPdfText } from '../src/web-fet
 import { transcribeMedia } from '../src/transcribe.mjs';
 import { CONTENT_LIMITS, publicLimits, applyOverrides, effectiveValues, POLICY_STATE } from '../src/policy.mjs';
 import { CONFIG_SCHEMA, validateConfig, checkConsistency, readActiveConfig, writeConfig, listConfigVersions } from '../src/config-store.mjs';
-import { createJob, getJob, updateJob, publicJobView, countUserJobs, MAX_ACTIVE_JOBS, MAX_JOBS_PER_DAY, MAX_MINUTES_PER_DAY } from '../src/transcribe-jobs.mjs';
+import { createJob, getJob, updateJob, publicJobView, countUserJobs, reserveSlot, releaseSlot, MAX_ACTIVE_JOBS, MAX_JOBS_PER_DAY, MAX_MINUTES_PER_DAY } from '../src/transcribe-jobs.mjs';
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 
 // Client Lambda per invocare il worker di trascrizione (InvocationType Event).
@@ -25,7 +25,7 @@ import { logSummaryEvent, logClientEvent, logEvent, ALLOWED_EVENT_TYPES, CLIENT_
 import { computePortfolioMetrics } from '../src/dashboard.mjs';
 import { dashboardHtml } from '../src/dashboard-page.mjs';
 import { getSecret } from '../src/secrets.mjs';
-import { timingSafeEqual } from 'node:crypto';
+import { timingSafeEqual, createHmac } from 'node:crypto';
 
 // Confronto a tempo costante di due stringhe (per la chiave admin).
 function safeEqual(a, b) {
@@ -718,7 +718,44 @@ export async function analyticsEventHandler(event) {
 // Autorizzazione dashboard: chiave admin (header X-Admin-Key o ?key=) OPPURE JWT admin.
 // La chiave (SSM /reading-intelligence/<env>/dashboard-admin-key) rende la dashboard usabile
 // con una sola URL bookmarkabile, senza login né estrazione di token.
+// Sessione firmata per la dashboard. Serve perche' la pagina rimuove la chiave
+// dall'URL dopo il primo caricamento: senza sessione, un semplice reload tornerebbe
+// non autenticato. Il cookie contiene una scadenza e un HMAC, non la chiave.
+const ADMIN_SESSION_MAX_AGE_S = 8 * 60 * 60;
+
+function adminSessionSign(expEpoch, key) {
+    return createHmac('sha256', key).update(`admin:${expEpoch}`).digest('base64url');
+}
+
+export function adminSessionToken(key, now = Date.now()) {
+    const exp = Math.floor(now / 1000) + ADMIN_SESSION_MAX_AGE_S;
+    return `${exp}.${adminSessionSign(exp, key)}`;
+}
+
+export function adminSessionValid(token, key, now = Date.now()) {
+    if (!token || !key) return false;
+    const [expRaw, sig] = String(token).split('.');
+    const exp = Number(expRaw);
+    if (!Number.isFinite(exp) || !sig) return false;
+    if (exp * 1000 <= now) return false;           // scaduta
+    return safeEqual(sig, adminSessionSign(exp, key));
+}
+
+function readCookie(event, name) {
+    const raw = event.headers?.cookie || event.headers?.Cookie || '';
+    for (const part of String(raw).split(';')) {
+        const [k, ...v] = part.trim().split('=');
+        if (k === name) return decodeURIComponent(v.join('='));
+    }
+    return null;
+}
+
 async function dashboardAuthorized(event) {
+    const cookie = readCookie(event, 'adm_session');
+    if (cookie) {
+        try { const key = await getSecret('DASHBOARD_ADMIN_KEY'); if (adminSessionValid(cookie, key)) return true; }
+        catch { /* chiave non configurata */ }
+    }
     const provided = event.headers?.['x-admin-key'] || event.headers?.['X-Admin-Key'] || event.queryStringParameters?.key;
     if (provided) {
         try { const key = await getSecret('DASHBOARD_ADMIN_KEY'); if (key && safeEqual(provided, key)) return true; }
@@ -792,11 +829,37 @@ export async function adminDashboardHandler(event) {
     if (event.httpMethod === 'OPTIONS') {
         return { statusCode: 200, headers: getCorsHeaders(event), body: '' };
     }
-    return {
-        statusCode: 200,
-        headers: { ...getCorsHeaders(event), 'Content-Type': 'text/html; charset=utf-8' },
-        body: dashboardHtml()
+    // La shell HTML era servita senza autenticazione. Non contiene dati ne'
+    // segreti, ma divulga l'esistenza e la forma della dashboard interna: con la
+    // chiave gia' richiesta da /admin/metrics, non c'e' motivo di lasciarla aperta.
+    if (!(await dashboardAuthorized(event))) {
+        return {
+            statusCode: 401,
+            headers: {
+                ...getCorsHeaders(event),
+                'Content-Type': 'text/html; charset=utf-8',
+                'Cache-Control': 'no-store',
+                'WWW-Authenticate': 'Bearer realm="admin"'
+            },
+            body: '<!doctype html><meta charset="utf-8"><title>401</title><p>Accesso non autorizzato.</p>'
+        };
+    }
+    // Sessione firmata: la pagina ripulisce la chiave dall'URL, quindi senza
+    // cookie un reload risulterebbe non autenticato.
+    // SameSite=Strict: nessuna richiesta cross-site puo' usarla, nemmeno una POST
+    // verso /admin/config.
+    const headers = {
+        ...getCorsHeaders(event),
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-store'
     };
+    try {
+        const key = await getSecret('DASHBOARD_ADMIN_KEY');
+        if (key) {
+            headers['Set-Cookie'] = `adm_session=${adminSessionToken(key)}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${ADMIN_SESSION_MAX_AGE_S}`;
+        }
+    } catch { /* senza chiave configurata non si emette sessione */ }
+    return { statusCode: 200, headers, body: dashboardHtml() };
 }
 
 // Handler per statistiche utente
@@ -1288,8 +1351,12 @@ export async function transcribeHandler(event) {
         // Si registra anche qui un job, cosi' i due percorsi condividono il conteggio
         // invece di avere due budget separati (o nessuno).
         let accounting = null;
+        let slotHeld = false;
         try {
             const { active, last24h, minutes, incomplete } = await countUserJobs(user.id);
+            // Il conteggio letto resta utile per il messaggio, ma il posto si
+            // prenota in modo atomico piu' sotto: il confronto qui sopra da solo
+            // non e' un tetto rigido.
             if (active >= MAX_ACTIVE_JOBS) {
                 return createResponse(429, { error: `Hai già ${active} trascrizioni in corso.`, code: 'TRANSCRIBE_BUSY', active });
             }
@@ -1304,6 +1371,10 @@ export async function transcribeHandler(event) {
             if (last24h >= MAX_JOBS_PER_DAY) {
                 return createResponse(429, { error: 'Limite giornaliero di trascrizioni raggiunto.', code: 'TRANSCRIBE_DAILY_LIMIT' });
             }
+            if (!(await reserveSlot(user.id))) {
+                return createResponse(429, { error: 'Hai già il massimo di trascrizioni in corso.', code: 'TRANSCRIBE_BUSY' });
+            }
+            slotHeld = true;
             accounting = await createJob({ userId: user.id, brandId, mediaUrl: body.mediaUrl, mediaKind: 'file', lang: body.lang || 'it' });
             await updateJob(accounting.jobId, { status: 'running' });
         } catch (limitErr) {
@@ -1321,9 +1392,11 @@ export async function transcribeHandler(event) {
                     minutesUsed: Math.max(1, Math.ceil((durationSeconds || 0) / 60))
                 }).catch(() => {});
             }
+            if (slotHeld) await releaseSlot(user.id);
             return createResponse(200, { transcript: text, model, code: 'OK' });
         } catch (err) {
             if (accounting) await updateJob(accounting.jobId, { status: 'error', code: err?.code || 'TRANSCRIPTION_FAILED' }).catch(() => {});
+            if (slotHeld) await releaseSlot(user.id);
             const map = {
                 INVALID_MEDIA_URL: [400, 'URL del media non valido'],
                 BLOCKED_URL: [400, 'URL non consentito (indirizzo privato o locale).'],
@@ -1384,6 +1457,9 @@ export async function transcribeJobStartHandler(event) {
         // della creazione del job, cosi' non si accoda lavoro che poi va scartato.
         try {
             const { active, last24h, minutes, incomplete } = await countUserJobs(user.id);
+            // Il conteggio letto resta utile per il messaggio, ma il posto si
+            // prenota in modo atomico piu' sotto: il confronto qui sopra da solo
+            // non e' un tetto rigido.
             if (active >= MAX_ACTIVE_JOBS) {
                 return createResponse(429, {
                     error: `Hai già ${active} trascrizioni in corso. Attendi che finiscano.`,
@@ -1417,13 +1493,29 @@ export async function transcribeJobStartHandler(event) {
             return createResponse(503, { error: 'Trascrizione asincrona non disponibile.', code: 'ASYNC_UNAVAILABLE' });
         }
 
-        const job = await createJob({
-            userId: user.id,
-            brandId,
-            mediaUrl: body.mediaUrl,
-            mediaKind: body.mediaKind === 'hls' ? 'hls' : 'file',
-            lang: body.lang || 'it'
-        });
+        // Tetto RIGIDO sulla concorrenza: incremento condizionale, atomico lato
+        // DynamoDB. Il confronto letto piu' sopra serve solo al messaggio; qui due
+        // richieste simultanee non possono passare entrambe.
+        if (!(await reserveSlot(user.id))) {
+            return createResponse(429, {
+                error: 'Hai già il massimo di trascrizioni in corso. Attendi che finiscano.',
+                code: 'TRANSCRIBE_BUSY'
+            });
+        }
+
+        let job;
+        try {
+            job = await createJob({
+                userId: user.id,
+                brandId,
+                mediaUrl: body.mediaUrl,
+                mediaKind: body.mediaKind === 'hls' ? 'hls' : 'file',
+                lang: body.lang || 'it'
+            });
+        } catch (createErr) {
+            await releaseSlot(user.id); // il posto prenotato non resta occupato
+            throw createErr;
+        }
 
         // Invocazione asincrona: la risposta non attende il worker.
         try {
@@ -1435,6 +1527,7 @@ export async function transcribeJobStartHandler(event) {
         } catch (invokeErr) {
             console.error('invoke worker fallito:', invokeErr?.message);
             await updateJob(job.jobId, { status: 'error', code: 'ASYNC_UNAVAILABLE' }).catch(() => {});
+            await releaseSlot(user.id); // il worker non partira': il posto va restituito
             return createResponse(503, { error: 'Trascrizione asincrona non disponibile.', code: 'ASYNC_UNAVAILABLE' });
         }
 

@@ -9,7 +9,8 @@
     "build": "npm install --production",
     "deploy": "sam deploy --guided",
     "local": "sam local start-api",
-    "dev": "nodemon lambda/handler.mjs"
+    "dev": "nodemon lambda/handler.mjs",
+    "test:integration": "node --test test/integration/*.test.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.600.0",

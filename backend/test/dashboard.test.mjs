@@ -42,10 +42,37 @@ describe('#4 dashboard: adminMetricsHandler guard', () => {
         assert.equal(res.statusCode, 401);
         assert.equal(JSON.parse(res.body).code, 'ADMIN_REQUIRED');
     });
-    it('adminDashboardHandler serve HTML (shell, no dati)', async () => {
+    // La shell era servita senza autenticazione: non contiene dati, ma divulga
+    // l'esistenza e la forma della dashboard interna. Ora richiede la stessa chiave
+    // gia' necessaria per i dati.
+    it('adminDashboardHandler senza chiave → 401, nessun HTML della dashboard', async () => {
         const res = await adminDashboardHandler({ httpMethod: 'GET', headers: {} });
+        assert.equal(res.statusCode, 401);
+        assert.ok(!/Portfolio dashboard/.test(res.body), 'la shell non deve essere servita');
+    });
+
+    it('adminDashboardHandler con chiave → HTML + sessione firmata', async () => {
+        process.env.DASHBOARD_ADMIN_KEY = 'chiave-di-test';
+        const res = await adminDashboardHandler({ httpMethod: 'GET', headers: {}, queryStringParameters: { key: 'chiave-di-test' } });
         assert.equal(res.statusCode, 200);
         assert.match(res.headers['Content-Type'], /text\/html/);
         assert.match(res.body, /Portfolio dashboard/);
+        // La pagina rimuove la chiave dall'URL: senza cookie un reload sarebbe 401.
+        const cookie = res.headers['Set-Cookie'] || '';
+        assert.match(cookie, /adm_session=/, 'sessione non emessa');
+        assert.match(cookie, /HttpOnly/);
+        assert.match(cookie, /SameSite=Strict/, 'senza SameSite=Strict la sessione sarebbe usabile cross-site');
+    });
+
+    it('la sessione firmata vale per un reload, ma non se manomessa', async () => {
+        process.env.DASHBOARD_ADMIN_KEY = 'chiave-di-test';
+        const first = await adminDashboardHandler({ httpMethod: 'GET', headers: {}, queryStringParameters: { key: 'chiave-di-test' } });
+        const token = /adm_session=([^;]+)/.exec(first.headers['Set-Cookie'])[1];
+
+        const reload = await adminDashboardHandler({ httpMethod: 'GET', headers: { cookie: `adm_session=${token}` } });
+        assert.equal(reload.statusCode, 200, 'un reload con sessione valida deve funzionare');
+
+        const tampered = await adminDashboardHandler({ httpMethod: 'GET', headers: { cookie: `adm_session=${token.slice(0, -2)}XX` } });
+        assert.equal(tampered.statusCode, 401, 'una sessione manomessa deve essere rifiutata');
     });
 });

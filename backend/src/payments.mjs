@@ -32,6 +32,15 @@ let stripeClient;
 const brandProductsCache = new Map(); // brandId -> { at, products }
 const BRAND_PRODUCTS_TTL_MS = 5 * 60 * 1000;
 
+// Punto di innesto delle dipendenze esterne. In produzione restano quelle reali; i
+// test di integrazione sostituiscono il client Stripe per poter esercitare il CICLO
+// COMPLETO (webhook -> persistenza -> lettura per brand -> cancellazione) contro un
+// database vero, senza chiamare Stripe. Non e' un mock del codice sotto test: e' la
+// sola frontiera esterna resa iniettabile.
+export const providers = {
+    stripe: () => getStripeClient()
+};
+
 async function getStripeClient() {
     if (!stripeClient) {
         const stripeSecretKey = await secretsManager.getSecret('STRIPE_SECRET_KEY');
@@ -76,7 +85,7 @@ export async function getBrandPricing(brandId) {
     if (cached && Date.now() - cached.at < PRICING_TTL_MS) return cached.data;
 
     const products = await getBrandProducts(brandId);
-    const stripe = await getStripeClient();
+    const stripe = await providers.stripe();
     const fromStripe = async (priceId, fallbackAmount, interval) => {
         try {
             const p = await stripe.prices.retrieve(priceId);
@@ -103,7 +112,7 @@ export async function getBrandPricing(brandId) {
  * Compat: alcune funzioni usano solo il client. Restituisce { stripe }.
  */
 async function initializeStripe() {
-    return { stripe: await getStripeClient() };
+    return { stripe: await providers.stripe() };
 }
 
 /**
@@ -127,7 +136,7 @@ export async function createCheckoutSession(userId, userEmail, brand = DEFAULT_B
         if (!['premium_monthly', 'premium_yearly'].includes(planType)) {
             throw new Error(`Piano non valido: ${planType}`);
         }
-        const stripe = await getStripeClient();
+        const stripe = await providers.stripe();
         const products = await getBrandProducts(brand);
 
         if (!products[planType]) {

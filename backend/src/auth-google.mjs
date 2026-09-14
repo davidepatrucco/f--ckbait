@@ -3,6 +3,8 @@ import jwt from 'jsonwebtoken';
 import { randomUUID } from 'crypto';
 import { SecretsManager } from './secrets.mjs';
 import { getUserByEmail, createUser } from './dynamodb.mjs';
+import { getEntitlement } from './auth.mjs';
+import { DEFAULT_BRAND } from './brands.mjs';
 import * as jose from 'jose';
 
 const secretsManager = new SecretsManager();
@@ -11,6 +13,21 @@ const secretsManager = new SecretsManager();
  * Verifica Google OAuth code e restituisce JWT per l'app
  * Implementa OAuth2 Authorization Code Flow + PKCE
  */
+// Unica frontiera esterna resa sostituibile: la SORGENTE delle chiavi pubbliche.
+// La verifica dell'id_token (firma, emittente, destinatario, scadenza) resta quella
+// reale di jose. Serve perche' jose recupera il JWKS con un percorso di rete non
+// intercettabile dall'esterno, e senza questo innesto i test sul login Google non
+// possono esercitare il caso di successo: resterebbero solo i rifiuti, che
+// passerebbero anche se la verifica fosse rotta.
+const GOOGLE_JWKS_URL = 'https://www.googleapis.com/oauth2/v3/certs';
+let remoteJwks = null;
+export const providers = {
+    jwks: () => {
+        if (!remoteJwks) remoteJwks = jose.createRemoteJWKSet(new URL(GOOGLE_JWKS_URL));
+        return remoteJwks;
+    }
+};
+
 export async function handleGoogleAuth(event) {
     try {
         const body = JSON.parse(event.body || '{}');
@@ -58,7 +75,7 @@ export async function handleGoogleAuth(event) {
         console.log('[AUTH] Token ottenuti, verifica ID token...');
         
         // STEP 2: Verifica ID token JWT con chiavi pubbliche Google
-        const JWKS = jose.createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
+        const JWKS = providers.jwks();
         const { payload } = await jose.jwtVerify(id_token, JWKS, {
             issuer: ['https://accounts.google.com', 'accounts.google.com'],
             audience: GOOGLE_WEB_CLIENT_ID
@@ -141,6 +158,7 @@ export async function handleGoogleAuth(event) {
         console.log('[AUTH] JWT generato, login completato');
         
         // STEP 6: Restituisci JWT + user info
+        const entitlement = getEntitlement(user, DEFAULT_BRAND);
         return createResponse(200, {
             authToken,
             user: {
@@ -148,8 +166,12 @@ export async function handleGoogleAuth(event) {
                 email: user.email,
                 name: user.name,
                 picture: user.picture,
-                plan: user.plan || 'free',
-                usage: user.usage || { used: 0, limit: 10 }
+                // Piano e quota vanno letti dall'entitlement del brand: qui era
+                // rimasto un valore fisso (limite 10) che non corrisponde a nulla,
+                // e il client lo mostrava come quota reale.
+                plan: entitlement.plan,
+                usage: entitlement.usage,
+                trialRemaining: entitlement.trialRemaining
             }
         });
         

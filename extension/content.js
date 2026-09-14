@@ -414,7 +414,7 @@
                         <div class="lemonsqueezer-loading">
                             <div class="lemonsqueezer-spinner"></div>
                             <div class="lemonsqueezer-loading-text">${esc(t('modal_loading', undefined, 'Analyzing...'))}</div>
-                            <div class="lemonsqueezer-url-preview">${data.url}</div>
+                            <div class="lemonsqueezer-url-preview">${data.url ? esc(shortUrl(data.url)) : ''}</div>
                         </div>
                     </div>
                 </div>
@@ -598,7 +598,7 @@
                     ${data.cached ? `<div class="lemonsqueezer-stat-item"><span class="lemonsqueezer-stat-text">⚡ ${esc(t('modal_cached', undefined, 'From cache'))}</span></div>` : ''}
                 </div>
                 <div class="lemonsqueezer-url">
-                    <a href="${data.originalUrl}" target="_blank">${data.originalUrl}</a>
+                    ${safeLink(data.originalUrl)}
                 </div>
             </div>
             ${sourceBadgeHtml(data)}
@@ -1696,6 +1696,25 @@
     }
 
     // Aggiorna il testo di stato nella modale di caricamento (se presente).
+    // L'URL proviene dalla pagina visitata, quindi e' un valore non fidato: va
+    // sempre escapato. Senza il fallback, una modale aperta prima di conoscere
+    // l'URL mostrava la stringa "undefined".
+    // Un href non escapato accetta anche `javascript:`: cliccarlo eseguirebbe codice.
+    // Si ammettono solo http/https, e sia l'attributo sia il testo passano da esc().
+    function safeLink(u) {
+        const raw = String(u || '');
+        if (!raw) return '';
+        let parsed;
+        try { parsed = new URL(raw); } catch { return `<span>${esc(shortUrl(raw))}</span>`; }
+        if (!['http:', 'https:'].includes(parsed.protocol)) return `<span>${esc(shortUrl(raw))}</span>`;
+        return `<a href="${esc(parsed.href)}" target="_blank" rel="noopener noreferrer">${esc(shortUrl(parsed.href))}</a>`;
+    }
+
+    function shortUrl(u) {
+        const s = String(u || '');
+        return s.length > 90 ? `${s.slice(0, 87)}…` : s;
+    }
+
     function setModalProgress(message) {
         try {
             const el = document.querySelector('#lemonsqueezer-modal .lemonsqueezer-loading-text');

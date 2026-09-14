@@ -16,7 +16,9 @@ import { join } from 'node:path';
 import { toFile } from 'openai';
 import { getOpenAIClient } from '../src/openai.mjs';
 import { assertPublicUrl } from '../src/web-fetcher.mjs';
-import { updateJob, claimJob, JOB_STATUS } from '../src/transcribe-jobs.mjs';
+import { updateJob, claimJob, releaseSlot, JOB_STATUS } from '../src/transcribe-jobs.mjs';
+import { materializePlaylist, looksLikePlaylist } from '../src/hls-guard.mjs';
+import { MEDIA_LIMITS } from '../src/policy.mjs';
 import { applyOverrides } from '../src/policy.mjs';
 import { readActiveConfig } from '../src/config-store.mjs';
 import { TRANSCRIPTION_LIMITS, CONTENT_LIMITS } from '../src/policy.mjs';
@@ -53,6 +55,14 @@ function fail(code, message) {
 async function runFfmpeg(mediaUrl, outDir) {
     const args = [
         '-nostdin', '-hide_banner', '-loglevel', 'error',
+        // Protocolli confinati a quelli necessari: senza questo elenco ffmpeg
+        // accetterebbe anche file://, data:, concat: e simili, che darebbero
+        // accesso al filesystem della funzione tramite una playlist ostile.
+        '-protocol_whitelist', 'file,http,https,tcp,tls,crypto,httpproxy',
+        // Il cap sulla durata va applicato all'INGRESSO: prima il limite era
+        // verificato solo dopo l'elaborazione, quindi un video di 10 ore veniva
+        // comunque scaricato e decodificato per intero prima di essere rifiutato.
+        '-t', String(MEDIA_LIMITS.sttAsyncMaxSeconds),
         '-i', mediaUrl,
         '-vn',                       // scarta il video: serve solo l'audio
         // Una sorgente HLS master espone più rendition audio: senza -map ffmpeg può
@@ -88,6 +98,10 @@ async function runFfmpeg(mediaUrl, outDir) {
 // Segmento più piccolo di così non contiene audio utile (header mp3 e poco altro):
 // inviarlo alla trascrizione produce solo un errore "file corrotto".
 const MIN_SEGMENT_BYTES = 2048;
+
+// Bitrate dell'audio prodotto (-b:a 32k, CBR): permette di ricavare la durata reale
+// dai byte, senza ffprobe (non incluso nel layer).
+const AUDIO_BITRATE_BPS = 32000;
 
 async function transcribeSegment(client, path) {
     const info = await stat(path);
@@ -164,7 +178,17 @@ export async function handler(event) {
         await rm(WORK_DIR, { recursive: true, force: true });
         await mkdir(WORK_DIR, { recursive: true });
 
-        await runFfmpeg(mediaUrl, WORK_DIR);
+        // Se la sorgente e' una playlist, la si scarica e valida QUI: ogni URI
+        // referenziato (varianti, segmenti, chiavi) viene risolto e controllato dal
+        // guard, e a ffmpeg si passa una playlist locale con URI gia' verificati.
+        // Cosi' ffmpeg non risolve piu' nulla per conto proprio.
+        let ffmpegInput = mediaUrl;
+        if (looksLikePlaylist(mediaUrl)) {
+            ffmpegInput = await materializePlaylist(mediaUrl, WORK_DIR);
+            console.log(`playlist validata e materializzata: ${ffmpegInput}`);
+        }
+
+        await runFfmpeg(ffmpegInput, WORK_DIR);
 
         const files = (await readdir(WORK_DIR)).filter((f) => f.endsWith('.mp3')).sort();
         if (!files.length) throw fail('NO_SPEECH', 'nessun segmento audio prodotto');
@@ -172,6 +196,12 @@ export async function handler(event) {
         // Diagnostica: una dimensione anomala spiega subito un rifiuto del provider.
         const sizes = await Promise.all(files.map(async (f) => (await stat(join(WORK_DIR, f))).size));
         console.log(`segmenti: ${files.length} — byte: ${sizes.join(', ')}`);
+
+        // Durata REALE dell'audio, non stimata da `segmenti x 600s`. L'output e'
+        // mp3 CBR a 32 kbps mono, quindi i byte danno la durata con precisione, e
+        // l'ultimo segmento (parziale) viene contato per quello che e' davvero.
+        const totalBytes = sizes.reduce((a, b) => a + b, 0);
+        const audioSeconds = Math.round((totalBytes * 8) / AUDIO_BITRATE_BPS);
 
         await updateJob(jobId, { chunks: files.length, progress: `0/${files.length}` });
 
@@ -200,7 +230,8 @@ export async function handler(event) {
             coverage,
             // Consumo esplicito, non ricavato dai segmenti dal lettore: rende il
             // budget indipendente dalla forma del job.
-            minutesUsed: Math.ceil((files.length * SEGMENT_SECONDS) / 60)
+            durationSeconds: audioSeconds,
+            minutesUsed: Math.max(1, Math.ceil(audioSeconds / 60))
         });
         return { ok: true, chunks: files.length, characters: transcript.length, ...coverage };
     } catch (error) {
@@ -212,6 +243,10 @@ export async function handler(event) {
         }
         return { ok: false };
     } finally {
+        // Il posto prenotato all'accettazione del job si libera qui, a lavoro
+        // concluso in qualunque modo. Se il processo muore prima, la riconciliazione
+        // lato API riallinea il contatore invece di lasciarlo occupato per sempre.
+        await releaseSlot(event?.userId).catch(() => {});
         await rm(WORK_DIR, { recursive: true, force: true }).catch(() => {});
     }
 }
