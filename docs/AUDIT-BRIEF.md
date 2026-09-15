@@ -1,13 +1,17 @@
-# Reading Intelligence Platform — dossier per audit (revisione 3)
+# Reading Intelligence Platform — dossier per audit (revisione 4)
 
 **Per:** lo sviluppatore che ha eseguito le prime due revisioni.
-**Commit:** `main` @ 259 test verdi. **Data:** settembre 2026.
+**Commit:** `main` @ 282 test, 0 fallimenti. **Data:** settembre 2026.
 
-Questa revisione nasce dai reperti del secondo giro. Cinque correzioni che avevo
-dichiarato concluse non reggevano alle tue prove: sono riaperte, corrette e
-verificate qui sotto. **Non resta nulla di aperto per scelta**: l'unico punto che
-avevo classificato "funzionalità da dimensionare" — la configurazione amministrabile
-a runtime — è stato realizzato.
+Questa revisione chiude **tutti** i punti che le due precedenti avevano lasciato
+aperti, compresi quelli che avevo dichiarato "limiti noti con la loro ragione".
+Nessuno è più tale: SSRF nel worker, tetto rigido sui job, minuti reali, dashboard
+protetta, e le tre aree di test scoperte (OAuth, ciclo Stripe, UI dell'estensione).
+
+Scrivere quei test ha fatto emergere tre difetti che nessuna delle revisioni
+precedenti aveva visto, incluso un URL non escapato dentro un `href`. Sono elencati
+in §8d, perché sono la prova che quelle aree erano scoperte per davvero e non solo
+sulla carta.
 
 Regola di lettura: **verificato** = eseguito contro staging o riprodotto con uno
 script; **letto** = dedotto dal codice senza esecuzione. Dove ho sbagliato io, è detto.
@@ -197,37 +201,70 @@ I quattro letterali duplicati che avevi trovato (`MAX_CLIENT_TEXT`, limite di up
 PDF nell'handler e nel popup, soglia `TOO_LONG`) ora vengono dalla fonte, con un test
 che impedisce di reintrodurli.
 
-## 8c. Cosa resta aperto — e perché
+## 8c. I sei punti aperti: chiusi
 
-1. **SSRF nel worker**: ffmpeg riceve l'URL e i suoi accessi successivi (segmenti HLS)
-   non passano dal guard JavaScript. Attenuazione **verificata**: le Lambda non sono
-   in VPC e Lambda non espone IMDS, quindi non esiste rotta verso reti private. È un
-   buco di principio, che diventerebbe reale solo cambiando il modello di deployment.
-2. **Limite job non rigido**: il controllo è leggi-poi-scrivi, quindi sotto
-   concorrenza perfetta qualche richiesta in più può passare. Protezione di costo, non
-   vincolo di sicurezza.
-3. **Minuti stimati** dai segmenti per i job asincroni (il sincrono usa la durata
-   reale): un video interrotto a metà consuma budget per intero.
-4. **`/admin/dashboard` pubblica** (solo shell, ispezionata: nessun dato né segreto).
-5. **Copertura test**: OAuth completo, ciclo Stripe end-to-end e UI dell'estensione
-   oltre al popup restano senza test automatici.
-6. **Prod**: dev e staging sono allineati; il deploy in produzione richiede
-   un'approvazione esplicita non ancora data.
+| # | Punto | Stato | Verifica |
+|---|---|---|---|
+| 1 | SSRF nel worker (ffmpeg apriva da solo segmenti e chiavi HLS) | **Chiuso** | La playlist viene scaricata e analizzata da `hls-guard.mjs`: ogni URI referenziato (varianti, segmenti, chiavi di cifratura, mappe di inizializzazione) è risolto in assoluto e validato, e a ffmpeg si passa una playlist **locale** con URI già verificati — non risolve più nulla. In più `-protocol_whitelist` confina i protocolli: senza, una playlist ostile poteva indirizzarlo su `file://`. 8 test, falsificati |
+| 2 | Limite job non rigido (leggi-poi-scrivi) | **Chiuso** | Il posto si prenota con un incremento condizionale, atomico lato DynamoDB. Verificato in live: **6 richieste simultanee → 2 accettate, 4 rifiutate**. Un worker morto senza rilascio non blocca l'utente: il contatore viene riconciliato con lo stato reale dei job e l'operazione ritentata |
+| 3 | Minuti stimati dai segmenti | **Chiuso** | La durata si ricava dai byte prodotti (mp3 CBR 32 kbps: conversione esatta), quindi l'ultimo segmento parziale conta per quello che è. Verificato in live su un job reale: `durationSeconds: 13`, `minutesUsed: 1` — prima lo stesso job avrebbe contato 10 minuti. Il cap di durata è passato a `-t` sull'**ingresso** di ffmpeg: prima un video di 10 ore veniva scaricato e decodificato per intero prima di essere rifiutato |
+| 4 | `/admin/dashboard` pubblica | **Chiuso** | Richiede la stessa chiave già necessaria per i dati. Poiché la pagina rimuove la chiave dall'URL dopo il primo caricamento, un reload sarebbe risultato non autenticato: si emette una sessione firmata (HMAC + scadenza, HttpOnly, SameSite=Strict) che **non contiene la chiave**. Verificato in live: senza chiave 401, con chiave 200 + `Set-Cookie` |
+| 5 | Copertura test (OAuth, Stripe, UI) | **Chiuso** | Vedi sotto |
+| 6 | Prod indietro | Dev e staging allineati; il deploy in produzione attende un'approvazione esplicita |
 
-Nessuno di questi è una correzione rinviata: sono limiti dichiarati, con la ragione.
+### Le tre aree di test, e perché di integrazione
 
-## 9. Domande per il terzo giro
+- **OAuth — 9 test contro DynamoDB reale.** Primo accesso, accesso successivo, forma
+  del token, e quattro **rifiuti veri** dell'id_token: destinatario, emittente,
+  scadenza, firma. Per esercitare il caso di successo senza indebolire la verifica, la
+  sola **sorgente** delle chiavi pubbliche è iniettabile: firma, emittente e
+  destinatario restano controllati da `jose`. Nota di metodo: i quattro rifiuti, in una
+  prima stesura, passavano perché il JWKS era irraggiungibile — cioè per il motivo
+  sbagliato. Sono diventati significativi solo dopo aver fatto funzionare il caso di
+  successo.
+- **Ciclo Stripe — 4 test contro DynamoDB reale**, con Stripe sostituito: acquisto su
+  un brand non di default, lettura per brand, indipendenza fra brand, cancellazione
+  mirata, e il caso in cui l'annullamento su Stripe fallisce.
+- **UI dell'estensione — 14 verifiche in un browser reale**, lungo il percorso vero
+  (messaggio del popup → content script → modale), non una scorciatoia.
 
-1. La ricevuta `{type, brandId, period}` copre tutti i percorsi di errore del rimborso,
-   o resta un caso in cui si restituisce la cosa sbagliata?
-2. Il compare-and-swap sul reset con ritentativo come incremento normale: esiste una
-   sequenza concorrente che lo scavalca?
-3. `claimJob` rende il worker idempotente rispetto alla doppia consegna, ma un'invocazione
-   che muore dopo il claim lascia il job `running` fino alla finestra di 20 minuti. È un
-   compromesso accettabile o serve un heartbeat?
-4. Il budget minuti stimato dai segmenti (§8.3) è sufficiente, o va misurata la durata
-   prima di iniziare?
-5. Sulla proposta dei permessi: `activeTab` + iniezione su richiesta è praticabile, ma
-   perdiamo il menu contestuale sui link e la lettura dei sottotitoli da CDN terze.
-   Vale lo scambio?
-6. Cosa manca ancora in questo dossier.
+Sono di integrazione perché i difetti di queste aree erano **tutti** nel punto di
+contatto con il database o con il browser: un finto client li avrebbe riprodotti senza
+segnalarli, essendo scritto con le stesse assunzioni sbagliate del codice. Restano
+saltati senza `RUN_INTEGRATION=1`, quindi la CI non richiede credenziali.
+
+## 8d. Difetti trovati dai nuovi test
+
+Prova che quelle aree erano scoperte:
+
+1. **La modale di caricamento stampava `undefined`** al posto dell'URL. Visibile a
+   ogni riassunto.
+2. **URL non escapati nell'HTML.** Quello nella modale, e soprattutto il link
+   all'originale, che finiva dentro un `href`: un URL `javascript:` sarebbe stato
+   eseguito al clic. L'URL è controllato da chi pubblica la pagina. Ora i protocolli
+   sono limitati a http/https, tutto passa da `esc()`, e i link esterni hanno
+   `rel=noopener`.
+3. **La risposta di login Google riportava `limit: 10` fisso** invece della quota
+   reale dell'entitlement — un valore che non corrisponde a nessun piano.
+
+Nessuno dei tre era stato rilevato dalle due revisioni precedenti né dai 259 test
+allora presenti.
+
+## 9. Domande per il giro finale
+
+1. **Guard HLS**: la playlist viene materializzata localmente con URI validati. Resta
+   un canale che ffmpeg può aprire e che non ho considerato — per esempio un redirect
+   su un segmento, che ffmpeg segue da sé dopo la validazione dell'URL iniziale?
+2. **Prenotazione atomica**: il contatore si riconcilia con lo stato reale quando una
+   richiesta viene rifiutata. Esiste una sequenza in cui la riconciliazione stessa
+   concede più posti del dovuto?
+3. **Durata dai byte**: esatta per mp3 CBR. Se un domani si cambiasse il profilo di
+   codifica in VBR, il conteggio diventerebbe silenziosamente sbagliato. Vale un
+   controllo che leghi il calcolo al bitrate effettivo usato, o è sufficiente il
+   commento nel codice?
+4. **Sessione della dashboard**: HMAC con scadenza a 8 ore, senza revoca. Per una
+   dashboard interna con una sola chiave, è proporzionato?
+5. **Test di integrazione**: girano contro staging e sono saltati in CI. Preferiresti
+   vederli in CI con credenziali dedicate e una tabella isolata, o va bene che restino
+   una verifica manuale documentata?
+6. Resta qualcosa che, dal tuo punto di vista, blocca il rilascio.
