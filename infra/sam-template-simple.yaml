@@ -250,6 +250,8 @@ Resources:
       BillingMode: PAY_PER_REQUEST
       SSESpecification:
         SSEEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
 
   PaymentsTable:
     Type: AWS::DynamoDB::Table
@@ -273,6 +275,8 @@ Resources:
       BillingMode: PAY_PER_REQUEST
       SSESpecification:
         SSEEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
 
   PaymentSessionsTable:
     Type: AWS::DynamoDB::Table
@@ -327,6 +331,8 @@ Resources:
       BillingMode: PAY_PER_REQUEST
       SSESpecification:
         SSEEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
 
   # Stato dei job di trascrizione asincrona. Il transcript è cache di breve durata
   # (TTL 24h), non archivio: il riassunto vive nella cache dei riassunti.
