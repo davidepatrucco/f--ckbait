@@ -138,3 +138,10 @@ test('resolveReturnUrl: il segnaposto {brand} produce l’URL del brand', async 
     assert.equal(resolveReturnUrl('https://bifa.digital/lemonsqueezer/thank-you.html', 'scout'), 'https://bifa.digital/lemonsqueezer/thank-you.html');
     assert.equal(resolveReturnUrl(undefined, 'scout'), '');
 });
+
+test('resolveReturnUrl: {site} risolve il sito del brand (Lemon dominio proprio, altri su bifa.digital)', async () => {
+    const { resolveReturnUrl } = await import('../src/payments.mjs');
+    assert.equal(resolveReturnUrl('{site}/thank-you.html', 'lemonsqueezer'), 'https://lemonsqueezer.app/thank-you.html');
+    assert.equal(resolveReturnUrl('{site}/canceled.html', 'scout'), 'https://bifa.digital/scout/canceled.html');
+    assert.equal(resolveReturnUrl('{site}/thank-you.html', 'brand-inesistente'), 'https://lemonsqueezer.app/thank-you.html', 'brand ignoto ricade sul default, mai su un URL vuoto');
+});

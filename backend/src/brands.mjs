@@ -18,6 +18,7 @@ export const BRANDS = {
     lemonsqueezer: {
         id: 'lemonsqueezer',
         displayName: 'LemonSqueezer',
+        site: 'https://lemonsqueezer.app',
         promptProfile: 'summary.standard',
         outputSchema: 'summary',
         defaultMode: 'standard',
@@ -31,6 +32,7 @@ export const BRANDS = {
     scout: {
         id: 'scout',
         displayName: 'Scout',
+        site: 'https://bifa.digital/scout',
         promptProfile: 'scout.evaluate',
         outputSchema: 'attention',
         defaultMode: 'standard',
@@ -44,6 +46,7 @@ export const BRANDS = {
     signal: {
         id: 'signal',
         displayName: 'Signal',
+        site: 'https://bifa.digital/signal',
         promptProfile: 'signal.insights',
         outputSchema: 'insights',
         defaultMode: 'standard',
@@ -57,6 +60,7 @@ export const BRANDS = {
     briefly: {
         id: 'briefly',
         displayName: 'Briefly',
+        site: 'https://bifa.digital/briefly',
         promptProfile: 'briefly.brief',
         outputSchema: 'brief',
         defaultMode: 'standard',
@@ -70,6 +74,7 @@ export const BRANDS = {
     nobull: {
         id: 'nobull',
         displayName: 'NoBull',
+        site: 'https://bifa.digital/nobull',
         promptProfile: 'nobull.noise',
         outputSchema: 'noise',
         defaultMode: 'standard',
@@ -92,6 +97,13 @@ export function resolveBrandId(rawId) {
 
 export function getBrand(id) {
     return BRANDS[id] || BRANDS[DEFAULT_BRAND];
+}
+
+// Sito pubblico del brand: origine delle pagine di ritorno del checkout e dei legali.
+// Lemon ha un dominio proprio; gli altri restano su bifa.digital/<brand> finche' non
+// superano la review dello store (un dominio ciascuno costa e ha senso solo per chi lancia).
+export function getBrandSite(id) {
+    return getBrand(id).site;
 }
 
 export function getFreeLimit(id) {

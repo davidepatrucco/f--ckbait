@@ -5,7 +5,10 @@
   "displayName": "LemonSqueezer",
   "storeName": "LemonSqueezer — TL;DR",
   "tagline": "Skip the noise. Get the point.",
-  "wordmark": { "pre": "Lemon", "accent": "Squeezer" },
+  "wordmark": {
+    "pre": "Lemon",
+    "accent": "Squeezer"
+  },
   "defaultMode": "standard",
   "promptProfile": "summary.standard",
   "outputSchema": "summary",
@@ -25,7 +28,13 @@
     "shadowSm": "0 2px 6px rgba(0,0,0,0.08)",
     "shadowMd": "0 8px 24px rgba(0,0,0,0.12)",
     "fontSans": "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-    "spacing": { "xs": "4px", "sm": "8px", "md": "12px", "lg": "16px", "xl": "24px" }
+    "spacing": {
+      "xs": "4px",
+      "sm": "8px",
+      "md": "12px",
+      "lg": "16px",
+      "xl": "24px"
+    }
   },
   "assets": {
     "iconSvg": "assets/icon.svg",
@@ -38,8 +47,12 @@
     "summary": "Riassumi qualsiasi pagina web o video YouTube in un clic: bullet chiari, tempo risparmiato calcolato, sintesi dei commenti."
   },
   "urls": {
-    "privacy": "https://reading-intelligence-legal.s3.eu-west-1.amazonaws.com/privacy-policy.html",
-    "terms": "https://reading-intelligence-legal.s3.eu-west-1.amazonaws.com/terms.html",
-    "support": "mailto:contact@bifa.digital"
+    "privacy": "https://lemonsqueezer.app/privacy-policy.html",
+    "terms": "https://lemonsqueezer.app/terms.html",
+    "support": "mailto:contact@bifa.digital",
+    "chromeStore": ""
+  },
+  "site": {
+    "url": "https://lemonsqueezer.app"
   }
 }

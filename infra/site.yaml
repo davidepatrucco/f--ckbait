@@ -1,0 +1,173 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Static site for one brand domain: private S3 bucket + CloudFront (OAC) + ACM
+  certificate (DNS-validated in the Route 53 zone) + alias records.
+  Deploy in us-east-1 (CloudFront certificates must live there). Reusable per brand:
+    aws cloudformation deploy --region us-east-1 --stack-name site-<brand> \
+      --template-file infra/site.yaml \
+      --parameter-overrides DomainName=<domain> HostedZoneId=<zone id>
+
+Parameters:
+  DomainName:
+    Type: String
+    Description: Apex domain served by this site (e.g. lemonsqueezer.app)
+  HostedZoneId:
+    Type: AWS::Route53::HostedZone::Id
+    Description: Route 53 hosted zone of DomainName
+
+Resources:
+  SiteBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub 'site-${AWS::AccountId}-${AWS::StackName}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  OriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub '${AWS::StackName}-oac'
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  Certificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Ref DomainName
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !Ref DomainName
+          HostedZoneId: !Ref HostedZoneId
+
+  # Viewer-request function: (1) "/" redirects to the visitor's language (Accept-Language,
+  # default en); (2) "/it/" -> "/it/index.html", because an S3 REST origin behind OAC does
+  # not serve directory indexes. Runs before the cache; the redirect is never cached.
+  RouterFunction:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: !Sub '${AWS::StackName}-router'
+      AutoPublish: true
+      FunctionConfig:
+        Comment: Language redirect on / and directory index rewrite
+        Runtime: cloudfront-js-2.0
+      FunctionCode: |
+        function handler(event) {
+          var req = event.request;
+          var uri = req.uri;
+          var langs = ['en', 'it', 'es', 'fr', 'de'];
+          if (uri === '/' || uri === '') {
+            var pick = 'en';
+            var h = req.headers['accept-language'];
+            if (h && h.value) {
+              var parts = h.value.toLowerCase().split(',');
+              for (var i = 0; i < parts.length; i++) {
+                var code = parts[i].trim().split(';')[0].slice(0, 2);
+                if (langs.indexOf(code) >= 0) { pick = code; break; }
+              }
+            }
+            return { statusCode: 302, statusDescription: 'Found',
+              headers: { location: { value: '/' + pick + '/' }, 'cache-control': { value: 'no-store' }, vary: { value: 'Accept-Language' } } };
+          }
+          if (uri.endsWith('/')) req.uri = uri + 'index.html';
+          else if (uri.lastIndexOf('.') < uri.lastIndexOf('/')) req.uri = uri + '/index.html';
+          return req;
+        }
+
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub 'Site ${DomainName}'
+        Aliases: [!Ref DomainName]
+        DefaultRootObject: index.html
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          AcmCertificateArn: !Ref Certificate
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
+        Origins:
+          - Id: site
+            DomainName: !GetAtt SiteBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt OriginAccessControl.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+        DefaultCacheBehavior:
+          TargetOriginId: site
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS]
+          Compress: true
+          # Managed: CachingOptimized / SecurityHeadersPolicy (HSTS, nosniff, frame options...)
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          ResponseHeadersPolicyId: 67f7725c-6f97-4210-82d7-5512b31e9d03
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt RouterFunction.FunctionMetadata.FunctionARN
+        # A missing object in a private bucket answers 403: present it as a real 404 page.
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 404
+            ResponsePagePath: /404.html
+            ErrorCachingMinTTL: 60
+          - ErrorCode: 404
+            ResponseCode: 404
+            ResponsePagePath: /404.html
+            ErrorCachingMinTTL: 60
+
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref SiteBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowCloudFrontRead
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub '${SiteBucket.Arn}/*'
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${Distribution}'
+
+  AliasA:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Ref DomainName
+      Type: A
+      AliasTarget:
+        HostedZoneId: Z2FDTNDATAQYW2   # fixed zone id of every CloudFront distribution
+        DNSName: !GetAtt Distribution.DomainName
+
+  AliasAAAA:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Ref DomainName
+      Type: AAAA
+      AliasTarget:
+        HostedZoneId: Z2FDTNDATAQYW2
+        DNSName: !GetAtt Distribution.DomainName
+
+Outputs:
+  BucketName:
+    Value: !Ref SiteBucket
+  DistributionId:
+    Value: !Ref Distribution
+  SiteUrl:
+    Value: !Sub 'https://${DomainName}'

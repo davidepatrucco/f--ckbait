@@ -26,7 +26,7 @@ Indice: A) lancio gratuito su Chrome · B) pagamenti · C) sito · D) altri 4 br
 | Sicurezza | 3 giri di audit esterno chiusi: bypass di autenticazione, SSRF, contatori, Stripe, limiti di costo |
 | Pacchetti | 10 zip in `dist/`: 5 Chrome per lo store (senza `key` nel manifest) + 5 Firefox. Analisi statica: 0 problemi. Lint Firefox: 0 errori |
 | Legali | Termini v2.1 e Privacy v2.2, IT+EN, per i 5 brand, pubblicati su S3; link "Termini · Privacy" nel login dell'estensione |
-| Scheda store | Testi generati per 5 brand; 6 screenshot 1280×800 per LemonSqueezer, 2 per gli altri 4 |
+| Scheda store | Testi generati per 5 brand; 4 screenshot 1280×800 per LemonSqueezer (senza account interni né piani non disponibili), 2 per gli altri 4 |
 
 ### Corretto oggi (e perché conta per il lancio)
 
@@ -62,7 +62,7 @@ Il login usa un client OAuth di tipo Web con id `610186850503-ju23nfsjc48jfn607j
 2. Compila: nome app (`LemonSqueezer`), email di assistenza utenti, email di contatto sviluppatore.
 3. **Non caricare un logo.** Con un logo Google richiede la verifica del marchio, che allunga i tempi di settimane.
 4. **Scope**: solo `openid`, `email`, `profile` (sono scope non sensibili; non serve la verifica dell'app). Non aggiungerne altri.
-5. **Link legali**: informativa privacy `https://reading-intelligence-legal.s3.eu-west-1.amazonaws.com/privacy-policy.html`, termini `…/terms.html`.
+5. **Link legali**: informativa privacy `https://lemonsqueezer.app/privacy-policy.html`, termini `…/terms.html`.
    - *Non verificato:* Google può richiedere che i link stiano su un dominio autorizzato e verificato. Un bucket S3 non è verificabile. Se il salvataggio dà errore sul dominio, usa la variante B qui sotto.
    - **Variante B — [io] + [tu]:** sposto le pagine legali su `https://bifa.digital/legal/lemonsqueezer/…` (il dominio è sul tuo account AWS: CloudFront `E2GJS3BOS5H9OT`, bucket `bifa-landing-page-1748613593`). Tu verifichi `bifa.digital` in Google Search Console con un record TXT sul DNS (gestito da register.it) e lo aggiungi ai **Domini autorizzati** della schermata di consenso. Poi io aggiorno `brands/*/brand.json`, ricostruisco i pacchetti e ripubblico. Dimmi se serve.
 6. Imposta lo stato di pubblicazione su **"In produzione"**. Se resta "In test", possono accedere solo gli utenti di test elencati (max 100) e ogni altro utente vede un errore.
@@ -117,8 +117,8 @@ Tutti i testi sono in `store/lemonsqueezer/listing.md` (generato da `store/gener
 | Categoria | Produttività |
 | Lingua | Italiano (vedi nota sotto) |
 | Icona | 128×128 dal pacchetto (`assets/icon-128.png`) |
-| Screenshot | Carica i 6 file di `store/lemonsqueezer/screenshots/` (1280×800). Minimo 1, massimo 5 per lingua: scegline 5 |
-| Sito web | `https://bifa.digital` (o la landing del brand quando esiste) |
+| Screenshot | Carica i 4 file di `store/lemonsqueezer/screenshots/` (1280×800): pagina, popup, risultato su testo, risultato su video. Minimo 1, massimo 5 |
+| Sito web | `https://lemonsqueezer.app` |
 | Email di assistenza | `contact@bifa.digital` |
 
 > **Nota lingua.** La scheda è oggi solo in italiano, l'interfaccia in 5 lingue con inglese come predefinita. Per un reviewer e per gli utenti non italiani conviene aggiungere la scheda in inglese. Posso generarla: dimmelo. Non blocca l'approvazione.
@@ -142,7 +142,7 @@ Tutti i testi sono in `store/lemonsqueezer/listing.md` (generato da `store/gener
    - **Attività di navigazione web** (dominio della pagina riassunta, salvato in analytics; l'URL completo non viene più salvato).
    *Non verificato:* i nomi esatti delle categorie nella console possono differire leggermente da questi.
 5. **Certificazioni** (le tre caselle): dati non venduti a terzi; non usati per scopi estranei alla funzione dell'estensione; non usati per determinare il merito creditizio. Sono vere per il prodotto attuale.
-6. **URL informativa privacy**: `https://reading-intelligence-legal.s3.eu-west-1.amazonaws.com/privacy-policy.html` (o l'URL su `bifa.digital` se scegli la variante B).
+6. **URL informativa privacy**: `https://lemonsqueezer.app/privacy-policy.html` (o l'URL su `bifa.digital` se scegli la variante B).
 
 > **Rischio da conoscere.** La policy dati utente dello store chiede che, per dati non strettamente legati alla funzione descritta, l'informazione sia mostrata **nel prodotto** con un consenso esplicito, e non solo nell'informativa. L'invio del testo della pagina quando l'utente preme "Riassumi" è la funzione stessa; il dominio in analytics è dato marginale. Ritengo il rischio basso, ma è una valutazione mia, non una garanzia. Se il reviewer lo contesta, la risposta è una schermata di consenso al primo avvio (circa mezza giornata di lavoro per me). Non la aggiungo preventivamente.
 
@@ -261,8 +261,8 @@ Si prova tutto con carte finte, sull'ambiente di staging, **prima** di toccare i
    ```bash
    ENV=staging STRIPE_SECRET_KEY=sk_test_… STRIPE_WEBHOOK_SECRET=whsec_… \
    LEMON_M=price_… LEMON_Y=price_… SCOUT_M=price_… SCOUT_Y=price_… \
-   STRIPE_SUCCESS_URL='https://bifa.digital/{brand}/thank-you.html' \
-   STRIPE_CANCEL_URL='https://bifa.digital/{brand}/canceled.html' \
+   STRIPE_SUCCESS_URL='{site}/thank-you.html' \
+   STRIPE_CANCEL_URL='{site}/canceled.html' \
    bash infra/setup-stripe-live.sh
    ```
    Poi ridispiego staging per invalidare la cache dei segreti.
@@ -303,8 +303,8 @@ Solo dopo B3 (legale), B4 (account attivo) e B5 (prove verdi).
    ```bash
    ENV=prod STRIPE_SECRET_KEY=sk_live_… STRIPE_WEBHOOK_SECRET=whsec_… \
    LEMON_M=… LEMON_Y=… SCOUT_M=… SCOUT_Y=… SIGNAL_M=… SIGNAL_Y=… BRIEFLY_M=… BRIEFLY_Y=… NOBULL_M=… NOBULL_Y=… \
-   STRIPE_SUCCESS_URL='https://bifa.digital/{brand}/thank-you.html' \
-   STRIPE_CANCEL_URL='https://bifa.digital/{brand}/canceled.html' \
+   STRIPE_SUCCESS_URL='{site}/thank-you.html' \
+   STRIPE_CANCEL_URL='{site}/canceled.html' \
    bash infra/setup-stripe-live.sh
    ```
    Poi ridispiego prod.

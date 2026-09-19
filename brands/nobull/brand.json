@@ -48,6 +48,10 @@
   "urls": {
     "privacy": "https://reading-intelligence-legal.s3.eu-west-1.amazonaws.com/nobull/privacy-policy.html",
     "terms": "https://reading-intelligence-legal.s3.eu-west-1.amazonaws.com/nobull/terms.html",
-    "support": "mailto:contact@bifa.digital"
+    "support": "mailto:contact@bifa.digital",
+    "chromeStore": ""
+  },
+  "site": {
+    "url": "https://bifa.digital/nobull"
   }
 }

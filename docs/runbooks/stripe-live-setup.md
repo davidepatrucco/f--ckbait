@@ -41,7 +41,7 @@ Developers → API keys → **Secret key** LIVE (`sk_live_...`).
 | `stripe-briefly-premium-yearly-price-id` | Briefly annuale |
 | `stripe-nobull-premium-monthly-price-id` | NoBull mensile |
 | `stripe-nobull-premium-yearly-price-id` | NoBull annuale |
-| `stripe-success-url` / `stripe-cancel-url` | URL di ritorno post-checkout. **Usa il segnaposto `{brand}`**, es. `https://bifa.digital/{brand}/thank-you.html`: il parametro e' unico per ambiente e senza segnaposto tutti i brand atterrano sulla pagina di Lemon |
+| `stripe-success-url` / `stripe-cancel-url` | URL di ritorno post-checkout. **Usa il segnaposto `{site}`** (sito del brand: `https://lemonsqueezer.app` per Lemon, `https://bifa.digital/<brand>` per gli altri), es. `{site}/thank-you.html` e `{site}/canceled.html`. Il parametro e' unico per ambiente: senza segnaposto tutti i brand atterrano sulla stessa pagina. `{brand}` (id) e' disponibile ma raramente serve |
 
 Nota: le chiavi legacy `stripe-premium-*-price-id` NON sono piu' lette (Lemon usa `stripe-lemonsqueezer-*`
 come gli altri brand): un valore impostato li' non ha effetto. Per testare il billing in test-mode

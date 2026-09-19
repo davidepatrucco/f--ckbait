@@ -32,7 +32,7 @@ Legenda: **[tu]** = richiede il tuo account/console · **[io]** = lo faccio in s
 - 3 giri di audit esterno chiusi (SSRF worker, tetto job atomico, minuti reali, dashboard protetta, Stripe, test OAuth/Stripe/UI). 283 test verdi.
 - Legali v2.1 pubblicati per 5 brand; link Termini/Privacy nel login dell'estensione.
 - 10 pacchetti in `dist/` (5 Chrome `--store` senza `key`, 5 Firefox). Analisi statica: 0 problemi. Lint Firefox: 0 errori.
-- Copy store aggiornata (PDF, video, trascrizione); screenshot Lemon 6, altri brand 2 (pagina + popup).
+- Copy store aggiornata (PDF, video, trascrizione); screenshot Lemon 4, altri brand 2 (pagina + popup).
 
 ### Fase 1 — Lancio privato Lemon su Chrome (unlisted)
 1. **[tu]** Account [Chrome Web Store developer](https://chrome.google.com/webstore/devconsole): 5 USD una tantum, verifica identità, 2FA. *Non verificato se esiste.*
@@ -68,5 +68,5 @@ Legenda: **[tu]** = richiede il tuo account/console · **[io]** = lo faccio in s
 
 ## C. Stato asset
 - **Brand**: ✅ completi (5 pack, icone, nomi/tagline/colori, validate 0/0). Legali su S3 **v2.1** (19 set 2026, coprono PDF/video/trascrizione), pubblicati per tutti i 5 brand; la card di login dell'estensione ora linka Termini/Privacy.
-- **Sito**: 🟡 generatore + template pronti; da finalizzare (prezzi) + hostare (dominio).
-- **Store copy**: ✅ testi pronti (`store/`); screenshot: lemonsqueezer pronti (6), ⬜ altri brand (Fase 3).
+- **Sito**: ✅ Lemon live su <https://lemonsqueezer.app> (5 lingue, dark mode, legali e pagine di ritorno checkout sul dominio; `apps/website/`, `infra/site.yaml`). ⬜ altri 4 brand su `bifa.digital/<brand>/`.
+- **Store copy**: ✅ testi pronti (`store/`); screenshot: lemonsqueezer pronti (4, senza account interni), altri brand 2 (manca il "risultato").

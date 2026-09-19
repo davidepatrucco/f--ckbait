@@ -1,17 +1,23 @@
 #!/usr/bin/env bash
-# Pubblica i siti marketing: genera dai template + brand.json e carica su S3.
-# NON modificare i file su S3 a mano — la fonte è apps/website/template/ + brands/<brand>/.
-# Env override: SITE_ENV (default prod), SITE_BUCKET, SITE_PREFIX, AWS_REGION.
+# publish.sh <brand> <bucket> <distribution-id> [--dry-run]
+#
+# Uploads apps/website/dist/<brand>/ to the site bucket and invalidates CloudFront.
+# Two sync passes with different cache lifetimes: HTML short (a fix must be visible in
+# minutes), assets long (they change together with the HTML that references them).
+# `--delete` removes files no longer generated, so a renamed page cannot linger.
 set -euo pipefail
-# Un indirizzo S3 per ambiente: sites/<env>/<brand>/. Ogni sito punta al backend
-# del proprio ambiente (prezzi da /pricing di quell'ambiente).
-ENV="${SITE_ENV:-prod}"; REGION="${AWS_REGION:-eu-west-1}"
-BUCKET="${SITE_BUCKET:-reading-intelligence-sites}"; PREFIX="${SITE_PREFIX:-$ENV}"
-node apps/website/generate-site.mjs --all --env="$ENV"
-for b in lemonsqueezer scout signal briefly nobull; do
-  for page in landing pricing faq; do
-    aws s3 cp "apps/website/dist/$b/$page.html" "s3://$BUCKET/$PREFIX/$b/$page.html" \
-      --region "$REGION" --content-type "text/html; charset=utf-8" --cache-control "no-cache" >/dev/null
-  done
-done
-echo "Pubblicato ($ENV) → https://$BUCKET.s3.$REGION.amazonaws.com/$PREFIX/<brand>/landing.html"
+BRAND="${1:?brand}"; BUCKET="${2:?bucket}"; DIST_ID="${3:?distribution id}"; DRY="${4:-}"
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+SRC="$ROOT/apps/website/dist/$BRAND"
+[ -f "$SRC/index.html" ] || { echo "manca $SRC/index.html — esegui: node apps/website/generate-site.mjs $BRAND"; exit 1; }
+FLAGS=(--only-show-errors --delete); [ "$DRY" = "--dry-run" ] && FLAGS+=(--dryrun)
+
+aws s3 sync "$SRC" "s3://$BUCKET" "${FLAGS[@]}" --exclude '*' --include '*.html' \
+  --content-type 'text/html; charset=utf-8' --cache-control 'public, max-age=300'
+aws s3 sync "$SRC" "s3://$BUCKET" "${FLAGS[@]}" --exclude '*.html' \
+  --cache-control 'public, max-age=31536000, immutable'
+
+if [ "$DRY" != "--dry-run" ]; then
+  INV=$(aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths '/*' --query 'Invalidation.Id' --output text)
+  echo "pubblicato $BRAND -> s3://$BUCKET (invalidazione $INV)"
+fi

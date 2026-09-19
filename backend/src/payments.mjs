@@ -4,7 +4,7 @@ import Stripe from 'stripe';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand, DeleteCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { updateUserPlan } from './dynamodb.mjs';
-import { getBrand, isValidBrand, DEFAULT_BRAND } from './brands.mjs';
+import { getBrand, getBrandSite, isValidBrand, DEFAULT_BRAND } from './brands.mjs';
 import { SecretsManager } from './secrets.mjs';
 import { logEvent } from './analytics.mjs';
 
@@ -127,12 +127,15 @@ export function resolveStripeBrand(obj) {
 /**
  * Crea sessione di checkout Stripe
  */
-// URL di ritorno del checkout per brand. Il parametro SSM e' unico per ambiente: senza
-// un segnaposto tutti i brand atterravano sulla pagina di LemonSqueezer. Con `{brand}`
-// nel valore (es. https://bifa.digital/{brand}/thank-you.html) ogni brand ha la sua;
-// senza segnaposto il valore resta invariato (compatibile con la configurazione attuale).
+// URL di ritorno del checkout per brand. Il parametro SSM e' unico per ambiente; con
+// segnaposto ogni brand ha il suo:
+//   {site}  -> sito del brand (es. https://lemonsqueezer.app oppure https://bifa.digital/scout)
+//   {brand} -> id del brand
+// Un valore senza segnaposto resta invariato (compatibile con la configurazione attuale).
 export function resolveReturnUrl(template, brandId) {
-    return String(template || '').split('{brand}').join(brandId);
+    return String(template || '')
+        .split('{site}').join(getBrandSite(brandId) || '')
+        .split('{brand}').join(brandId);
 }
 
 export async function createCheckoutSession(userId, userEmail, brand = DEFAULT_BRAND, planType = 'premium_monthly') {
