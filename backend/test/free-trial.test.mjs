@@ -114,3 +114,22 @@ test('il rimborso della quota e’ legato al periodo della prenotazione', async 
     assert.match(fn.slice(0, 900), /usage_reset_date = :period/,
         'senza il vincolo sul periodo, una richiesta a cavallo della mezzanotte scala il contatore del giorno dopo');
 });
+
+// /auth/verify alimenta il popup a ogni apertura: senza trialRemaining mostrava
+// "0/1 riassunti" con prove ancora libere; e leggeva plan/usage dal brand di default.
+test('buildVerifyBody: prove e quota del brand richiesto, non del default', async () => {
+    const { buildVerifyBody } = await import('../lambda/handler.mjs');
+    const user = {
+        id: 'u1', email: 'a@b.c',
+        entitlements: {
+            lemonsqueezer: { plan: 'free', trial_remaining: 0, usage_used: 1, usage_limit: 1, usage_reset_date: future },
+            scout: { plan: 'free', trial_remaining: 3, usage_used: 0, usage_limit: 1, usage_reset_date: future }
+        }
+    };
+    const scout = buildVerifyBody(user, 'scout');
+    assert.equal(scout.trialRemaining, 3, 'prove del brand mancanti');
+    assert.equal(scout.usage.used, 0, 'quota letta dal brand sbagliato');
+    const lemon = buildVerifyBody(user, 'lemonsqueezer');
+    assert.equal(lemon.trialRemaining, 0);
+    assert.equal(lemon.usage.used, 1);
+});

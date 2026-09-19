@@ -41,6 +41,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Applica il tema del brand (token -> CSS variables, wordmark, tagline).
     // Config iniettata da brand-config.js (globalThis.__BRAND__). Default: LemonSqueezer.
     const BRAND = (typeof window !== 'undefined' && window.__BRAND__) ? window.__BRAND__ : null;
+    // Stato disponibilità pagamenti: deve essere dichiarato prima dell'inizializzazione
+    // della UI, perché loadPaymentsAvailability() viene chiamata subito sotto.
+    let paymentsEnabled = null; // null = non ancora noto
     if (BRAND) {
         const rootStyle = document.documentElement.style;
         const colors = (BRAND.tokens && BRAND.tokens.colors) || {};
@@ -404,7 +407,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${authToken}`
+                    'Authorization': `Bearer ${authToken}`,
+                    'X-Brand': (window.__BRAND__ && window.__BRAND__.apiBrand) || 'lemonsqueezer'
                 }
             });
             
@@ -632,7 +636,6 @@ if (!email || !password) {
     // I pagamenti sono attivi solo se il brand ha price id reali su Stripe. Senza,
     // il checkout risponde 500: mostrare comunque "Passa a Premium" significherebbe
     // offrire un'azione che fallisce (ed e' motivo di rifiuto in review).
-    let paymentsEnabled = null; // null = non ancora noto
     async function loadPaymentsAvailability() {
         try {
             const res = await fetch(`${CONFIG.API_URL}/pricing?brand=${encodeURIComponent((BRAND && BRAND.apiBrand) || 'lemonsqueezer')}`);

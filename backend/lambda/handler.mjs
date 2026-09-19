@@ -505,6 +505,24 @@ export async function summarizeUrlHandler(event) {
 
 
 // Handler per verificare token di autenticazione
+// Corpo di /auth/verify. Piano, quota e prove vanno letti dall'entitlement del brand
+// richiesto: `user.plan`/`user.usage` sono i campi legacy del brand di default, quindi
+// gli altri brand mostravano la quota di LemonSqueezer, e senza `trialRemaining` il
+// popup ricadeva su "0/1 riassunti" pur con prove ancora disponibili.
+export function buildVerifyBody(user, brandId) {
+    const ent = getEntitlement(user, brandId);
+    return {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        picture: user.picture,
+        plan: ent.plan,
+        usage: ent.usage,
+        trialRemaining: ent.trialRemaining,
+        valid: true
+    };
+}
+
 export async function authVerifyHandler(event) {
     try {
         if (event.httpMethod === 'OPTIONS') {
@@ -529,16 +547,9 @@ export async function authVerifyHandler(event) {
         
         // Verifica token
         const user = await verifyAuthToken(token);
-        
-        return createResponse(200, {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            picture: user.picture,
-            plan: user.plan,
-            usage: user.usage,
-            valid: true
-        });
+        const brandId = resolveBrandId(event.headers['x-brand'] || event.headers['X-Brand']);
+
+        return createResponse(200, buildVerifyBody(user, brandId));
         
     } catch (error) {
         console.error('Error in authVerifyHandler:', error);
