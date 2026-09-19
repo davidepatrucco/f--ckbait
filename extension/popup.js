@@ -33,6 +33,12 @@ async function generateCodeChallenge(verifier) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // Link legali: URL dal brand config; se assente o non http(s) il link resta nascosto.
+    for (const [id, key] of [['legalTerms', 'terms'], ['legalPrivacy', 'privacy']]) {
+        const el = document.getElementById(id);
+        const url = window.__BRAND__ && window.__BRAND__.urls && window.__BRAND__.urls[key];
+        if (el) { if (/^https:\/\//.test(url || '')) el.href = url; else el.hidden = true; }
+    }
     console.log('[POPUP] ===== POPUP OPENED =====');
 
     // Funnel: apertura popup (best-effort; il SW inoltra l'evento al backend).

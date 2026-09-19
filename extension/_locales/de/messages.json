@@ -463,5 +463,11 @@
   },
   "err_transcribe_minutes_limit": {
     "message": "Tageslimit für Transkriptionsminuten erreicht. Versuchen Sie es morgen erneut."
+  },
+  "popup_terms": {
+    "message": "Nutzungsbedingungen"
+  },
+  "popup_privacy": {
+    "message": "Datenschutz"
   }
 }

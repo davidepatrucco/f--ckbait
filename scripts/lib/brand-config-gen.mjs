@@ -20,6 +20,7 @@ export function brandConfigRuntime(cfg, env = 'dev') {
         displayName: cfg.displayName,
         storeName: cfg.storeName || cfg.displayName,
         tagline: cfg.tagline || '',
+        urls: { privacy: (cfg.urls || {}).privacy || '', terms: (cfg.urls || {}).terms || '' },
         wordmark: cfg.wordmark || { pre: '', accent: cfg.displayName || '' },
         primaryAction: cfg.primaryAction || 'summarize',
         heroMetric: cfg.heroMetric || 'time_saved',

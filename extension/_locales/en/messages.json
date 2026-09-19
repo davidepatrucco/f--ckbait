@@ -463,5 +463,11 @@
   },
   "err_transcribe_minutes_limit": {
     "message": "Daily transcription minutes limit reached. Try again tomorrow."
+  },
+  "popup_terms": {
+    "message": "Terms"
+  },
+  "popup_privacy": {
+    "message": "Privacy"
   }
 }

@@ -463,5 +463,11 @@
   },
   "err_transcribe_minutes_limit": {
     "message": "Limite quotidienne de minutes de transcription atteinte. Réessayez demain."
+  },
+  "popup_terms": {
+    "message": "Conditions"
+  },
+  "popup_privacy": {
+    "message": "Confidentialité"
   }
 }
