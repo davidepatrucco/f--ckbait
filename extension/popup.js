@@ -9,7 +9,11 @@ const CONFIG = {
         || 'https://4jo5gamel9.execute-api.eu-west-1.amazonaws.com/dev'
 };
 
-const REDIRECT_URI = `https://${chrome.runtime.id}.chromiumapp.org/`;
+// getRedirectURL() e' l'API che produce l'URI valido per launchWebAuthFlow in ogni browser:
+// su Chrome vale https://<id>.chromiumapp.org/ (identico a prima); su Firefox
+// https://<hash>.extensions.allizom.org/. Costruirlo a mano da runtime.id su Firefox dava
+// https://lemonsqueezer@bifa.digital.chromiumapp.org/ (non valido): login Google rotto.
+const REDIRECT_URI = chrome.identity.getRedirectURL();
 const OAUTH_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 
 // Utility functions per PKCE
