@@ -7,8 +7,8 @@ ENV="${ENV:-prod}"; REGION="${AWS_REGION:-eu-west-1}"; P="/reading-intelligence/
 put(){ if [ -n "${2:-}" ]; then aws ssm put-parameter --name "$P/$1" --type "$3" --value "$2" --overwrite --region "$REGION" >/dev/null && echo "set $P/$1"; fi; }
 put stripe-secret-key "${STRIPE_SECRET_KEY:-}" SecureString
 put stripe-webhook-secret "${STRIPE_WEBHOOK_SECRET:-}" SecureString
-put stripe-premium-monthly-price-id "${LEMON_M:-}" String
-put stripe-premium-yearly-price-id  "${LEMON_Y:-}" String
+put stripe-lemonsqueezer-premium-monthly-price-id "${LEMON_M:-}" String
+put stripe-lemonsqueezer-premium-yearly-price-id  "${LEMON_Y:-}" String
 put stripe-scout-premium-monthly-price-id   "${SCOUT_M:-}" String
 put stripe-scout-premium-yearly-price-id    "${SCOUT_Y:-}" String
 put stripe-signal-premium-monthly-price-id  "${SIGNAL_M:-}" String

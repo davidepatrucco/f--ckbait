@@ -18,8 +18,9 @@ Per **ogni** brand (lemonsqueezer, scout, signal, briefly, nobull):
 
 ## 2. Webhook LIVE
 Developers → Webhooks → Add endpoint:
-- **URL**: `https://zj4r2m4iyqetlscad2yb6ndehe0udkbw.lambda-url.eu-west-1.on.aws/` (Function URL webhook prod)
-- **Eventi**: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`
+- **URL**: leggilo dallo stack, non da qui (cambia se lo stack viene ricreato):
+  `aws cloudformation describe-stacks --stack-name lemonsqueezer-prod --region eu-west-1 --query "Stacks[0].Outputs[?OutputKey=='StripeWebhookUrl'].OutputValue" --output text`
+- **Eventi (tutti e 6, quelli gestiti dal codice)**: `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_succeeded`, `invoice.payment_failed`. Senza gli ultimi due un pagamento fallito non viene mai riflesso sull'utente.
 - Copia il **Signing secret** (`whsec_...`).
 
 ## 3. Chiave segreta LIVE
@@ -30,8 +31,8 @@ Developers → API keys → **Secret key** LIVE (`sk_live_...`).
 |---|---|
 | `stripe-secret-key` | `sk_live_...` |
 | `stripe-webhook-secret` | `whsec_...` (endpoint del punto 2) |
-| `stripe-premium-monthly-price-id` | price mensile **Lemon** |
-| `stripe-premium-yearly-price-id` | price annuale **Lemon** |
+| `stripe-lemonsqueezer-premium-monthly-price-id` | price mensile **Lemon** |
+| `stripe-lemonsqueezer-premium-yearly-price-id` | price annuale **Lemon** |
 | `stripe-scout-premium-monthly-price-id` | price mensile **Scout** |
 | `stripe-scout-premium-yearly-price-id` | price annuale **Scout** |
 | `stripe-signal-premium-monthly-price-id` | Signal mensile |
@@ -40,10 +41,11 @@ Developers → API keys → **Secret key** LIVE (`sk_live_...`).
 | `stripe-briefly-premium-yearly-price-id` | Briefly annuale |
 | `stripe-nobull-premium-monthly-price-id` | NoBull mensile |
 | `stripe-nobull-premium-yearly-price-id` | NoBull annuale |
-| `stripe-success-url` / `stripe-cancel-url` | URL di ritorno post-checkout |
+| `stripe-success-url` / `stripe-cancel-url` | URL di ritorno post-checkout. **Usa il segnaposto `{brand}`**, es. `https://bifa.digital/{brand}/thank-you.html`: il parametro e' unico per ambiente e senza segnaposto tutti i brand atterrano sulla pagina di Lemon |
 
-Nota: oggi in dev/staging esistono solo i price id **Lemon** (generici). Per testare il
-billing dei brand non-Lemon anche in test-mode, imposta gli stessi param con price id TEST.
+Nota: le chiavi legacy `stripe-premium-*-price-id` NON sono piu' lette (Lemon usa `stripe-lemonsqueezer-*`
+come gli altri brand): un valore impostato li' non ha effetto. Per testare il billing in test-mode
+imposta gli stessi parametri con price id TEST su staging.
 
 ## 5. Applicare
 Fornisci i valori via env e lancia (imposta solo quelli presenti):

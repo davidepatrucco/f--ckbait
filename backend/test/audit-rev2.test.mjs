@@ -127,3 +127,14 @@ test('i dati locali non si cancellano se un annullamento non è riuscito', async
     assert.equal(canDeleteLocalData(null), false);
     assert.equal(canDeleteLocalData(undefined), false);
 });
+
+// URL di ritorno del checkout: un solo parametro per ambiente, quindi ogni brand
+// finiva sulla pagina di LemonSqueezer.
+test('resolveReturnUrl: il segnaposto {brand} produce l’URL del brand', async () => {
+    const { resolveReturnUrl } = await import('../src/payments.mjs');
+    assert.equal(resolveReturnUrl('https://bifa.digital/{brand}/thank-you.html', 'scout'), 'https://bifa.digital/scout/thank-you.html');
+    assert.equal(resolveReturnUrl('https://x/{brand}/a?b={brand}', 'nobull'), 'https://x/nobull/a?b=nobull', 'tutte le occorrenze');
+    // Valore senza segnaposto (configurazione attuale): invariato.
+    assert.equal(resolveReturnUrl('https://bifa.digital/lemonsqueezer/thank-you.html', 'scout'), 'https://bifa.digital/lemonsqueezer/thank-you.html');
+    assert.equal(resolveReturnUrl(undefined, 'scout'), '');
+});

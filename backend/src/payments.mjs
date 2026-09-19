@@ -127,6 +127,14 @@ export function resolveStripeBrand(obj) {
 /**
  * Crea sessione di checkout Stripe
  */
+// URL di ritorno del checkout per brand. Il parametro SSM e' unico per ambiente: senza
+// un segnaposto tutti i brand atterravano sulla pagina di LemonSqueezer. Con `{brand}`
+// nel valore (es. https://bifa.digital/{brand}/thank-you.html) ogni brand ha la sua;
+// senza segnaposto il valore resta invariato (compatibile con la configurazione attuale).
+export function resolveReturnUrl(template, brandId) {
+    return String(template || '').split('{brand}').join(brandId);
+}
+
 export async function createCheckoutSession(userId, userEmail, brand = DEFAULT_BRAND, planType = 'premium_monthly') {
     try {
         if (!isValidBrand(brand)) {
@@ -144,8 +152,8 @@ export async function createCheckoutSession(userId, userEmail, brand = DEFAULT_B
         }
 
         const product = products[planType];
-        const successUrl = await secretsManager.getSecret('STRIPE_SUCCESS_URL');
-        const cancelUrl = await secretsManager.getSecret('STRIPE_CANCEL_URL');
+        const successUrl = resolveReturnUrl(await secretsManager.getSecret('STRIPE_SUCCESS_URL'), brand);
+        const cancelUrl = resolveReturnUrl(await secretsManager.getSecret('STRIPE_CANCEL_URL'), brand);
 
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
