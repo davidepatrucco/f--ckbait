@@ -71,27 +71,27 @@ Legenda: **[tu]** = richiede il tuo account/console · **[io]** = lo faccio in s
 - **Sito**: [x] Lemon live su <https://lemonsqueezer.app> (5 lingue, dark mode, legali e pagine di ritorno checkout sul dominio; `apps/website/`, `infra/site.yaml`). [ ] altri 4 brand su `bifa.digital/<brand>/`.
 - **Store copy**: [x] testi pronti (`store/`); screenshot: lemonsqueezer pronti (4, senza account interni), altri brand 2 (manca il "risultato").
 
-## D. Backlog (storie da tracciare in Linear, progetto "lemonsqueezer")
+## D. Backlog — tracciato in Linear, progetto [lemonsqueezer](https://linear.app/bifa/project/lemonsqueezer-e6395b6f5082) (team Bifa)
 
 Ordinate per priorità. Ogni voce è pensata come una storia con criterio di accettazione.
 
-| # | Storia | Criterio di accettazione | Stima |
-|---|---|---|---|
-| 1 | **Chrome Web Store: pubblicazione unlisted di LemonSqueezer** | Item approvato, installabile dal link, login e riassunto funzionano con un account nuovo | manuale, 1–2 h + review |
-| 2 | **Consenso Google OAuth in produzione** con link legali su lemonsqueezer.app | Stato "In produzione"; login riuscito con un account non di test | manuale, 30 min |
-| 3 | **Screenshot "risultato" per Scout/NoBull/Briefly/Signal** | 3–4 PNG 1280×800 per brand, senza account interni | 1 h con token |
-| 4 | **Siti degli altri 4 brand su bifa.digital/<brand>/** | Pagine live in 5 lingue, legali e ritorno checkout per brand | 2 h |
-| 5 | **Disdetta abbonamento in-app** (portale clienti Stripe + pulsante nel popup, 5 lingue) | Da Premium, "Gestisci abbonamento" apre il portale; la disdetta riporta a free a fine periodo | 0,5 g |
-| 6 | **Consenso ai termini e al recesso nel checkout** (testo dal legale) | Checkout Stripe richiede l'accettazione prima del pagamento | 0,5 g + legale |
-| 7 | **Pulsante "Elimina account" nell'estensione** | Cancella utente, abbonamenti annullati su Stripe, conferma all'utente | 0,5 g |
-| 8 | **Budget e allarmi**: budget AWS, limite OpenAI, allarmi CloudWatch 5xx su API e webhook | Email di avviso ricevuta in un test | 0,5 g |
-| 9 | **Stripe LIVE** (prodotti, webhook a 6 eventi, SSM, acquisto reale di prova su 2 brand) | `configured=true`, acquisto → Premium sul brand giusto, rimborso → free | 1 g + account |
-| 10 | **Revisione legale T&C/privacy** (recesso, minori, foro, rinnovi) | Testi approvati dal legale pubblicati v3 | esterna |
-| 11 | **Firefox AMO: submission di LemonSqueezer** | Approvata; login Google funzionante con redirect `extensions.allizom.org` registrato | 2 h + review |
-| 12 | **iOS: app contenitore + Share Extension** — "Squeeze" dal menu Condividi per pagine web e PDF (anche da Quick Look); estrazione testo in Safari via `NSExtensionJavaScriptPreprocessingFile`, riuso di `/summarize-url` e `/extract-pdf`, risultato in UI nativa. Non copre il long-press sui link (impossibile su iOS) | Da Safari e da Files/Quick Look: Condividi → Squeeze → riassunto mostrato; TestFlight su un dispositivo | 6–9 g |
-| 13 | **Sign in with Apple** (`ASAuthorizationController` + endpoint `/auth/apple` con verifica JWKS, stesso JWT di sessione) — obbligatorio per App Review 4.8 | Login Apple crea/ritrova l'utente e ottiene lo stesso entitlement | 2–3 g |
-| 14 | **App Store: submission iOS** (privacy 5.1.1, cancellazione account in-app, nessuna vendita in-app o IAP) | Approvata | 1 g + review |
-| 15 | **Safari macOS** (converter, firma, App Store) | Approvata | 1–2 g |
-| 16 | **Configurazione a runtime: UI nella dashboard** per `GET/POST /admin/config` | Modifica di un limite dalla dashboard, con storico | 0,5 g |
-| 17 | **Ricerca marchi** "LemonSqueezer" e altri 4 nomi (UIBM/EUIPO) — rischio confusione con "Lemon Squeezy" (Stripe) | Esito documentato prima di investire in altri domini | esterna |
+| # | Linear | Storia | Criterio di accettazione | Stima |
+|---|---|---|---|---|
+| 1 | [BIF-43](https://linear.app/bifa/issue/BIF-43) | **Chrome Web Store: pubblicazione unlisted di LemonSqueezer** | Item approvato, installabile dal link, login e riassunto funzionano con un account nuovo | manuale, 1–2 h + review |
+| 2 | [BIF-44](https://linear.app/bifa/issue/BIF-44) | **Consenso Google OAuth in produzione** con link legali su lemonsqueezer.app | Stato "In produzione"; login riuscito con un account non di test | manuale, 30 min |
+| 3 | [BIF-45](https://linear.app/bifa/issue/BIF-45) | **Screenshot "risultato" per Scout/NoBull/Briefly/Signal** | 3–4 PNG 1280×800 per brand, senza account interni | 1 h con token |
+| 4 | [BIF-46](https://linear.app/bifa/issue/BIF-46) | **Siti degli altri 4 brand su bifa.digital/<brand>/** | Pagine live in 5 lingue, legali e ritorno checkout per brand | 2 h |
+| 5 | [BIF-47](https://linear.app/bifa/issue/BIF-47) | **Disdetta abbonamento in-app** (portale clienti Stripe + pulsante nel popup, 5 lingue) | Da Premium, "Gestisci abbonamento" apre il portale; la disdetta riporta a free a fine periodo | 0,5 g |
+| 6 | [BIF-48](https://linear.app/bifa/issue/BIF-48) | **Consenso ai termini e al recesso nel checkout** (testo dal legale) | Checkout Stripe richiede l'accettazione prima del pagamento | 0,5 g + legale |
+| 7 | [BIF-49](https://linear.app/bifa/issue/BIF-49) | **Pulsante "Elimina account" nell'estensione** | Cancella utente, abbonamenti annullati su Stripe, conferma all'utente | 0,5 g |
+| 8 | [BIF-50](https://linear.app/bifa/issue/BIF-50) | **Budget e allarmi**: budget AWS, limite OpenAI, allarmi CloudWatch 5xx su API e webhook | Email di avviso ricevuta in un test | 0,5 g |
+| 9 | [BIF-51](https://linear.app/bifa/issue/BIF-51) | **Stripe LIVE** (prodotti, webhook a 6 eventi, SSM, acquisto reale di prova su 2 brand) | `configured=true`, acquisto → Premium sul brand giusto, rimborso → free | 1 g + account |
+| 10 | [BIF-52](https://linear.app/bifa/issue/BIF-52) | **Revisione legale T&C/privacy** (recesso, minori, foro, rinnovi) | Testi approvati dal legale pubblicati v3 | esterna |
+| 11 | [BIF-53](https://linear.app/bifa/issue/BIF-53) | **Firefox AMO: submission di LemonSqueezer** | Approvata; login Google funzionante con redirect `extensions.allizom.org` registrato | 2 h + review |
+| 12 | [BIF-54](https://linear.app/bifa/issue/BIF-54) | **iOS: app contenitore + Share Extension** — "Squeeze" dal menu Condividi per pagine web e PDF (anche da Quick Look); estrazione testo in Safari via `NSExtensionJavaScriptPreprocessingFile`, riuso di `/summarize-url` e `/extract-pdf`, risultato in UI nativa. Non copre il long-press sui link (impossibile su iOS) | Da Safari e da Files/Quick Look: Condividi → Squeeze → riassunto mostrato; TestFlight su un dispositivo | 6–9 g |
+| 13 | [BIF-55](https://linear.app/bifa/issue/BIF-55) | **Sign in with Apple** (`ASAuthorizationController` + endpoint `/auth/apple` con verifica JWKS, stesso JWT di sessione) — obbligatorio per App Review 4.8 | Login Apple crea/ritrova l'utente e ottiene lo stesso entitlement | 2–3 g |
+| 14 | [BIF-56](https://linear.app/bifa/issue/BIF-56) | **App Store: submission iOS** (privacy 5.1.1, cancellazione account in-app, nessuna vendita in-app o IAP) | Approvata | 1 g + review |
+| 15 | [BIF-57](https://linear.app/bifa/issue/BIF-57) | **Safari macOS** (converter, firma, App Store) | Approvata | 1–2 g |
+| 16 | [BIF-58](https://linear.app/bifa/issue/BIF-58) | **Configurazione a runtime: UI nella dashboard** per `GET/POST /admin/config` | Modifica di un limite dalla dashboard, con storico | 0,5 g |
+| 17 | [BIF-59](https://linear.app/bifa/issue/BIF-59) | **Ricerca marchi** "LemonSqueezer" e altri 4 nomi (UIBM/EUIPO) — rischio confusione con "Lemon Squeezy" (Stripe) | Esito documentato prima di investire in altri domini | esterna |
 
