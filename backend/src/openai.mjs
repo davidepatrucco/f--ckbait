@@ -171,7 +171,7 @@ export function coerceBullets(response) {
 // Funzione principale per il riassunto con OpenAI
 export async function summarizeWithOpenAI(content) {
     const startTime = Date.now();
-    console.log('🤖 [TIMING] OpenAI function started');
+    console.log('[TIMING] OpenAI function started');
     
     try {
         // Valida input
@@ -192,9 +192,9 @@ export async function summarizeWithOpenAI(content) {
         const outputSchemaName = brand.outputSchema;
         const promptStartTime = Date.now();
         const { systemPrompt, userPrompt } = getPromptBuilder(brand.promptProfile)(content, content.language, plan);
-        console.log('⚡ [TIMING] Prompt creation took:', Date.now() - promptStartTime, 'ms');
+        console.log('[TIMING] Prompt creation took:', Date.now() - promptStartTime, 'ms');
         
-        console.log('🚀 [TIMING] Calling OpenAI with:', {
+        console.log('[TIMING] Calling OpenAI with:', {
             model,
             language: content.language,
             contentLength: content.text.length,
@@ -286,7 +286,7 @@ export async function summarizeWithOpenAI(content) {
             }
             if (!output) throw new Error('Risposta OpenAI non utilizzabile');
             const genStats = calculateReadingStats(content.text, '');
-            console.log('✅ [TIMING] Structured output generated:', {
+            console.log('[TIMING] Structured output generated:', {
                 url: content.url, schema: outputSchemaName, brand: content.brand
             });
             return {
@@ -308,7 +308,7 @@ export async function summarizeWithOpenAI(content) {
         ]);
         addUsage(completion);
         const apiCallTime = Date.now() - apiCallStartTime;
-        console.log('⚡ [TIMING] OpenAI API call took:', apiCallTime, 'ms');
+        console.log('[TIMING] OpenAI API call took:', apiCallTime, 'ms');
         let response = readResponseText(completion);
 
         // Retry once with the less restrictive JSON mode. This covers transient
@@ -364,7 +364,7 @@ export async function summarizeWithOpenAI(content) {
         // Calcola statistiche di lettura
         const statsStartTime = Date.now();
         const stats = calculateReadingStats(content.text, summaryText);
-        console.log('⚡ [TIMING] Stats calculation took:', Date.now() - statsStartTime, 'ms');
+        console.log('[TIMING] Stats calculation took:', Date.now() - statsStartTime, 'ms');
         
         // Restituisce direttamente il testo di OpenAI con le statistiche
         const result = {
@@ -386,10 +386,10 @@ export async function summarizeWithOpenAI(content) {
         };
         
         const totalOpenAITime = Date.now() - startTime;
-        console.log('🏁 [TIMING] Total OpenAI function time:', totalOpenAITime, 'ms');
+        console.log('[TIMING] Total OpenAI function time:', totalOpenAITime, 'ms');
         
         // Do not log generated content: it may contain sensitive page data.
-        console.log('✅ [TIMING] Summary generated:', {
+        console.log('[TIMING] Summary generated:', {
             url: content.url,
             title: content.title,
             language: content.language,

@@ -184,7 +184,7 @@ export async function setCachedSummary(cacheInput, summaryData) {
         
         await docClient.send(command);
         
-        console.log(`✅ Cache saved (key: ${cacheKey.substring(0, 8)}...)`);
+        console.log(`Cache saved (key: ${cacheKey.substring(0, 8)}...)`);
         return cacheKey;
         
     } catch (error) {
@@ -226,7 +226,7 @@ async function deleteCachedSummary(cacheKey) {
         });
         
         await docClient.send(command);
-        console.log(`🗑️ Expired cache removed: ${cacheKey.substring(0, 8)}...`);
+        console.log(`Expired cache removed: ${cacheKey.substring(0, 8)}...`);
     } catch (error) {
         console.warn('Error deleting cached summary:', error.message);
     }
@@ -239,7 +239,7 @@ export async function cleanExpiredCache() {
     try {
         // DynamoDB TTL dovrebbe gestire automaticamente la pulizia
         // Questa funzione è per pulizia manuale se necessario
-        console.log('🧹 Cache cleanup triggered (DynamoDB TTL handles automatic cleanup)');
+        console.log('Cache cleanup triggered (DynamoDB TTL handles automatic cleanup)');
         return { message: 'Cleanup scheduled via DynamoDB TTL' };
     } catch (error) {
         console.error('Error cleaning expired cache:', error);
@@ -274,7 +274,7 @@ export async function getCacheStats() {
 export async function invalidateCache(pattern) {
     try {
         // Implementazione semplificata - in produzione usare DynamoDB Scan con filtro
-        console.log(`🚫 Cache invalidation requested for pattern: ${pattern}`);
+        console.log(`Cache invalidation requested for pattern: ${pattern}`);
         
         // Per ora loghiamo la richiesta
         // Una implementazione completa richiederebbe scan della tabella

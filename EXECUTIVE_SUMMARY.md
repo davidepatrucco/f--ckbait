@@ -28,7 +28,7 @@ Prerequisiti (1–4), poi la **pubblicazione** (5) è il traguardo:
 2. **QA sui browser** reali (Chrome, Firefox, Safari) — check di prodotto su ciascun brand.
 3. **Asset store**: screenshot e materiali per le schede (copy già pronta).
 4. **Dominio** per i siti + collegamento URL di checkout.
-5. **➡️ PUBBLICAZIONE NEGLI STORE** (il go-live vero e proprio): submission a **Chrome Web Store** per primo, poi **Firefox (AMO)** e **Safari (App Store)**. **"Launch wave" ravvicinata (48–72h)** dei 5 brand, ordine Lemon → Scout → NoBull → Briefly → Signal.
+5. **PUBBLICAZIONE NEGLI STORE** (il go-live vero e proprio): submission a **Chrome Web Store** per primo, poi **Firefox (AMO)** e **Safari (App Store)**. **"Launch wave" ravvicinata (48–72h)** dei 5 brand, ordine Lemon → Scout → NoBull → Briefly → Signal.
 6. **Post-lancio**: misurare gli unit economics reali sui primi utenti e decidere su quali brand puntare.
 
 ## Sintesi

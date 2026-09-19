@@ -62,7 +62,7 @@ Fonte di verità: `backend/src/errors.mjs`.
 ## Schemi di output per brand
 | Brand | schema | Campi principali |
 |---|---|---|
-| LemonSqueezer | `summary` | `summary` (bullet, `•`), `stats`, `readingTimeMinutes` (+ bullet finale `💬 Commenti:` per YouTube) |
+| LemonSqueezer | `summary` | `summary` (bullet, `•`), `stats`, `readingTimeMinutes` (+ bullet finale `Commenti:` per YouTube) |
 | Scout | `attention` | `attention_score`, `recommendation` (read_now/skim/save/ignore), `novelty`, `importance`, `credibility`, `reasons[]` |
 | Signal | `insights` | `signal_score`, `key_takeaways[]`, `risks[]`, `opportunities[]`, `decision_note` |
 | NoBull | `noise` | `clickbait_score`, `hype_score`, `information_density`, `facts[]`, `filler_patterns[]`, `framing_note` |

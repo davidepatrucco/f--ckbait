@@ -9,12 +9,12 @@ poi i passi operativi in ordine.
 
 | # | Decisione | Note / raccomandazione | Blocca |
 |---|-----------|------------------------|--------|
-| A1 | **Prezzi** | ✅ DECISO: **uniforme €1.99/mo · €14.99/anno** per tutti i brand (frictionless, sopra il floor Stripe). Impostato: display `getBrandProducts` + pricing sito. Restano da creare i **price id Stripe LIVE** (Fase 1.2). | Stripe LIVE |
-| A2 | **Cosa sblocca il Premium** | ✅ DECISO (MVP): uso illimitato, stesse funzioni. | — |
-| A3 | **Quota Free** | ✅ DECISO e IN PROD: **5 riassunti di prova una tantum, poi 1/giorno** (reset giornaliero UTC). Valori modificabili senza rilascio da `POST /admin/config`. | — |
+| A1 | **Prezzi** | [x] DECISO: **uniforme €1.99/mo · €14.99/anno** per tutti i brand (frictionless, sopra il floor Stripe). Impostato: display `getBrandProducts` + pricing sito. Restano da creare i **price id Stripe LIVE** (Fase 1.2). | Stripe LIVE |
+| A2 | **Cosa sblocca il Premium** | [x] DECISO (MVP): uso illimitato, stesse funzioni. | — |
+| A3 | **Quota Free** | [x] DECISO e IN PROD: **5 riassunti di prova una tantum, poi 1/giorno** (reset giornaliero UTC). Valori modificabili senza rilascio da `POST /admin/config`. | — |
 | A4 | **Store del primo lancio** | Consiglio: **Chrome Web Store** per primo (review più rapida), poi Firefox (AMO), Safari (App Store, richiede Xcode) ultimo. | QA, submission |
 | A5 | **Dominio sito + URL ritorno checkout** | Serve un dominio (es. sotto `bifa.digital`) per landing/pricing e per `stripe-success-url`/`stripe-cancel-url`. Legali già su S3. | sito, Stripe |
-| A6 | **Timing go-live prod** | ✅ Prod allineato; i pacchetti store sono buildati `--env prod`. | — |
+| A6 | **Timing go-live prod** | [x] Prod allineato; i pacchetti store sono buildati `--env prod`. | — |
 
 Già decise (chiuse): ordine lancio (Lemon→Scout→NoBull→Briefly→Signal, wave unica),
 modello LLM (nano→gpt-5.4-nano economy / luna premium), host permissions ampie,
@@ -24,9 +24,9 @@ dashboard interna, entità **Bifa SRLS**, support `contact@bifa.digital`.
 
 ## B. Passi operativi (aggiornato 19 set 2026)
 
-Legenda: **[tu]** = richiede il tuo account/console · **[io]** = lo faccio in sessione · ✅ = fatto e verificato.
+Legenda: **[tu]** = richiede il tuo account/console · **[io]** = lo faccio in sessione · [x] = fatto e verificato.
 
-### Già fatto ✅
+### Già fatto [x]
 - Backend allineato su dev/staging/prod (`973e06b`), smoke prod reale: 5 prove + 1/giorno, poi 429.
 - Piano free-only: Stripe non configurato → CTA acquisto nascosta (si accende da sola con `configured=true`).
 - 3 giri di audit esterno chiusi (SSRF worker, tetto job atomico, minuti reali, dashboard protetta, Stripe, test OAuth/Stripe/UI). 283 test verdi.
@@ -67,6 +67,6 @@ Legenda: **[tu]** = richiede il tuo account/console · **[io]** = lo faccio in s
 22. Con dati reali: unit economics, soglie via `POST /admin/config` (senza rilascio), MRR per brand.
 
 ## C. Stato asset
-- **Brand**: ✅ completi (5 pack, icone, nomi/tagline/colori, validate 0/0). Legali su S3 **v2.1** (19 set 2026, coprono PDF/video/trascrizione), pubblicati per tutti i 5 brand; la card di login dell'estensione ora linka Termini/Privacy.
-- **Sito**: ✅ Lemon live su <https://lemonsqueezer.app> (5 lingue, dark mode, legali e pagine di ritorno checkout sul dominio; `apps/website/`, `infra/site.yaml`). ⬜ altri 4 brand su `bifa.digital/<brand>/`.
-- **Store copy**: ✅ testi pronti (`store/`); screenshot: lemonsqueezer pronti (4, senza account interni), altri brand 2 (manca il "risultato").
+- **Brand**: [x] completi (5 pack, icone, nomi/tagline/colori, validate 0/0). Legali su S3 **v2.1** (19 set 2026, coprono PDF/video/trascrizione), pubblicati per tutti i 5 brand; la card di login dell'estensione ora linka Termini/Privacy.
+- **Sito**: [x] Lemon live su <https://lemonsqueezer.app> (5 lingue, dark mode, legali e pagine di ritorno checkout sul dominio; `apps/website/`, `infra/site.yaml`). [ ] altri 4 brand su `bifa.digital/<brand>/`.
+- **Store copy**: [x] testi pronti (`store/`); screenshot: lemonsqueezer pronti (4, senza account interni), altri brand 2 (manca il "risultato").

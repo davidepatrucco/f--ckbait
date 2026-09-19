@@ -30,6 +30,11 @@
             .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
+    // Icone inline (niente emoji): 14-16px, currentColor, decorative (aria-hidden).
+    const ICON_VIDEO = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px"><rect x="2" y="6" width="14" height="12" rx="2"></rect><path d="M16 10l6-3v10l-6-3z"></path></svg>';
+    const ICON_DOC = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px"><path d="M6 2h9l5 5v15H6z"></path><path d="M15 2v5h5"></path><path d="M9 13h6M9 17h6"></path></svg>';
+    const ICON_WARN = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px"><path d="M12 3l10 18H2z"></path><path d="M12 10v4M12 17h.01"></path></svg>';
+
 
     // Funzione per calcolare la densità del testo in un elemento
     function getTextDensity(element) {
@@ -455,7 +460,7 @@
     function sourceBadgeHtml(data) {
         if (!data || !data.__source) return '';
         const isVideo = data.__source === 'video';
-        const label = isVideo ? `🎬 ${esc(t('source_video', undefined, 'Summary of the video'))}` : `📄 ${esc(t('source_text', undefined, 'Summary of the page text'))}`;
+        const label = isVideo ? `${ICON_VIDEO} ${esc(t('source_video', undefined, 'Summary of the video'))}` : `${ICON_DOC} ${esc(t('source_text', undefined, 'Summary of the page text'))}`;
         const alt = data.__alternative || {};
         const canSwitch = isVideo ? alt.text : alt.video;
         const switchLabel = esc(t(isVideo ? 'source_switch_to_text' : 'source_switch_to_video', undefined, isVideo ? 'Summarize the text instead' : 'Summarize the video instead'));
@@ -470,7 +475,7 @@
     function sourceNotesHtml(notes) {
         const list = (Array.isArray(notes) ? notes : []).filter((n) => NOTE_KEYS[n]);
         if (!list.length) return '';
-        return list.map((n) => `<div style="background:#FFF7E6;border:1px solid #FFE1A8;color:#8a6d3b;border-radius:6px;padding:8px 10px;font-size:12px;margin-bottom:8px;">⚠️ ${esc(t(NOTE_KEYS[n]))}</div>`).join('');
+        return list.map((n) => `<div style="background:#FFF7E6;border:1px solid #FFE1A8;color:#8a6d3b;border-radius:6px;padding:8px 10px;font-size:12px;margin-bottom:8px;">${ICON_WARN} ${esc(t(NOTE_KEYS[n]))}</div>`).join('');
     }
 
     // Switch di fonte: rilancia il riassunto forzando l'altra fonte.
@@ -595,7 +600,7 @@
                         </span>
                         <span class="lemonsqueezer-stat-text">${timeSavedText}</span>
                     </div>
-                    ${data.cached ? `<div class="lemonsqueezer-stat-item"><span class="lemonsqueezer-stat-text">⚡ ${esc(t('modal_cached', undefined, 'From cache'))}</span></div>` : ''}
+                    ${data.cached ? `<div class="lemonsqueezer-stat-item"><span class="lemonsqueezer-stat-text">${esc(t('modal_cached', undefined, 'From cache'))}</span></div>` : ''}
                 </div>
                 <div class="lemonsqueezer-url">
                     ${safeLink(data.originalUrl)}
@@ -603,7 +608,7 @@
             </div>
             ${sourceBadgeHtml(data)}
             ${sourceNotesHtml(data.__notes)}
-            ${data.truncated ? `<div style="background:#FFF7E6;border:1px solid #FFE1A8;color:#8a6d3b;border-radius:6px;padding:8px 10px;font-size:12px;margin-bottom:12px;">⚠️ ${esc(t('modal_truncated'))}</div>` : ''}
+            ${data.truncated ? `<div style="background:#FFF7E6;border:1px solid #FFE1A8;color:#8a6d3b;border-radius:6px;padding:8px 10px;font-size:12px;margin-bottom:12px;">${ICON_WARN} ${esc(t('modal_truncated'))}</div>` : ''}
             <div class="lemonsqueezer-summary-content">
                 ${(data.summary || '').replace(/\n/g, '<br>')}
             </div>

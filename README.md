@@ -1,23 +1,23 @@
-# 🍋 LemonSqueezer - TL;DR Chrome Extension
+# LemonSqueezer - TL;DR Chrome Extension
 
 Un'estensione privata per Chrome che riassume qualsiasi pagina web usando OpenAI GPT-4o-mini.
 
-## 🚀 Stato del Progetto
+## Stato del Progetto
 
-✅ **COMPLETATO E FUNZIONANTE**
+[x] **COMPLETATO E FUNZIONANTE**
 
-- ✅ Estensione Chrome Manifest V3
-- ✅ Backend AWS Lambda con OpenAI 
-- ✅ API Gateway con CORS
-- ✅ Deploy automatizzato con SAM
-- ✅ Gestione errori e rate limiting
-- ✅ Supporto multilingua
-- ✅ **Sistema Freemium con Google OAuth**
-- ✅ **Persistenza utenti su DynamoDB**
-- ✅ **10 riepiloghi gratuiti/mese**
-- ✅ **UI responsive e ottimizzata**
+- [x] Estensione Chrome Manifest V3
+- [x] Backend AWS Lambda con OpenAI 
+- [x] API Gateway con CORS
+- [x] Deploy automatizzato con SAM
+- [x] Gestione errori e rate limiting
+- [x] Supporto multilingua
+- [x] **Sistema Freemium con Google OAuth**
+- [x] **Persistenza utenti su DynamoDB**
+- [x] **10 riepiloghi gratuiti/mese**
+- [x] **UI responsive e ottimizzata**
 
-## 🔧 Installazione
+## Installazione
 
 ### 1. Installare l'estensione Chrome
 
@@ -34,26 +34,26 @@ Un'estensione privata per Chrome che riassume qualsiasi pagina web usando OpenAI
    - **OpenAI API Key**: La tua chiave OpenAI (sk-proj-...)
    - **Lingua**: Seleziona la lingua per i riassunti
 
-## 🎯 Come usare
+## Come usare
 
 1. Naviga su qualsiasi pagina web
 2. Clicca sull'icona LemonSqueezer 
-3. Clicca "🎯 Riassumi questa pagina"
+3. Clicca "Riassumi questa pagina"
 4. Attendi il riassunto (3-4 bullet points)
 5. Copia il risultato negli appunti se necessario
 
-## 🏗️ Architettura
+## Architettura
 
 ```
-📁 TLDR/
-├── 📁 extension/          # Chrome Extension (Manifest V3)
+TLDR/
+├── extension/          # Chrome Extension (Manifest V3)
 │   ├── manifest.json      # Configurazione estensione
 │   ├── popup.html         # Interfaccia popup
 │   ├── popup.js          # Logica popup
 │   ├── content.js        # Script per estrarre contenuto
 │   └── service_worker.js # Service worker
 │
-├── 📁 backend/           # AWS Lambda Functions
+├── backend/           # AWS Lambda Functions
 │   ├── package.json      # Dipendenze Node.js
 │   ├── lambda/
 │   │   └── handler.mjs   # Handler principale
@@ -62,7 +62,7 @@ Un'estensione privata per Chrome che riassume qualsiasi pagina web usando OpenAI
 │       ├── subscription.mjs # Gestione sottoscrizioni
 │       └── rate-limit.mjs   # Rate limiting
 │
-├── 📁 infra/            # Infrastructure as Code
+├── infra/            # Infrastructure as Code
 │   ├── sam-template-simple.yaml # Template SAM
 │   ├── .env             # Variabili ambiente
 │   └── scripts/
@@ -73,13 +73,13 @@ Un'estensione privata per Chrome che riassume qualsiasi pagina web usando OpenAI
 
 ## � Sicurezza
 
-- ✅ API Key OpenAI gestita tramite AWS Parameter Store
-- ✅ Rate limiting implementato
-- ✅ CORS configurato correttamente  
-- ✅ Validazione input su tutti gli endpoint
-- ✅ Log sicuri (senza contenuti sensibili)
+- [x] API Key OpenAI gestita tramite AWS Parameter Store
+- [x] Rate limiting implementato
+- [x] CORS configurato correttamente  
+- [x] Validazione input su tutti gli endpoint
+- [x] Log sicuri (senza contenuti sensibili)
 
-## 🌍 API Endpoints
+## API Endpoints
 
 **Base URL**: `https://8udffsiwnc.execute-api.eu-west-1.amazonaws.com/dev`
 
@@ -120,7 +120,7 @@ curl -X POST https://8udffsiwnc.execute-api.eu-west-1.amazonaws.com/dev/summariz
 }
 ```
 
-## 🔄 Aggiornamenti Backend
+## Aggiornamenti Backend
 
 Per aggiornare il backend:
 
@@ -135,13 +135,13 @@ sam deploy --stack-name lemonsqueezer-dev-fixed \
   --parameter-overrides OpenAIApiKey=$OPENAI_API_KEY Environment=$ENVIRONMENT
 ```
 
-## 📊 Monitoraggio
+## Monitoraggio
 
 - **CloudWatch Logs**: `/aws/lambda/lemonsqueezer-summarize-dev`
 - **Stack CloudFormation**: `lemonsqueezer-dev-fixed`
 - **API Gateway**: Console AWS → API Gateway
 
-## ⚙️ Configurazione Avanzata
+## Configurazione Avanzata
 
 ### Variabili in `infra/.env`:
 ```bash
@@ -180,7 +180,7 @@ AWS_REGION=eu-west-1
 - **OpenAI Model**: gpt-4o-mini
 - **Rate Limit**: Configurabile per utente
 
-## 🎉 Completamento
+## Completamento
 
 Il progetto è **completamente funzionante** e pronto per l'uso!
 

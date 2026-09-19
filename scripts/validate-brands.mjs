@@ -22,7 +22,7 @@ const schemas = new Set(listSchemas());
 let errors = 0;
 let warnings = 0;
 const fail = (b, m) => { console.error(`✗ [${b}] ${m}`); errors += 1; };
-const warn = (b, m) => { console.warn(`⚠ [${b}] ${m}`); warnings += 1; };
+const warn = (b, m) => { console.warn(`WARN [${b}] ${m}`); warnings += 1; };
 
 const dirs = readdirSync(BRANDS_DIR, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
 if (!dirs.length) fail('-', 'nessun brand pack trovato in brands/');

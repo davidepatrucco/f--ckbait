@@ -5,10 +5,10 @@ Una sola codebase (`extension/`) → build per browser via `scripts/build-brand.
 ## Stato per browser
 | Browser | Stato codice | QA runtime | Note |
 |---|---|---|---|
-| **Chrome** | ✅ pronto | ✅ (dev unpacked) | MV3, `service_worker`, `sidePanel`-ready. Target primario. |
-| **Edge / Brave / Arc / Opera** | ✅ pronto | ⬜ da fare | Stesso pacchetto Chromium (`--browser chromium`). Nessuna modifica codice. |
-| **Firefox** | 🟡 build prodotta | ⬜ **richiede QA reale** | Manifest event-page (`background.scripts`), `browser_specific_settings.gecko.id`, adapter `browser-polyfill.js`. Non testato a runtime in questo ambiente. |
-| **Safari** | ⬜ spike documentato | ⬜ | Richiede Xcode + `safari-web-extension-converter` (macOS). Vedi sotto. |
+| **Chrome** | [x] pronto | [x] (dev unpacked) | MV3, `service_worker`, `sidePanel`-ready. Target primario. |
+| **Edge / Brave / Arc / Opera** | [x] pronto | [ ] da fare | Stesso pacchetto Chromium (`--browser chromium`). Nessuna modifica codice. |
+| **Firefox** | [~] build prodotta | [ ] **richiede QA reale** | Manifest event-page (`background.scripts`), `browser_specific_settings.gecko.id`, adapter `browser-polyfill.js`. Non testato a runtime in questo ambiente. |
+| **Safari** | [ ] spike documentato | [ ] | Richiede Xcode + `safari-web-extension-converter` (macOS). Vedi sotto. |
 
 ## Adapter
 `extension/browser-polyfill.js` (caricato per primo in popup, content script e background): su Firefox allinea `chrome` all'API promise-based `browser`; su Chromium è no-op. Permette di mantenere le chiamate `chrome.*` con `await` senza refactor dei call site.

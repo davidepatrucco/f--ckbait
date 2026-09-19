@@ -42,7 +42,7 @@ export function dashboardHtml() {
   <label>Giorni <input id="days" type="number" value="30" min="1" max="365" style="width:70px"></label>
   <label>Brand <select id="brand"><option value="">All</option></select></label>
   <button class="primary" id="go">Aggiorna</button>
-  <button id="setkey" title="Cambia chiave">🔑</button>
+  <button id="setkey" title="Cambia chiave" aria-label="Cambia chiave"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7" cy="15" r="4"></circle><path d="M9.5 12.5L20 2M16 6l3 3M19 3l2 2"></path></svg></button>
   <span id="meta" class="pill"></span>
 </header>
 <main>
@@ -72,7 +72,7 @@ function block(title, m){
 }
 async function load(){
   $('err').textContent='';
-  if(!key()){ $('err').textContent='Chiave admin mancante. Apri l’URL con ?key=... (una volta) oppure premi 🔑 per incollarla.'; return; }
+  if(!key()){ $('err').textContent='Chiave admin mancante. Apri l’URL con ?key=... (una volta) oppure premi il pulsante Chiave per incollarla.'; return; }
   const qs=new URLSearchParams({days:$('days').value});
   if($('brand').value) qs.set('brand',$('brand').value);
   let data;
@@ -93,7 +93,7 @@ async function load(){
 }
 $('go').addEventListener('click',load);
 $('setkey').addEventListener('click',()=>{ const k=prompt('Chiave admin:'); if(k){ localStorage.setItem('adm_key',k.trim()); load(); } });
-if(key()) load(); else $('err').textContent='Chiave admin mancante. Apri l’URL con ?key=... oppure premi 🔑.';
+if(key()) load(); else $('err').textContent='Chiave admin mancante. Apri l’URL con ?key=... oppure premi il pulsante Chiave.';
 </script>
 </body>
 </html>`;

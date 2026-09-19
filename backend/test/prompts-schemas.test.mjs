@@ -26,8 +26,8 @@ describe('prompt registry & builders', () => {
         const content = { title: 'T', url: 'u', text: 'x', sourceType: 'video', videoDurationSeconds: 600, description: 'desc', comments: ['nice', 'bad'] };
         const it = getPromptBuilder('summary.standard')(content, 'it', planStub).userPrompt;
         const en = getPromptBuilder('summary.standard')(content, 'en', planStub).userPrompt;
-        assert.match(it, /💬 Commenti:/);
-        assert.match(en, /💬 Comments:/);
+        assert.match(it, /Commenti:/);
+        assert.match(en, /Comments:/);
         assert.match(it, /Descrizione del video/);
     });
 
@@ -54,10 +54,10 @@ describe('summary schema parser (adversarial)', () => {
     const parse = getSchema('summary').parse;
 
     it('handles a raw JSON object followed by a trailing comment line', () => {
-        const raw = '{\n"bullets": [\n"• Fact one.",\n"• Fact two."\n],\n"max_word_count": 774\n}\n💬 Commenti: sentiment cauto.';
+        const raw = '{\n"bullets": [\n"• Fact one.",\n"• Fact two."\n],\n"max_word_count": 774\n}\nCommenti: sentiment cauto.';
         const b = parse(raw);
         assert.deepEqual(b.slice(0, 2), ['Fact one.', 'Fact two.']);
-        assert.ok(b.some((x) => x.startsWith('💬 Commenti:')));
+        assert.ok(b.some((x) => x.startsWith('Commenti:')));
         assert.ok(!b.some((x) => /max_word_count|"bullets"|^[{}\[\]]/.test(x)));
     });
 

@@ -4,7 +4,7 @@
 import { outputLanguageName, languageQualityNote } from './languages.mjs';
 import { UNTRUSTED_NOTE, fenceUntrusted } from './untrusted.mjs';
 
-const COMMENTS_LABEL = { it: 'Commenti', en: 'Comments', es: 'Comentarios', fr: 'Commentaires', de: 'Kommentare' };
+export const COMMENTS_LABEL = { it: 'Commenti', en: 'Comments', es: 'Comentarios', fr: 'Commentaires', de: 'Kommentare' };
 
 export function buildPrompt(content, language = 'it', plan) {
     const outputLanguage = outputLanguageName(language);
@@ -37,7 +37,7 @@ ${fenceUntrusted(description)}`;
         const commentsLabel = COMMENTS_LABEL[language] || COMMENTS_LABEL.it;
         userPrompt += `
 
-Commenti degli utenti (NON usarli per il nucleo). Sintetizzali in UN SOLO bullet finale, aggiuntivo rispetto ai ${plan.bulletCount} del nucleo, scritto in ${outputLanguage}, che inizi ESATTAMENTE con "💬 ${commentsLabel}:" e indichi in breve di cosa si discute e il sentiment prevalente:
+Commenti degli utenti (NON usarli per il nucleo). Sintetizzali in UN SOLO bullet finale, aggiuntivo rispetto ai ${plan.bulletCount} del nucleo, scritto in ${outputLanguage}, che inizi ESATTAMENTE con "${commentsLabel}:" e indichi in breve di cosa si discute e il sentiment prevalente:
 ${fenceUntrusted(comments.join('\n'))}`;
     }
 

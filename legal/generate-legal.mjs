@@ -26,5 +26,5 @@ export function generateLegal(brandId) {
 if (import.meta.url === `file://${process.argv[1]}`) {
     const brandId = process.argv[2];
     if (!brandId) { console.error('uso: node legal/generate-legal.mjs <brand>'); process.exit(1); }
-    console.log('✓', generateLegal(brandId));
+    console.log('ok', generateLegal(brandId));
 }

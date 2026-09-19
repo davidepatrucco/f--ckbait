@@ -149,9 +149,9 @@ export class SecretsManager {
             this.secrets = await getSecrets(secretNames);
             this.initialized = true;
             
-            console.log('✅ Secrets loaded successfully');
+            console.log('Secrets loaded successfully');
         } catch (error) {
-            console.error('❌ Failed to initialize secrets:', error);
+            console.error('Failed to initialize secrets:', error);
             throw error;
         }
     }

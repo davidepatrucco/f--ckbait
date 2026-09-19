@@ -39,7 +39,7 @@
     }
     if (data.truncated) {
       const n = el('div'); n.className = 'note';
-      n.textContent = `⚠️ ${t('summarypage_truncated')}`;
+      n.textContent = t('summarypage_truncated');
       n.style.cssText = 'background:#FFF7E6;border:1px solid #FFE1A8;color:#8a6d3b;border-radius:6px;padding:8px 10px;font-size:12px;';
       root.appendChild(n);
     }

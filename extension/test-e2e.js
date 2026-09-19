@@ -155,50 +155,50 @@ test('Language detection from page', async () => {
 
 console.log('\nMANUAL TEST CHECKLIST\n');
 console.log('1. Load Extension');
-console.log('   ☐ Open chrome://extensions/');
-console.log('   ☐ Enable Developer Mode');
-console.log('   ☐ Click "Load unpacked"');
-console.log('   ☐ Select extension/ folder');
-console.log('   ☐ Verify extension loaded without errors\n');
+console.log('   [ ] Open chrome://extensions/');
+console.log('   [ ] Enable Developer Mode');
+console.log('   [ ] Click "Load unpacked"');
+console.log('   [ ] Select extension/ folder');
+console.log('   [ ] Verify extension loaded without errors\n');
 
 console.log('2. Test Authentication');
-console.log('   ☐ Click extension icon');
-console.log('   ☐ Enter test credentials');
-console.log('   ☐ Verify JWT token stored');
-console.log('   ☐ Check chrome.storage for token\n');
+console.log('   [ ] Click extension icon');
+console.log('   [ ] Enter test credentials');
+console.log('   [ ] Verify JWT token stored');
+console.log('   [ ] Check chrome.storage for token\n');
 
 console.log('3. Test Summarization');
-console.log('   ☐ Navigate to a webpage (e.g., news article)');
-console.log('   ☐ Click extension icon');
-console.log('   ☐ Click "Riassumi ora"');
-console.log('   ☐ If the page is not ready, use the single "Riprova" action');
-console.log('   ☐ Check stats (time saved, word count)\n');
+console.log('   [ ] Navigate to a webpage (e.g., news article)');
+console.log('   [ ] Click extension icon');
+console.log('   [ ] Click "Riassumi ora"');
+console.log('   [ ] If the page is not ready, use the single "Riprova" action');
+console.log('   [ ] Check stats (time saved, word count)\n');
 
 console.log('4. Test Error Scenarios');
-console.log('   ☐ Test with no auth token → should show login');
-console.log('   ☐ Test with expired token → should refresh');
-console.log('   ☐ Test with invalid page → should show error');
-console.log('   ☐ Test with no internet → should show error\n');
+console.log('   [ ] Test with no auth token → should show login');
+console.log('   [ ] Test with expired token → should refresh');
+console.log('   [ ] Test with invalid page → should show error');
+console.log('   [ ] Test with no internet → should show error\n');
 
 console.log('5. Test UI/UX');
-console.log('   ☐ Popup opens quickly (<500ms)');
-console.log('   ☐ Options are collapsed by default');
-console.log('   ☐ Account, plan, language, length and model are under Options');
-console.log('   ☐ A summary starts only after the explicit primary action\n');
+console.log('   [ ] Popup opens quickly (<500ms)');
+console.log('   [ ] Options are collapsed by default');
+console.log('   [ ] Account, plan, language, length and model are under Options');
+console.log('   [ ] A summary starts only after the explicit primary action\n');
 
 console.log('6. Test Different Page Types');
-console.log('   ☐ News article');
-console.log('   ☐ Blog post');
-console.log('   ☐ Documentation page');
-console.log('   ☐ Social media post');
-console.log('   ☐ E-commerce product page\n');
+console.log('   [ ] News article');
+console.log('   [ ] Blog post');
+console.log('   [ ] Documentation page');
+console.log('   [ ] Social media post');
+console.log('   [ ] E-commerce product page\n');
 
 console.log('7. Test Languages');
-console.log('   ☐ English page');
-console.log('   ☐ Italian page');
-console.log('   ☐ Spanish page');
-console.log('   ☐ French page');
-console.log('   ☐ German page\n');
+console.log('   [ ] English page');
+console.log('   [ ] Italian page');
+console.log('   [ ] Spanish page');
+console.log('   [ ] French page');
+console.log('   [ ] German page\n');
 
 // Run automated tests
 runTests();

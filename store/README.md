@@ -13,12 +13,12 @@ Per brand: `store/<brand>/listing.md` con nome store, categoria, descrizione bre
 shot-list screenshot.
 
 ## Cosa è pronto (facciamo noi)
-- ✅ Testi: nome, tagline, short/long description, keywords, giustificazione permessi.
-- ✅ URL legali/supporto (da brand.json, già hostati su S3).
+- [x] Testi: nome, tagline, short/long description, keywords, giustificazione permessi.
+- [x] URL legali/supporto (da brand.json, già hostati su S3).
 
 ## Cosa richiede l'estensione in esecuzione (fase QA / tua macchina)
-- ⬜ Screenshot 1280×800 (o 640×400): catturarli con la build del brand caricata nel browser.
-- ⬜ Immagini promo (marquee 1400×560, tile 440×280): grafica con wordmark + tagline.
+- [ ] Screenshot 1280×800 (o 640×400): catturarli con la build del brand caricata nel browser.
+- [ ] Immagini promo (marquee 1400×560, tile 440×280): grafica con wordmark + tagline.
 
 ## Pacchetto per lo store
 ```

@@ -367,11 +367,36 @@ Pacchetti pronti: `dist/<brand>-firefox-prod-1.3.2.zip`. Lint (`web-ext`): 0 err
 4. Il consenso ai dati è già dichiarato nel manifest (`data_collection_permissions`): dati richiesti *autenticazione, identificazione personale, contenuto del sito, attività di navigazione*; opzionale *tecnici e di interazione*. Versione minima Firefox 140 (desktop) e 142 (Android).
 5. AMO chiede il **codice sorgente** solo se il pacchetto è ottenuto con strumenti di build/minificazione. Qui i file sono copie non minificate più `brand-config.js`/`policy-config.js` generati: in caso di richiesta si allega il repository e `scripts/build-brand.mjs`.
 
-## E2. Safari
+## E2. Safari (macOS)
 
 Richiede macOS + Xcode e l'**Apple Developer Program (99 USD/anno)**. Passi: `node scripts/build-brand.mjs <brand> --env prod`, poi `xcrun safari-web-extension-converter dist/<brand>`, firma in Xcode, prova, e invio da App Store Connect (l'estensione è distribuita dentro un'app contenitore). Ultima priorità.
 
 ---
+
+## E3. iPhone e iPad — "Squeeze" dai menu di sistema
+
+Verificato sulla documentazione Apple (settembre 2026): `identity` "Not supported" (niente `launchWebAuthFlow`),
+`contextMenus` "Not supported in iOS", guideline 4.8 e 3.1.1.
+
+| Opzione | Dove appare | Web / PDF / video | Limite | Effort (stima) |
+|---|---|---|---|---|
+| **Share Extension** (consigliata) | Share sheet ovunque: Safari, Files, Quick Look, altre app | sì / sì / sì, stesso backend | Il risultato va mostrato in una UI nostra; non compare al long-press diretto | 6–9 gg |
+| Porting della Safari Web Extension | menu "aA" di Safari | solo pagine web | `identity` e `contextMenus` non supportati: OAuth da riscrivere, niente PDF/Quick Look | 5–8 gg, copre meno |
+| Voce nel menu long-press sui link | — | — | **Non esiste** su iOS (`SFSafariContextMenu` è solo macOS) | non fattibile |
+| Quick Look Preview Extension | anteprime di formati custom | — | nessun pulsante aggiungibile | non applicabile |
+| Shortcuts / App Intent | Share sheet solo se l'utente attiva "Mostra nella levata" | dipende | copertura affidata all'utente | basso, inaffidabile |
+
+**Percorso minimo:** app contenitore + una Share Extension che accetta URL web e file PDF, estrae il testo in
+Safari con `NSExtensionJavaScriptPreprocessingFile` (stessa logica di `content.js`), chiama `/summarize-url`
+e `/extract-pdf`, mostra il riassunto. Dal long-press su un link: "Condividi → Squeeze", un tocco in più.
+
+**Vincoli App Store:** 4.8 — con Google Sign-In serve anche Sign in with Apple (nuovo `/auth/apple`, 2–3 gg);
+3.1.1 — Premium venduto nell'app solo con In-App Purchase, non siamo una "reader app" (consiglio: l'app iOS
+non vende, mostra solo lo stato acquistato altrove; zona grigia in review); 5.1.1 — privacy, consenso,
+cancellazione account in-app. Apple Developer Program 99 $/anno. Non verificati: limite di memoria delle
+Share Extension (~120 MB, solo forum), `notifications` su Safari iOS.
+
+Totale stimato: 8–12 giorni-sviluppatore senza IAP.
 
 # PARTE F — Operatività dopo il lancio
 

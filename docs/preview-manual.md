@@ -2,7 +2,7 @@
 
 Grazie per provare **LemonSqueezer**: un'estensione per Chrome che riassume qualsiasi pagina web o video YouTube in un clic — bullet essenziali, tempo di lettura risparmiato, sintesi dei commenti.
 
-> ⚠️ **Questa è una preview su ambiente di test.** L'estensione è collegata al backend di *staging*: nessun pagamento reale, dati non di produzione. Serve solo a valutare il prodotto prima del lancio.
+> **Attenzione:** questa è una preview su ambiente di test. L'estensione è collegata al backend di *staging*: nessun pagamento reale, dati non di produzione. Serve solo a valutare il prodotto prima del lancio.
 
 ---
 
@@ -12,7 +12,7 @@ Grazie per provare **LemonSqueezer**: un'estensione per Chrome che riassume qual
 2. Apri Chrome e vai su `chrome://extensions`.
 3. In alto a destra attiva **Modalità sviluppatore** (Developer mode).
 4. Clicca **Carica estensione non pacchettizzata** (Load unpacked) e seleziona la **cartella scompattata**.
-5. L'icona di LemonSqueezer compare nella barra. Se non la vedi, clicca il tassello 🧩 e "pinna" LemonSqueezer.
+5. L'icona di LemonSqueezer compare nella barra. Se non la vedi, clicca l'icona delle estensioni (il tassello) e "pinna" LemonSqueezer.
 
 > Chrome mostrerà un avviso "estensioni in modalità sviluppatore" a ogni avvio: è normale per le installazioni dirette pre-store, non è un errore.
 
@@ -48,11 +48,11 @@ Durante la preview potresti trovare un limite di **1 riassunto al giorno**. Se t
 
 | Contenuto | Esito |
 |-----------|-------|
-| Articoli, blog, documentazione | ✅ estrazione e riassunto |
-| YouTube | ✅ riassunto da trascrizione |
-| Reddit | ✅ post + commenti principali |
-| Hacker News | ✅ story + commenti |
-| PDF (fino a ~50 pagine) | ✅ riassunto in scheda risultati |
+| Articoli, blog, documentazione | [x] estrazione e riassunto |
+| YouTube | [x] riassunto da trascrizione |
+| Reddit | [x] post + commenti principali |
+| Hacker News | [x] story + commenti |
+| PDF (fino a ~50 pagine) | [x] riassunto in scheda risultati |
 
 ---
 

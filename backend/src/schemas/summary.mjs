@@ -1,8 +1,13 @@
 // Output schema: summary (LemonSqueezer). Parser tollerante che ricava i bullet
 // da qualunque forma il modello restituisca. Logica estratta verbatim da openai.mjs.
 import { extractFirstJson } from './util.mjs';
+import { COMMENTS_LABEL } from '../prompts/summary.standard.mjs';
 
 export const name = 'summary';
+
+// Riconosce il bullet commenti dalla label localizzata (niente più emoji-marker).
+const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const COMMENTS_LINE_RE = new RegExp(`^(?:${Object.values(COMMENTS_LABEL).map(escapeRegExp).join('|')}):`);
 
 export function parse(response) {
     const clean = (s) => String(s).replace(/^\s*(?:[•*–-]|\d+[.)])\s*/, '').trim();
@@ -50,7 +55,7 @@ export function parse(response) {
     // Il bullet commenti può arrivare come riga di testo FUORI dal JSON del nucleo.
     for (const line of text.split(/\r?\n/)) {
         const trimmed = line.trim();
-        if (/^💬/.test(trimmed) && !bullets.includes(trimmed)) bullets.push(trimmed);
+        if (COMMENTS_LINE_RE.test(trimmed) && !bullets.includes(trimmed)) bullets.push(trimmed);
     }
 
     return bullets.filter(Boolean);

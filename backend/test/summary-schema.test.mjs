@@ -49,3 +49,23 @@ test('nessun segno di elenco residuo, in nessun ramo del parser', () => {
 test('scarta le voci vuote', () => {
     assert.deepEqual(parse(JSON.stringify({ bullets: ['Uno', '', '  ', 'Due'] })), ['Uno', 'Due']);
 });
+
+// Il bullet commenti si riconosce dalla label localizzata (COMMENTS_LABEL), non piu'
+// da un marker emoji: vedi backend/src/prompts/summary.standard.mjs.
+test('una riga "Commenti: ..." fuori dal JSON viene aggiunta una sola volta', () => {
+    const raw = `${JSON.stringify({ bullets: ['Uno', 'Due'] })}\nCommenti: sentiment cauto.`;
+    const bullets = parse(raw);
+    assert.deepEqual(bullets, ['Uno', 'Due', 'Commenti: sentiment cauto.']);
+});
+
+test('una riga "\u{1F4AC} Commenti: ..." (vecchio formato) non va in errore ne\' duplica', () => {
+    const raw = `${JSON.stringify({ bullets: ['Uno', 'Due'] })}\n\u{1F4AC} Commenti: sentiment cauto.`;
+    assert.doesNotThrow(() => parse(raw));
+    const bullets = parse(raw);
+    assert.deepEqual(bullets, ['Uno', 'Due']);
+});
+
+test('un bullet normale non viene scambiato per il bullet commenti', () => {
+    const bullets = parse(JSON.stringify({ bullets: ['Il commento generale sul mercato e positivo', 'Due'] }));
+    assert.deepEqual(bullets, ['Il commento generale sul mercato e positivo', 'Due']);
+});

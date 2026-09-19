@@ -122,6 +122,6 @@ const brands = process.argv.slice(2).filter(a => !a.startsWith('--'));
 const list = brands.length ? brands : Object.keys(COPY);
 for (const b of list) {
     const r = generate(b);
-    const warn = r.short > 132 ? ` ⚠️ short ${r.short}>132` : '';
-    console.log('✓', r.brandId, `(short ${r.short})` + warn);
+    const warn = r.short > 132 ? ` WARN short ${r.short}>132` : '';
+    console.log('ok', r.brandId, `(short ${r.short})` + warn);
 }

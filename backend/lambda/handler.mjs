@@ -158,7 +158,7 @@ function isYouTubeUrl(value) {
 // Handler per riassumere URL (con autenticazione)
 export async function summarizeUrlHandler(event) {
     const startTime = Date.now();
-    console.log('🚀 [TIMING] Handler started at:', new Date().toISOString());
+    console.log('[TIMING] Handler started at:', new Date().toISOString());
     
     try {
         if (event.httpMethod === 'OPTIONS') {
@@ -191,7 +191,7 @@ export async function summarizeUrlHandler(event) {
                 code: 'INVALID_JSON'
             });
         }
-        console.log('⚡ [TIMING] JSON parse took:', Date.now() - parseStartTime, 'ms');
+        console.log('[TIMING] JSON parse took:', Date.now() - parseStartTime, 'ms');
         
         if (!body.url || typeof body.url !== 'string') {
             return createResponse(400, {
@@ -268,7 +268,7 @@ export async function summarizeUrlHandler(event) {
             title = typeof body.title === 'string' && body.title.trim() ? body.title.trim() : 'Contenuto web';
             console.log('Using client-extracted page text:', { textLength: text.length });
         } else {
-            console.log('🌐 [TIMING] Starting fetch for URL:', body.url);
+            console.log('[TIMING] Starting fetch for URL:', body.url);
             const fetchStartTime = Date.now();
             try {
                 ({ text, title } = await fetchWebContent(body.url));
@@ -280,7 +280,7 @@ export async function summarizeUrlHandler(event) {
                 throw fetchErr;
             }
             fetchTime = Date.now() - fetchStartTime;
-            console.log('⚡ [TIMING] Web fetch took:', fetchTime, 'ms');
+            console.log('[TIMING] Web fetch took:', fetchTime, 'ms');
         }
         
         if (!text || text.length < 50) {
@@ -290,7 +290,7 @@ export async function summarizeUrlHandler(event) {
             });
         }
         
-        console.log(`📄 [TIMING] Extracted ${text.length} characters from URL`);
+        console.log(`[TIMING] Extracted ${text.length} characters from URL`);
 
         const sourceType = hasTranscript ? 'video' : 'web';
         const brandConfig = getBrand(brandId);
@@ -337,7 +337,7 @@ export async function summarizeUrlHandler(event) {
             const cacheStartTime = Date.now();
             const cachedSummary = await getCachedSummary(cacheInput);
             if (cachedSummary) {
-                console.log('✅ [CACHE] Content hash hit:', { elapsedMs: Date.now() - cacheStartTime });
+                console.log('[CACHE] Content hash hit:', { elapsedMs: Date.now() - cacheStartTime });
                 // Quota già prenotata sopra; il cache-hit consuma la prenotazione.
                 const entHit = getEntitlement(user, brandId);
                 return createResponse(200, {
@@ -355,11 +355,11 @@ export async function summarizeUrlHandler(event) {
                     user: { usage: entHit.usage, plan: entHit.plan, trialRemaining: entHit.trialRemaining }
                 });
             }
-            console.log('❌ [CACHE] Content hash miss:', { elapsedMs: Date.now() - cacheStartTime });
+            console.log('[CACHE] Content hash miss:', { elapsedMs: Date.now() - cacheStartTime });
         }
         
         const openaiStartTime = Date.now();
-        console.log('🤖 [TIMING] Starting OpenAI call...');
+        console.log('[TIMING] Starting OpenAI call...');
         let summary;
         try {
             summary = await summarizeWithOpenAI({
@@ -382,7 +382,7 @@ export async function summarizeUrlHandler(event) {
             throw err;
         }
         const openaiTime = Date.now() - openaiStartTime;
-        console.log('⚡ [TIMING] OpenAI call took:', openaiTime, 'ms');
+        console.log('[TIMING] OpenAI call took:', openaiTime, 'ms');
 
         console.log('Summary object received:', JSON.stringify(summary, null, 2));
 
@@ -398,9 +398,9 @@ export async function summarizeUrlHandler(event) {
         // Quota già prenotata prima di OpenAI; qui riflettiamo solo lo stato aggiornato.
         const entitlement = getEntitlement(user, brandId);
 
-        // 💾 SALVA IN CACHE SE POSSIBILE (solo schema summary)
+        // SALVA IN CACHE SE POSSIBILE (solo schema summary)
         if (cacheable && summary.text) {
-            console.log('💾 [CACHE] Saving to cache...');
+            console.log('[CACHE] Saving to cache...');
             try {
                 const processingTime = Date.now() - startTime;
                 await setCachedSummary(cacheInput, {
@@ -412,9 +412,9 @@ export async function summarizeUrlHandler(event) {
                     charsInput: text.length,
                     processingTimeMs: processingTime
                 });
-                console.log('✅ [CACHE] Successfully cached summary');
+                console.log('[CACHE] Successfully cached summary');
             } catch (cacheError) {
-                console.warn('⚠️ [CACHE] Failed to save to cache:', cacheError.message);
+                console.warn('[CACHE] Failed to save to cache:', cacheError.message);
                 // Non fallire per errori di cache
             }
         }
@@ -447,8 +447,8 @@ export async function summarizeUrlHandler(event) {
         }
         
         const totalTime = Date.now() - startTime;
-        console.log('🏁 [TIMING] Total request time:', totalTime, 'ms');
-        console.log('📊 [TIMING] Breakdown - Fetch:', fetchTime, 'ms, OpenAI:', openaiTime, 'ms, Other:', totalTime - fetchTime - openaiTime, 'ms');
+        console.log('[TIMING] Total request time:', totalTime, 'ms');
+        console.log('[TIMING] Breakdown - Fetch:', fetchTime, 'ms, OpenAI:', openaiTime, 'ms, Other:', totalTime - fetchTime - openaiTime, 'ms');
         
         // Schema summary (Lemon): risposta legacy invariata. Altri schemi (es. Scout):
         // envelope generico con `output` strutturato.

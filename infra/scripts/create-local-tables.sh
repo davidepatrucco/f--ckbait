@@ -2,7 +2,7 @@
 
 # create-local-tables.sh - Crea tabelle DynamoDB per test locali
 
-echo "🚀 Creazione tabelle DynamoDB locali per LemonSqueezer..."
+echo "Creazione tabelle DynamoDB locali per LemonSqueezer..."
 
 # Configurazione
 REGION="eu-west-1"
@@ -16,9 +16,9 @@ create_table_if_not_exists() {
     aws dynamodb describe-table --table-name "$table_name" --region "$REGION" >/dev/null 2>&1
     
     if [ $? -eq 0 ]; then
-        echo "✅ Tabella $table_name già esistente"
+        echo "Tabella $table_name già esistente"
     else
-        echo "📝 Creazione tabella $table_name..."
+        echo "Creazione tabella $table_name..."
         
         aws dynamodb create-table \
             --table-name "$table_name" \
@@ -30,9 +30,9 @@ create_table_if_not_exists() {
             --region "$REGION"
         
         if [ $? -eq 0 ]; then
-            echo "✅ Tabella $table_name creata con successo"
+            echo "Tabella $table_name creata con successo"
         else
-            echo "❌ Errore nella creazione della tabella $table_name"
+            echo "Errore nella creazione della tabella $table_name"
             exit 1
         fi
     fi
@@ -42,7 +42,7 @@ create_table_if_not_exists() {
 create_table_if_not_exists "$TABLE_NAME"
 
 echo ""
-echo "🎉 Configurazione completata!"
+echo "Configurazione completata!"
 echo ""
 echo "Per testare localmente, usa:"
 echo "export USERS_TABLE_NAME=$TABLE_NAME"
