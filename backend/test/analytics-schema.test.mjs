@@ -37,3 +37,22 @@ describe('E13 analytics event aligned to table schema', () => {
         assert.equal(ev.chars_input, 100);
     });
 });
+
+// Minimizzazione: email + URL completo + titolo, uniti, sono la cronologia di
+// navigazione di una persona identificabile e nessuna metrica li usa.
+it('buildAnalyticsEvent non conserva email, URL completo né titolo', async () => {
+    const { buildAnalyticsEvent, RETENTION_SECONDS } = await import('../src/analytics.mjs');
+    const ev = buildAnalyticsEvent({
+        eventType: 'summary_completed', userId: 'u1', userEmail: 'persona@example.com',
+        url: 'https://example.com/percorso/privato?token=segreto#sezione', title: 'Titolo riservato', brandId: 'scout'
+    });
+    assert.equal(ev.email, undefined, 'email conservata');
+    assert.equal(ev.url, undefined, 'URL completo conservato');
+    assert.equal(ev.title, undefined, 'titolo conservato');
+    assert.equal(ev.url_domain, 'example.com', 'il dominio serve alle metriche e resta');
+    assert.equal(ev.userId, 'u1');
+    assert.ok(!JSON.stringify(ev).includes('segreto'), 'un pezzo dell’URL e’ ancora nell’evento');
+    // Scadenza: ~13 mesi da ora.
+    const inSeconds = ev.ttl - Math.floor(Date.now() / 1000);
+    assert.ok(Math.abs(inSeconds - RETENTION_SECONDS) < 5, `ttl fuori scala: ${inSeconds}`);
+});

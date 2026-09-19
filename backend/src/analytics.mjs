@@ -37,6 +37,8 @@ export const CLIENT_ALLOWED_EVENT_TYPES = new Set([
     'login_completed', 'sidepanel_opened', 'result_copied', 'source_opened', 'paywall_viewed'
 ]);
 
+export const RETENTION_SECONDS = 400 * 24 * 3600; // ~13 mesi
+
 export function buildAnalyticsEvent(eventData) {
     const now = new Date();
     return {
@@ -50,11 +52,13 @@ export function buildAnalyticsEvent(eventData) {
         event_type: ALLOWED_EVENT_TYPES.has(eventData.eventType) ? eventData.eventType : (eventData.eventType ? 'unknown' : 'summary_completed'),
         source: eventData.source === 'client' ? 'client' : 'server',
         brand_id: eventData.brandId || 'lemonsqueezer',
-        email: eventData.userEmail,
+        // Minimizzazione: dell'evento si conserva solo il DOMINIO. Email, URL completo e
+        // titolo della pagina non servono a nessuna metrica (tutte le aggregazioni usano
+        // userId e url_domain) e, uniti, sarebbero la cronologia di navigazione di una
+        // persona identificabile: dato che la privacy policy non dichiarava e che le
+        // policy dello store richiedono di limitare al necessario.
         plan: eventData.userPlan,
-        url: eventData.url,
         url_domain: extractDomain(eventData.url),
-        title: eventData.title,
         language: eventData.language || 'it',
         chars_input: eventData.charsInput || 0,
         chars_output: eventData.charsOutput || 0,
@@ -63,6 +67,8 @@ export function buildAnalyticsEvent(eventData) {
         cost_estimate: eventData.costEstimate || 0,
         duration_ms: eventData.durationMs || 0,
         date_partition: getDatePartition(), // Per query efficienti
+        // Scadenza (DynamoDB TTL): gli eventi non si conservano oltre 13 mesi.
+        ttl: Math.floor(now.getTime() / 1000) + RETENTION_SECONDS,
         user_agent: eventData.userAgent,
         browser: eventData.browser || null,
         client_version: eventData.clientVersion || null,
@@ -154,7 +160,6 @@ export async function getUserStats(userId, days = 30) {
             domainBreakdown: getDomainBreakdown(events),
             recentActivity: events.slice(-10).map(e => ({
                 date: e.created_at || (e.timestamp ? new Date(e.timestamp).toISOString() : null),
-                url: e.url,
                 domain: e.url_domain,
                 duration: e.duration_ms,
                 success: e.success
