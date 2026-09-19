@@ -28,6 +28,8 @@ executive, brief, business, meeting, summary, produttività
 - **host `*://*/*` / scripting / activeTab**: leggere il testo della pagina attiva quando l'utente chiede un riassunto. Nessuna lettura in background.
 - **storage**: salvare token di login e preferenze (lingua, livello di sintesi).
 - **identity**: login Google (OAuth) per gestire quota e piano.
+- **contextMenus**: voce "Riassumi" nel menu contestuale su link e pagina, attivata solo dall'utente.
+- **notifications**: avviso di completamento quando l'analisi termina con il popup chiuso.
 - **Dati**: il contenuto della pagina è elaborato al momento per generare l'output; non è venduto a terzi. Sub-processor: OpenAI (elaborazione), AWS (hosting), Google (login), Stripe (pagamenti). Vedi privacy policy.
 
 ## Screenshot richiesti (da catturare con l'estensione in esecuzione)
@@ -35,5 +37,5 @@ Chrome Web Store: 1280×800 o 640×400 (min 1, max 5). Consigliati 4:
 1. Popup del brand aperto su un articolo reale (tema/logo del brand visibili).
 2. Risultato: output del brand su un articolo (bullet / attention score / insight / brief / noise).
 3. Selettore lingua + livello di sintesi.
-4. Esempio su YouTube (descrizione + sintesi commenti) o su una testata nota.
+4. Esempio su un video (YouTube o qualsiasi video con sottotitoli), su un PDF, oppure su una testata nota.
 Promo (opzionali): marquee 1400×560, small tile 440×280 — grafica con wordmark + tagline del brand.

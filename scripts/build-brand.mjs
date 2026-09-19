@@ -33,8 +33,23 @@ function applyBrowserManifest(manifest, browser, brandId) {
     // Firefox usa un event page: importScripts non è disponibile, quindi le dipendenze
     // (incluso source-decision.js per parseVtt) vanno dichiarate qui.
     manifest.background = { scripts: ['browser-polyfill.js', 'brand-config.js', 'policy-config.js', 'source-decision.js', swFile] };
+    // data_collection_permissions è obbligatorio per le nuove inserzioni AMO (dal 2025-11-03).
+    // Le categorie rispecchiano cosa il prodotto invia/salva davvero: account Google OAuth
+    // = authenticationInfo; email/nome = personallyIdentifyingInfo; testo pagina/sottotitoli/
+    // audio inviati al backend = websiteContent; URL e dominio delle pagine riassunte salvati
+    // in analytics = browsingActivity; statistiche d'uso = technicalAndInteraction (opzionale).
+    // strict_min_version alzata a 140 perché la consent UI nativa esiste solo da quella versione.
     manifest.browser_specific_settings = {
-        gecko: { id: `${brandId}@bifa.digital`, strict_min_version: '121.0' }
+        gecko: {
+            id: `${brandId}@bifa.digital`,
+            strict_min_version: '140.0',
+            data_collection_permissions: {
+                required: ['authenticationInfo', 'personallyIdentifyingInfo', 'websiteContent', 'browsingActivity'],
+                optional: ['technicalAndInteraction']
+            }
+        },
+        // Firefox per Android supporta data_collection_permissions solo da 142 (desktop: 140).
+        gecko_android: { strict_min_version: '142.0' }
     };
     return manifest;
 }

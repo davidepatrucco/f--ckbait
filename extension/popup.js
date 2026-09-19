@@ -256,6 +256,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
     const brandName = (BRAND && (BRAND.displayName || BRAND.storeName)) || 'LemonSqueezer';
+    document.title = (BRAND && (BRAND.storeName || BRAND.displayName)) || document.title;
     for (const el of document.querySelectorAll('[data-i18n-brand]')) {
         const translated = message(el.getAttribute('data-i18n-brand'), [brandName]);
         if (translated) el.textContent = translated;

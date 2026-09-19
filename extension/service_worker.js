@@ -1141,7 +1141,7 @@ async function showLoadingModal(url, tabId) {
         chrome.notifications.create({
             type: 'basic',
             iconUrl: 'assets/icon-48.png',
-            title: 'LemonSqueezer - TL;DR',
+            title: (globalThis.__BRAND__ && (globalThis.__BRAND__.storeName || globalThis.__BRAND__.displayName)) || 'LemonSqueezer - TL;DR',
             message: chrome.i18n.getMessage('sw_notif_analyzing') || 'Analyzing...'
         });
     }

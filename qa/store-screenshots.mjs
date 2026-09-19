@@ -1,25 +1,34 @@
 // store-screenshots.mjs — genera gli screenshot 1280x800 per la scheda dello store
 // caricando l'estensione REALE in Chromium e producendo un riassunto REALE.
 //
-//   node qa/store-screenshots.mjs <authToken>
+//   node qa/store-screenshots.mjs [brand] <authToken> [articleUrl] [label]
 //
+// brand (opzionale, default lemonsqueezer) è l'id in brands/<brand>/brand.json.
 // Il token è un JWT di un utente premium sull'ambiente a cui punta la build
-// (dist/lemonsqueezer). Nessun dato inventato: le schermate mostrano il prodotto
-// che gira davvero. Output in store/lemonsqueezer/screenshots/.
+// (dist/<brand>). Senza token lo storage non viene seminato: popup e riassunto
+// mostrano lo stato reale "non autenticato" (nessun dato inventato). Output in
+// store/<brand>/screenshots/.
 import { chromium } from 'playwright';
-import { mkdirSync, rmSync } from 'node:fs';
+import { mkdirSync, rmSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const EXT = join(ROOT, 'dist', 'lemonsqueezer');
-const OUT = join(ROOT, 'store', 'lemonsqueezer', 'screenshots');
-const PROFILE = join(ROOT, 'qa', '.chrome-profile');
-const TOKEN = process.argv[2];
-const ARTICLE = process.argv[3] || 'https://en.wikipedia.org/wiki/Large_language_model';
-const LABEL = process.argv[4] || 'testo';
 
-if (!TOKEN) { console.error('uso: node qa/store-screenshots.mjs <authToken> [articleUrl] [label]'); process.exit(1); }
+const args = process.argv.slice(2);
+const BRAND = (args[0] && existsSync(join(ROOT, 'brands', args[0], 'brand.json'))) ? args.shift() : 'lemonsqueezer';
+const EXT = join(ROOT, 'dist', BRAND);
+const OUT = join(ROOT, 'store', BRAND, 'screenshots');
+const PROFILE = join(ROOT, 'qa', '.chrome-profile');
+const TOKEN = args[0];
+const ARTICLE = args[1] || 'https://en.wikipedia.org/wiki/Large_language_model';
+const LABEL = args[2] || 'testo';
+
+if (!existsSync(join(EXT, 'manifest.json'))) {
+    console.error(`manca ${EXT} — esegui prima: node scripts/build-brand.mjs ${BRAND} --env staging --browser chromium`);
+    process.exit(1);
+}
+if (!TOKEN) console.warn('! nessun authToken passato: popup e riassunto mostreranno lo stato reale "non autenticato" (nessun dato inventato)');
 
 const shot = async (target, name) => {
     await target.screenshot({ path: join(OUT, name) });
@@ -42,13 +51,15 @@ async function main() {
     const extId = new URL(sw.url()).host;
     console.log('extension id:', extId);
 
-    await sw.evaluate(async (token) => {
-        await chrome.storage.local.set({
-            authToken: token,
-            user: { email: 'demo@bifa.digital', plan: 'premium', name: 'Demo' },
-            summaryLanguage: 'it'
-        });
-    }, TOKEN);
+    if (TOKEN) {
+        await sw.evaluate(async (token) => {
+            await chrome.storage.local.set({
+                authToken: token,
+                user: { email: 'demo@bifa.digital', plan: 'premium', name: 'Demo' },
+                summaryLanguage: 'it'
+            });
+        }, TOKEN);
+    }
 
     // 1. Popup dell'estensione, alla sua dimensione naturale. L'email dell'account di
     //    test viene sostituita con una neutra: è un asset pubblico, non deve contenere

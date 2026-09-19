@@ -407,7 +407,7 @@
             <div class="lemonsqueezer-modal-overlay">
                 <div class="lemonsqueezer-modal-content">
                     <div class="lemonsqueezer-modal-header">
-                        <h3>LemonSqueezer - TL;DR</h3>
+                        <h3>${esc(brandTitle())}</h3>
                         <button class="lemonsqueezer-modal-close">&times;</button>
                     </div>
                     <div class="lemonsqueezer-modal-body" id="lemonsqueezer-modal-body">
@@ -1713,6 +1713,13 @@
     function shortUrl(u) {
         const s = String(u || '');
         return s.length > 90 ? `${s.slice(0, 87)}…` : s;
+    }
+
+    // Nome prodotto del brand corrente: i sorgenti sono condivisi fra 5 brand, quindi
+    // nessuna stringa visibile puo' essere fissa. brand-config.js e' caricato prima.
+    function brandTitle() {
+        const b = globalThis.__BRAND__;
+        return (b && (b.storeName || b.displayName)) || 'LemonSqueezer - TL;DR';
     }
 
     function setModalProgress(message) {

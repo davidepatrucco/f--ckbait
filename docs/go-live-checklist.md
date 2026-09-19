@@ -31,8 +31,7 @@ dashboard interna, entità **Bifa SRLS**, support `contact@bifa.digital`.
 2. **Stripe LIVE** (dopo A1): segui `docs/runbooks/stripe-live-setup.md`:
    crea prodotti/prezzi LIVE per i 5 brand → webhook endpoint → `bash infra/setup-stripe-live.sh`
    con i valori → ridispiega prod.
-3. **ALLOWED_ORIGINS prod**: aggiungerai l'id dell'estensione dopo la prima submission
-   (vedi Fase 4); per ora salta.
+3. **ALLOWED_ORIGINS prod**: non blocca l'estensione (`host_permissions` la esenta dal CORS, verificato su prod); resta utile per origin web e buona igiene — per ora salta.
 
 ### Fase 2 — Sito marketing (dopo A1, A5)
 4. Inserisci i prezzi nei template (`apps/website/template/pricing.html`) o nel generatore.
@@ -52,8 +51,9 @@ dashboard interna, entità **Bifa SRLS**, support `contact@bifa.digital`.
 ### Fase 4 — Submission store (launch wave, ordine A-deciso)
 10. Pacchetto: `node scripts/package-brand.mjs <brand>` (env=prod di default) → zip.
 11. Submit al Chrome Web Store con la copy di `store/<brand>/listing.md` + screenshot.
-    Alla pubblicazione ottieni l'**extension id** → aggiungilo a `ALLOWED_ORIGINS` di prod
-    (var GitHub environment/param) e ridispiega prod.
+    Alla pubblicazione ottieni l'**extension id** → registra il redirect OAuth
+    `https://<id>.chromiumapp.org/` sul client Google (blocca il login se saltato);
+    aggiungerlo ad `ALLOWED_ORIGINS` di prod resta buona igiene ma non è necessario per l'estensione.
 12. Ripeti per Firefox (AMO) e Safari (`xcrun safari-web-extension-converter`, Xcode).
 13. Lancia i 5 brand ravvicinati (48–72h) nell'ordine deciso.
 
@@ -65,6 +65,6 @@ dashboard interna, entità **Bifa SRLS**, support `contact@bifa.digital`.
 ---
 
 ## C. Stato asset
-- **Brand**: ✅ completi (5 pack, icone, nomi/tagline/colori, legali su S3, validate 0/0).
+- **Brand**: ✅ completi (5 pack, icone, nomi/tagline/colori, validate 0/0). Legali su S3 **v2.1** (19 set 2026, coprono PDF/video/trascrizione), pubblicati per tutti i 5 brand; la card di login dell'estensione ora linka Termini/Privacy.
 - **Sito**: 🟡 generatore + template pronti; da finalizzare (prezzi) + hostare (dominio).
-- **Store copy**: ✅ testi pronti (`store/`); ⬜ screenshot/promo (Fase 3).
+- **Store copy**: ✅ testi pronti (`store/`); screenshot: lemonsqueezer pronti (6), ⬜ altri brand (Fase 3).

@@ -48,8 +48,8 @@ Versione da `extension/manifest.json` (single source, condivisa). `dist/` è git
 
 ## 4. Post-pubblicazione (per ogni estensione pubblicata)
 Ottenuto l'**extension ID** dallo store:
-1. **ALLOWED_ORIGINS**: aggiungi `chrome-extension://<id>` alla variabile `ALLOWED_ORIGINS` dell'ambiente **prod** (GitHub → Environment `production` → Variables), poi ridispiega prod (`Deploy backend PROD` manuale). Serve per il CORS del backend.
-2. **OAuth Google**: aggiungi il redirect `https://<id>.chromiumapp.org/` agli URI autorizzati del client OAuth (Google Cloud Console) e verifica `extension/oauth-config.js`. Senza questo, il **login non funziona** sull'estensione pubblicata.
+1. **ALLOWED_ORIGINS** (non bloccante per l'estensione): `host_permissions` (`http://*/*`/`https://*/*`) esenta le richieste dell'estensione dal CORS, quindi l'estensione funziona anche senza aggiungere `chrome-extension://<id>` — verificato su prod (`/config` 200, `/auth/verify` 401 come atteso) con un build il cui id non era in `ALLOWED_ORIGINS`. La variabile resta rilevante per origin web (es. il sito marketing) e va comunque tenuta aggiornata per igiene.
+2. **OAuth Google (blocca il login)**: aggiungi il redirect `https://<id>.chromiumapp.org/` agli URI autorizzati del client OAuth (Google Cloud Console) e verifica `extension/oauth-config.js`. Senza questo, il **login non funziona** sull'estensione pubblicata.
 3. **Smoke reale**: installa dallo store, login, "Riassumi" su un articolo, verifica output del brand e checkout (Stripe LIVE).
 
 ---
