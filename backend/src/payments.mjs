@@ -184,6 +184,21 @@ export async function createCheckoutSession(userId, userEmail, brand = DEFAULT_B
                     brand,
                     plan_type: planType
                 }
+            },
+            // BIF-48: consenso esplicito ai Termini + rinuncia al recesso, richiesti perché il
+            // servizio (accesso digitale immediato) inizia prima della scadenza dei 14 giorni
+            // (Direttiva 2011/83/UE art. 16, lett. m). Richiede che l'URL dei Termini sia
+            // configurato nel Dashboard Stripe (Settings > Public details), altrimenti Stripe
+            // rifiuta la creazione della sessione: NON verificato in questo ambiente (nessuna
+            // chiamata reale a Stripe consentita).
+            consent_collection: {
+                terms_of_service: 'required'
+            },
+            custom_text: {
+                terms_of_service_acceptance: {
+                    // TODO(BIF-52): testo da approvare dal legale
+                    message: "Confermando il pagamento accetti i Termini di Servizio e richiedi l'esecuzione immediata del servizio digitale (accesso immediato ai riassunti). Ai sensi dell'art. 16, lett. m) della Direttiva 2011/83/UE, rinunci al diritto di recesso di 14 giorni una volta iniziata l'esecuzione.\n\nBy confirming payment you accept the Terms of Service and request immediate performance of this digital service (immediate access to summaries). Under Art. 16(m) of EU Directive 2011/83, you waive your 14-day right of withdrawal once performance has begun."
+                }
             }
         });
 
@@ -404,6 +419,34 @@ export async function cancelSubscription(userId, brandId = DEFAULT_BRAND) {
     } catch (error) {
         console.error('Error canceling subscription:', error);
         throw new Error('Errore cancellazione subscription: ' + error.message);
+    }
+}
+
+/**
+ * Crea una sessione del Customer Portal Stripe (BIF-47): permette all'utente di
+ * gestire l'abbonamento esistente (metodo di pagamento, fatture, cancellazione)
+ * senza passare dal supporto. Richiede un customer Stripe già associato al brand.
+ */
+export async function createPortalSession(userId, brandId = DEFAULT_BRAND) {
+    try {
+        const subscription = await getUserSubscription(userId, brandId);
+        if (!subscription || !subscription.stripe_customer_id) {
+            const e = new Error('Nessun abbonamento Stripe trovato per questo brand');
+            e.code = 'NO_SUBSCRIPTION';
+            throw e;
+        }
+
+        const { stripe } = await initializeStripe();
+        const session = await stripe.billingPortal.sessions.create({
+            customer: subscription.stripe_customer_id,
+            return_url: getBrandSite(brandId)
+        });
+
+        return { url: session.url };
+    } catch (error) {
+        if (error.code === 'NO_SUBSCRIPTION') throw error;
+        console.error('Error creating portal session:', error);
+        throw new Error('Errore creazione sessione portale: ' + error.message);
     }
 }
 

@@ -1,0 +1,218 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  BIF-50: CloudWatch alarms (Lambda errors/throttles, API Gateway 5XX) + SNS
+  email alert + monthly cost budget (prod only) for the reading-intelligence
+  backend defined in sam-template-simple.yaml. Standalone stack, deployed
+  separately from the SAM stack.
+
+Parameters:
+  Env:
+    Type: String
+    Default: prod
+    AllowedValues: ['dev', 'staging', 'prod']
+    Description: Environment to monitor. Must match the SAM stack's Environment param.
+  AlertEmail:
+    Type: String
+    Description: Email address subscribed to alarm and budget notifications.
+  MonthlyBudgetUsd:
+    Type: Number
+    Default: 50
+    Description: Monthly AWS cost budget in USD (account-wide; only enforced when Env=prod).
+
+Conditions:
+  IsProd: !Equals [!Ref Env, 'prod']
+
+Resources:
+  AlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub 'reading-intelligence-alerts-${Env}'
+
+  AlertTopicEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref AlertTopic
+      Protocol: email
+      Endpoint: !Ref AlertEmail
+
+  # Function names must match sam-template-simple.yaml's FunctionName !Sub patterns
+  # (reading-intelligence-<fn>-${Environment}), confirmed against the live
+  # lemonsqueezer-dev/staging/prod stacks.
+  SummarizeErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'reading-intelligence-${Env}-summarize-errors'
+      AlarmDescription: !Sub 'reading-intelligence-summarize-${Env} Errors >= 5 in 5 min'
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Sub 'reading-intelligence-summarize-${Env}'
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  SummarizeThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'reading-intelligence-${Env}-summarize-throttles'
+      AlarmDescription: !Sub 'reading-intelligence-summarize-${Env} Throttles >= 1 in 5 min'
+      Namespace: AWS/Lambda
+      MetricName: Throttles
+      Dimensions:
+        - Name: FunctionName
+          Value: !Sub 'reading-intelligence-summarize-${Env}'
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  StripeWebhookErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'reading-intelligence-${Env}-stripe-webhook-errors'
+      AlarmDescription: !Sub 'reading-intelligence-stripe-webhook-${Env} Errors >= 5 in 5 min'
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Sub 'reading-intelligence-stripe-webhook-${Env}'
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  StripeWebhookThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'reading-intelligence-${Env}-stripe-webhook-throttles'
+      AlarmDescription: !Sub 'reading-intelligence-stripe-webhook-${Env} Throttles >= 1 in 5 min'
+      Namespace: AWS/Lambda
+      MetricName: Throttles
+      Dimensions:
+        - Name: FunctionName
+          Value: !Sub 'reading-intelligence-stripe-webhook-${Env}'
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  TranscribeWorkerErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'reading-intelligence-${Env}-transcribe-worker-errors'
+      AlarmDescription: !Sub 'reading-intelligence-transcribe-worker-${Env} Errors >= 5 in 5 min'
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Sub 'reading-intelligence-transcribe-worker-${Env}'
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  TranscribeWorkerThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'reading-intelligence-${Env}-transcribe-worker-throttles'
+      AlarmDescription: !Sub 'reading-intelligence-transcribe-worker-${Env} Throttles >= 1 in 5 min'
+      Namespace: AWS/Lambda
+      MetricName: Throttles
+      Dimensions:
+        - Name: FunctionName
+          Value: !Sub 'reading-intelligence-transcribe-worker-${Env}'
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  # LemonSqueezerAPI in sam-template-simple.yaml is AWS::Serverless::Api (REST API,
+  # not HTTP API) with no explicit Name property, so SAM defaults the underlying
+  # RestApi's Name to the SAM stack name. Confirmed live: the deployed REST APIs are
+  # named "lemonsqueezer-dev" / "lemonsqueezer-staging" / "lemonsqueezer-prod"
+  # (matching infra/scripts/deploy.sh's STACK_NAME="lemonsqueezer-${ENVIRONMENT}"),
+  # with stage names dev/staging/prod. Metric namespace for REST APIs is
+  # AWS/ApiGateway with dimensions ApiName + Stage.
+  ApiGateway5xxAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'reading-intelligence-${Env}-apigw-5xx'
+      AlarmDescription: !Sub 'lemonsqueezer-${Env} API Gateway 5XXError Sum >= 5 in 5 min'
+      Namespace: AWS/ApiGateway
+      MetricName: 5XXError
+      Dimensions:
+        - Name: ApiName
+          Value: !Sub 'lemonsqueezer-${Env}'
+        - Name: Stage
+          Value: !Ref Env
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  # Budgets are account-global (not per-region/per-stack), so this is created only
+  # once, when Env=prod, to avoid duplicate account budgets from dev/staging deploys.
+  MonthlyCostBudget:
+    Type: AWS::Budgets::Budget
+    Condition: IsProd
+    Properties:
+      Budget:
+        BudgetName: reading-intelligence-monthly-cost
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        BudgetLimit:
+          Amount: !Ref MonthlyBudgetUsd
+          Unit: USD
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 50
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref AlertEmail
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 80
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref AlertEmail
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 100
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref AlertEmail
+
+Outputs:
+  AlertTopicArn:
+    Description: SNS topic ARN receiving alarm and budget notifications.
+    Value: !Ref AlertTopic

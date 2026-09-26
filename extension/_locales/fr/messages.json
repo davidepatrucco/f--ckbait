@@ -89,6 +89,12 @@
   "popup_upgrade_error": {
     "message": "Échec du changement de forfait : $1"
   },
+  "popup_manage_subscription": {
+    "message": "Gérer l'abonnement"
+  },
+  "popup_manage_subscription_error": {
+    "message": "Impossible d'ouvrir la page d'abonnement : $1"
+  },
   "popup_summarize_failed": {
     "message": "Impossible de lancer le résumé"
   },
@@ -469,5 +475,23 @@
   },
   "popup_privacy": {
     "message": "Confidentialité"
+  },
+  "popup_delete_account": {
+    "message": "Supprimer le compte"
+  },
+  "popup_delete_account_warning": {
+    "message": "Votre compte, vos données d'utilisation et tout abonnement actif seront annulés et supprimés. Cette action est irréversible."
+  },
+  "popup_delete_account_cancel": {
+    "message": "Annuler"
+  },
+  "popup_delete_account_confirm": {
+    "message": "Supprimer définitivement"
+  },
+  "popup_delete_account_retry": {
+    "message": "Impossible de supprimer le compte pour le moment. Veuillez réessayer plus tard."
+  },
+  "popup_delete_account_done": {
+    "message": "Votre compte a été supprimé."
   }
 }

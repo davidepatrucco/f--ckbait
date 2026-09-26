@@ -89,6 +89,12 @@
   "popup_upgrade_error": {
     "message": "Upgrade failed: $1"
   },
+  "popup_manage_subscription": {
+    "message": "Manage subscription"
+  },
+  "popup_manage_subscription_error": {
+    "message": "Couldn't open the subscription page: $1"
+  },
   "popup_summarize_failed": {
     "message": "Couldn't start the summary"
   },
@@ -469,5 +475,23 @@
   },
   "popup_privacy": {
     "message": "Privacy"
+  },
+  "popup_delete_account": {
+    "message": "Delete account"
+  },
+  "popup_delete_account_warning": {
+    "message": "Your account, usage data, and any active subscriptions will be cancelled and deleted. This cannot be undone."
+  },
+  "popup_delete_account_cancel": {
+    "message": "Cancel"
+  },
+  "popup_delete_account_confirm": {
+    "message": "Delete permanently"
+  },
+  "popup_delete_account_retry": {
+    "message": "Couldn't delete the account right now. Please try again later."
+  },
+  "popup_delete_account_done": {
+    "message": "Your account has been deleted."
   }
 }

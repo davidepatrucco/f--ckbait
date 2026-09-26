@@ -89,6 +89,12 @@
   "popup_upgrade_error": {
     "message": "Upgrade fehlgeschlagen: $1"
   },
+  "popup_manage_subscription": {
+    "message": "Abonnement verwalten"
+  },
+  "popup_manage_subscription_error": {
+    "message": "Die Abo-Seite konnte nicht geöffnet werden: $1"
+  },
   "popup_summarize_failed": {
     "message": "Zusammenfassung konnte nicht gestartet werden"
   },
@@ -469,5 +475,23 @@
   },
   "popup_privacy": {
     "message": "Datenschutz"
+  },
+  "popup_delete_account": {
+    "message": "Konto löschen"
+  },
+  "popup_delete_account_warning": {
+    "message": "Ihr Konto, Nutzungsdaten und alle aktiven Abonnements werden gekündigt und gelöscht. Dies kann nicht rückgängig gemacht werden."
+  },
+  "popup_delete_account_cancel": {
+    "message": "Abbrechen"
+  },
+  "popup_delete_account_confirm": {
+    "message": "Endgültig löschen"
+  },
+  "popup_delete_account_retry": {
+    "message": "Das Konto konnte gerade nicht gelöscht werden. Bitte versuchen Sie es später erneut."
+  },
+  "popup_delete_account_done": {
+    "message": "Ihr Konto wurde gelöscht."
   }
 }

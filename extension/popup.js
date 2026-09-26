@@ -126,7 +126,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const userName = document.getElementById('userName');
     const userPlan = document.getElementById('userPlan');
     const logoutBtn = document.getElementById('logoutBtn');
-    
+    const deleteAccountSection = document.getElementById('deleteAccountSection');
+    const deleteAccountBtn = document.getElementById('deleteAccountBtn');
+    const deleteAccountConfirm = document.getElementById('deleteAccountConfirm');
+    const deleteAccountActions = document.getElementById('deleteAccountActions');
+    const deleteAccountStatus = document.getElementById('deleteAccountStatus');
+    const deleteAccountCancelBtn = document.getElementById('deleteAccountCancelBtn');
+    const deleteAccountConfirmBtn = document.getElementById('deleteAccountConfirmBtn');
+
     let currentUser = null;
 
     // Carica configurazione salvata
@@ -544,12 +551,34 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             // Aggiunge bottone Premium per utenti free
             addPremiumButtonIfNeeded(plan);
+            // Aggiunge bottone "Gestisci abbonamento" per utenti premium (BIF-47)
+            addManageSubscriptionButtonIfNeeded(plan);
         } else {
             // Utente non loggato
             loginCard.style.display = 'block';
             userInfo.style.display = 'none';
             summarizeBtn.disabled = true;
         }
+        if (deleteAccountSection) deleteAccountSection.hidden = !(currentUser && currentUser.email);
+        resetDeleteAccountUI();
+    }
+
+    // Riporta il pannello "elimina account" allo stato iniziale (bottone visibile,
+    // conferma chiusa, nessun messaggio di stato). Richiamata ad ogni cambio di stato
+    // auth cosi' un logout/login non lascia il pannello a meta'.
+    function resetDeleteAccountUI() {
+        if (deleteAccountBtn) deleteAccountBtn.hidden = false;
+        if (deleteAccountConfirm) deleteAccountConfirm.hidden = true;
+        const deleteWarning = deleteAccountConfirm?.querySelector('.delete-confirm-text');
+        if (deleteWarning) deleteWarning.hidden = false;
+        if (deleteAccountActions) deleteAccountActions.hidden = false;
+        if (deleteAccountStatus) {
+            deleteAccountStatus.hidden = true;
+            deleteAccountStatus.textContent = '';
+            deleteAccountStatus.classList.remove('is-error', 'is-success');
+        }
+        if (deleteAccountCancelBtn) deleteAccountCancelBtn.disabled = false;
+        if (deleteAccountConfirmBtn) deleteAccountConfirmBtn.disabled = false;
     }
 
     function setEmailLoginError(message) {
@@ -746,7 +775,84 @@ if (!email || !password) {
             alert(t('popup_upgrade_error', [String(error.message)], `Upgrade failed: ${error.message}`));
         }
     }
-    
+
+    // Bottone "Gestisci abbonamento" per utenti premium (BIF-47): apre il Customer
+    // Portal Stripe (metodo di pagamento, fatture, cancellazione) senza supporto.
+    function addManageSubscriptionButtonIfNeeded(plan) {
+        const existingBtn = document.getElementById('manageSubscriptionBtn');
+        if (existingBtn) existingBtn.remove();
+
+        if (plan === 'premium') {
+            const manageBtn = document.createElement('button');
+            manageBtn.id = 'manageSubscriptionBtn';
+            manageBtn.className = 'premium-btn';
+            manageBtn.textContent = t('popup_manage_subscription', undefined, 'Manage subscription');
+            manageBtn.style.cssText = `
+                width: 100%;
+                padding: 10px 12px;
+                margin-top: 10px;
+                background: #f3f4f6;
+                color: #111827;
+                border: 1px solid #d1d5db;
+                border-radius: 10px;
+                font-size: 13px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: background 0.2s ease;
+            `;
+
+            manageBtn.addEventListener('mouseover', () => {
+                manageBtn.style.background = '#e5e7eb';
+            });
+            manageBtn.addEventListener('mouseout', () => {
+                manageBtn.style.background = '#f3f4f6';
+            });
+
+            manageBtn.addEventListener('click', handleManageSubscription);
+
+            userPlan.parentNode.insertBefore(manageBtn, userPlan.nextSibling);
+        }
+    }
+
+    // Gestisce il click sul bottone "Gestisci abbonamento": apre il Customer Portal
+    async function handleManageSubscription() {
+        try {
+            const { authToken } = await chrome.storage.local.get(['authToken']);
+
+            if (!authToken) {
+                console.error('[PORTAL] Token mancante');
+                return;
+            }
+
+            const response = await fetch(`${CONFIG.API_URL}/payments/portal`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`,
+                    'X-Brand': (window.__BRAND__ && window.__BRAND__.apiBrand) || 'lemonsqueezer'
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ error: 'Errore di rete' }));
+                throw new Error(errorData.error || `HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (data.url) {
+                chrome.tabs.create({ url: data.url });
+                window.close();
+            } else {
+                throw new Error('URL portale non ricevuto');
+            }
+
+        } catch (error) {
+            console.error('[PORTAL] Errore apertura portale:', error);
+            alert(t('popup_manage_subscription_error', [String(error.message)], `Couldn't open the subscription page: ${error.message}`));
+        }
+    }
+
     // Login con Google usando OAuth PKCE Flow (delegato al service worker)
     googleLoginBtn.addEventListener('click', async () => {
         // Prevenire click multipli
@@ -835,7 +941,62 @@ if (!email || !password) {
     }
     
     logoutBtn.addEventListener('click', logout);
-    
+
+    // Elimina account: richiede una conferma esplicita nel popup (mai window.confirm)
+    // prima di chiamare l'endpoint distruttivo.
+    deleteAccountBtn?.addEventListener('click', () => {
+        deleteAccountBtn.hidden = true;
+        deleteAccountConfirm.hidden = false;
+    });
+
+    deleteAccountCancelBtn?.addEventListener('click', () => {
+        resetDeleteAccountUI();
+    });
+
+    deleteAccountConfirmBtn?.addEventListener('click', async () => {
+        deleteAccountConfirmBtn.disabled = true;
+        deleteAccountCancelBtn.disabled = true;
+        try {
+            const { authToken } = await chrome.storage.local.get(['authToken']);
+            if (!authToken) {
+                await logout();
+                return;
+            }
+
+            const response = await fetch(`${CONFIG.API_URL}/account/delete`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`,
+                    'X-Brand': (window.__BRAND__ && window.__BRAND__.apiBrand) || 'lemonsqueezer'
+                }
+            });
+
+            if (!response.ok) {
+                deleteAccountStatus.textContent = t('popup_delete_account_retry', undefined, "Couldn't delete the account right now. Please try again later.");
+                deleteAccountStatus.hidden = false;
+                deleteAccountStatus.classList.add('is-error');
+                deleteAccountConfirmBtn.disabled = false;
+                deleteAccountCancelBtn.disabled = false;
+                return;
+            }
+
+            deleteAccountConfirm.querySelector('.delete-confirm-text').hidden = true;
+            deleteAccountActions.hidden = true;
+            deleteAccountStatus.textContent = t('popup_delete_account_done', undefined, 'Your account has been deleted.');
+            deleteAccountStatus.hidden = false;
+            deleteAccountStatus.classList.add('is-success');
+            setTimeout(logout, 1800);
+        } catch (error) {
+            console.error('[POPUP] Errore eliminazione account:', error);
+            deleteAccountStatus.textContent = t('popup_delete_account_retry', undefined, "Couldn't delete the account right now. Please try again later.");
+            deleteAccountStatus.hidden = false;
+            deleteAccountStatus.classList.add('is-error');
+            deleteAccountConfirmBtn.disabled = false;
+            deleteAccountCancelBtn.disabled = false;
+        }
+    });
+
     // Riassumi pagina - apre la modale nel tab attivo
     summarizeBtn.addEventListener('click', async () => {
         if (!currentUser) {

@@ -89,6 +89,12 @@
   "popup_upgrade_error": {
     "message": "Upgrade non riuscito: $1"
   },
+  "popup_manage_subscription": {
+    "message": "Gestisci abbonamento"
+  },
+  "popup_manage_subscription_error": {
+    "message": "Impossibile aprire la pagina abbonamento: $1"
+  },
   "popup_summarize_failed": {
     "message": "Impossibile avviare il riassunto"
   },
@@ -469,5 +475,23 @@
   },
   "popup_privacy": {
     "message": "Privacy"
+  },
+  "popup_delete_account": {
+    "message": "Elimina account"
+  },
+  "popup_delete_account_warning": {
+    "message": "Il tuo account, i dati di utilizzo ed eventuali abbonamenti attivi verranno cancellati. L'operazione non può essere annullata."
+  },
+  "popup_delete_account_cancel": {
+    "message": "Annulla"
+  },
+  "popup_delete_account_confirm": {
+    "message": "Elimina definitivamente"
+  },
+  "popup_delete_account_retry": {
+    "message": "Non è stato possibile eliminare l'account. Riprova più tardi."
+  },
+  "popup_delete_account_done": {
+    "message": "Il tuo account è stato eliminato."
   }
 }

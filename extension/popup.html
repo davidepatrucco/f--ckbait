@@ -638,6 +638,64 @@
             color: #334155;
             border-color: #cbd5e1;
         }
+
+        .delete-confirm-card {
+            background: #fff1f2;
+            border: 1px solid #fecdd3;
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-top: 10px;
+        }
+
+        .delete-confirm-text {
+            color: #9f1239;
+            font-size: var(--text-sm);
+            line-height: 1.5;
+            margin: 0 0 12px;
+        }
+
+        .delete-confirm-status {
+            font-size: var(--text-xs);
+            line-height: 1.5;
+            margin: 0 0 10px;
+        }
+
+        .delete-confirm-status.is-error { color: #9f1239; }
+        .delete-confirm-status.is-success { color: #15803d; }
+
+        .delete-confirm-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .delete-confirm-actions .button-secondary,
+        .delete-confirm-actions .button-danger {
+            flex: 1;
+            padding: 10px 12px;
+            font-size: var(--text-sm);
+        }
+
+        .button-danger {
+            width: 100%;
+            padding: 12px 14px;
+            border: none;
+            border-radius: 12px;
+            background: var(--ls-red);
+            color: white;
+            font-size: var(--text-md);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .button-danger:hover:not(:disabled) {
+            background: #dc2626;
+        }
+
+        .button-danger:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -759,6 +817,18 @@
                         <option value="20" selected data-i18n="popup_squeeze_20">20% — consigliato</option>
                         <option value="50" data-i18n="popup_squeeze_50">50% — esteso</option>
                     </select>
+                </div>
+            </div>
+
+            <div id="deleteAccountSection" class="config-card" hidden>
+                <button id="deleteAccountBtn" class="history-clear-btn" type="button" data-i18n="popup_delete_account">Elimina account</button>
+                <div id="deleteAccountConfirm" class="delete-confirm-card" hidden>
+                    <p class="delete-confirm-text" data-i18n="popup_delete_account_warning">Il tuo account, i dati di utilizzo ed eventuali abbonamenti attivi verranno cancellati. L'operazione non può essere annullata.</p>
+                    <p id="deleteAccountStatus" class="delete-confirm-status" hidden></p>
+                    <div id="deleteAccountActions" class="delete-confirm-actions">
+                        <button id="deleteAccountCancelBtn" class="button-secondary" type="button" data-i18n="popup_delete_account_cancel">Annulla</button>
+                        <button id="deleteAccountConfirmBtn" class="button-danger" type="button" data-i18n="popup_delete_account_confirm">Elimina definitivamente</button>
+                    </div>
                 </div>
             </div>
             </details>

@@ -41,6 +41,7 @@ import {
     handleStripeWebhook,
     getUserSubscription,
     cancelSubscription,
+    createPortalSession,
     reactivateSubscription,
     deleteUserSubscription,
     canDeleteLocalData,
@@ -1337,6 +1338,44 @@ export async function cancelSubscriptionHandler(event) {
     }
 }
 
+// Handler per apertura Customer Portal Stripe (BIF-47): gestione abbonamento esistente
+export async function paymentsPortalHandler(event) {
+    try {
+        if (event.httpMethod === 'OPTIONS') {
+            return {
+                statusCode: 200,
+                headers: getCorsHeaders(event),
+                body: ''
+            };
+        }
+
+        if (event.httpMethod !== 'POST') {
+            return createResponse(405, { error: 'Metodo non supportato. Usa POST.' });
+        }
+
+        // Richiede autenticazione
+        const user = await requireAuth(event);
+
+        const rawBrandC = event.headers?.['x-brand'] || event.headers?.['X-Brand'];
+        const result = await createPortalSession(user.id, resolveBrandId(rawBrandC));
+
+        return createResponse(200, result);
+
+    } catch (error) {
+        console.error('Error in paymentsPortalHandler:', error);
+
+        if (error.message.includes('Token non valido') || error.message.includes('autorizzazione mancante')) {
+            return createResponse(401, { error: error.message, code: 'AUTH_REQUIRED' });
+        }
+
+        if (error.code === 'NO_SUBSCRIPTION') {
+            return createResponse(404, { error: error.message, code: 'NO_SUBSCRIPTION' });
+        }
+
+        return createResponse(500, { error: 'Errore apertura portale: ' + error.message });
+    }
+}
+
 // Trascrizione video/audio generico (Tier-1 MVP). Riceve un URL media diretto, lo
 // trascrive (OpenAI) e restituisce il testo, che l'estensione re-invia a /summarize-url
 // nel path video. Premium-only: la trascrizione ha COGS elevati (non sotto la quota free).
@@ -1817,6 +1856,8 @@ export async function handler(event, context) {
             return await getUserSubscriptionHandler(event);
         case '/payments/cancel':
             return await cancelSubscriptionHandler(event);
+        case '/payments/portal':
+            return await paymentsPortalHandler(event);
         case '/health':
             return await healthHandler(event);
         case '/account/delete':

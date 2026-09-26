@@ -89,6 +89,12 @@
   "popup_upgrade_error": {
     "message": "No se pudo cambiar de plan: $1"
   },
+  "popup_manage_subscription": {
+    "message": "Gestionar suscripción"
+  },
+  "popup_manage_subscription_error": {
+    "message": "No se pudo abrir la página de la suscripción: $1"
+  },
   "popup_summarize_failed": {
     "message": "No se pudo iniciar el resumen"
   },
@@ -469,5 +475,23 @@
   },
   "popup_privacy": {
     "message": "Privacidad"
+  },
+  "popup_delete_account": {
+    "message": "Eliminar cuenta"
+  },
+  "popup_delete_account_warning": {
+    "message": "Tu cuenta, los datos de uso y cualquier suscripción activa se cancelarán y eliminarán. Esta acción no se puede deshacer."
+  },
+  "popup_delete_account_cancel": {
+    "message": "Cancelar"
+  },
+  "popup_delete_account_confirm": {
+    "message": "Eliminar definitivamente"
+  },
+  "popup_delete_account_retry": {
+    "message": "No se pudo eliminar la cuenta. Inténtalo de nuevo más tarde."
+  },
+  "popup_delete_account_done": {
+    "message": "Tu cuenta ha sido eliminada."
   }
 }
