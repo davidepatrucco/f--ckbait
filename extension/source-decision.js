@@ -19,6 +19,7 @@
         MIN_TEXT: GENERATED.MIN_TEXT !== undefined ? GENERATED.MIN_TEXT : 400,            // testo "sostanzioso" (sopra: l'articolo è contenuto vero)
         MIN_TEXT_USABLE: GENERATED.MIN_TEXT_USABLE !== undefined ? GENERATED.MIN_TEXT_USABLE : 50,      // testo minimo per un riassunto
         TOO_LONG_CHARS: GENERATED.TOO_LONG_CHARS !== undefined ? GENERATED.TOO_LONG_CHARS : 80000,    // oltre: nessun riassunto parziale
+        MAX_TEXT_CHARS: GENERATED.MAX_TEXT_CHARS !== undefined ? GENERATED.MAX_TEXT_CHARS : 40000,    // caratteri effettivamente riassunti (oltre: taglio con avviso)
         MAX_TRANSCRIPT_CHARS: GENERATED.MAX_TRANSCRIPT_CHARS !== undefined ? GENERATED.MAX_TRANSCRIPT_CHARS : 120000, // limite backend /summarize-url
         VIDEO_MIN_SECONDS: GENERATED.VIDEO_MIN_SECONDS !== undefined ? GENERATED.VIDEO_MIN_SECONDS : 120,   // sotto: clip breve, non "il contenuto" della pagina
         STT_SYNC_MAX_SECONDS: GENERATED.STT_SYNC_MAX_SECONDS !== undefined ? GENERATED.STT_SYNC_MAX_SECONDS : 300,    // path sincrono (24MB, entro i 29s di API Gateway)

@@ -1342,7 +1342,9 @@
     // superava i 29s di API Gateway -> HTTP 504) al browser, dov'è nativa e veloce.
     function extractReadablePageContent() {
         try {
-            const MAX_TEXT = 40000; // ~7k parole: copre gran parte di articoli/report lunghi (COGS trascurabile)
+            // Dal server (GET /config) o dal build: un override di content.maxTextChars
+            // deve valere anche per il testo estratto nel browser.
+            const MAX_TEXT = (window.RI_SOURCE && window.RI_SOURCE.CONSTANTS.MAX_TEXT_CHARS) || 40000;
             const el = pickMainElement();
             const raw = (el && el.innerText ? el.innerText : '').replace(/\s+/g, ' ').trim();
             const rawLen = raw.length;
