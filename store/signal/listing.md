@@ -25,7 +25,7 @@ Per professionisti dell'informazione che devono capire in fretta documenti densi
 insights, intelligence, research, report, analysis, knowledge
 
 ## Giustificazione permessi (per la review dello store)
-- **host `*://*/*` / scripting / activeTab**: leggere il testo della pagina attiva quando l'utente chiede un riassunto. Nessuna lettura in background.
+- **host `*://*/*` / scripting**: leggere il testo della pagina attiva quando l'utente chiede un riassunto. Nessuna lettura in background.
 - **storage**: salvare token di login e preferenze (lingua, livello di sintesi).
 - **identity**: login Google (OAuth) per gestire quota e piano.
 - **contextMenus**: voce "Riassumi" nel menu contestuale su link e pagina, attivata solo dall'utente.

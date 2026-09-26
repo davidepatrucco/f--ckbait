@@ -2,7 +2,7 @@
 import jwt from 'jsonwebtoken';
 import { randomUUID } from 'crypto';
 import { SecretsManager } from './secrets.mjs';
-import { getUserByEmail, createUser } from './dynamodb.mjs';
+import { getUserByEmail, createUser, updateLastLogin } from './dynamodb.mjs';
 import { getEntitlement } from './auth.mjs';
 import { DEFAULT_BRAND } from './brands.mjs';
 import * as jose from 'jose';
@@ -141,7 +141,9 @@ export async function handleGoogleAuth(event) {
             user.name = name;
             user.picture = picture;
             user.lastLogin = new Date().toISOString();
-            // TODO: update in DynamoDB
+            // Solo last_login viene persistito (dashboard "ultimo accesso"); nome e foto
+            // restano quelli della registrazione. Un errore qui non blocca il login.
+            await updateLastLogin(user.id).catch((e) => console.error('[AUTH] updateLastLogin:', e?.message));
         }
         
         // STEP 5: Genera JWT token per autenticazione app

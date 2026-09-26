@@ -29,7 +29,7 @@ Legenda: **[tu]** = richiede il tuo account/console · **[io]** = lo faccio in s
 ### Già fatto [x]
 - Backend allineato su dev/staging/prod (`973e06b`), smoke prod reale: 5 prove + 1/giorno, poi 429.
 - Piano free-only: Stripe non configurato → CTA acquisto nascosta (si accende da sola con `configured=true`).
-- 3 giri di audit esterno chiusi (SSRF worker, tetto job atomico, minuti reali, dashboard protetta, Stripe, test OAuth/Stripe/UI). 283 test verdi.
+- 3 giri di audit esterno chiusi (SSRF worker, tetto job atomico, minuti reali, dashboard protetta, Stripe, test OAuth/Stripe/UI). 280 test unit verdi (+13 integrazione).
 - Legali v2.1 pubblicati per 5 brand; link Termini/Privacy nel login dell'estensione.
 - 10 pacchetti in `dist/` (5 Chrome `--store` senza `key`, 5 Firefox). Analisi statica: 0 problemi. Lint Firefox: 0 errori.
 - Copy store aggiornata (PDF, video, trascrizione); screenshot Lemon 4, altri brand 2 (pagina + popup).

@@ -1,6 +1,6 @@
 # Guida al lancio — passo passo
 
-**Aggiornata:** 19 settembre 2026 · **Codice:** `main` (tutti e tre gli ambienti allineati) · **Test:** 285, 0 fallimenti
+**Aggiornata:** 19 settembre 2026 · **Codice:** `main` (tutti e tre gli ambienti allineati) · **Test:** 280 unit + 13 integrazione (RUN_INTEGRATION=1), 0 fallimenti
 
 Come leggerla:
 
