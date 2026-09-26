@@ -25,6 +25,7 @@
     "openai": "^4.52.0",
     "pdfjs-dist": "^4.10.38",
     "stripe": "^14.23.0",
+    "undici": "^7.29.0",
     "uuid": "^10.0.0"
   },
   "devDependencies": {

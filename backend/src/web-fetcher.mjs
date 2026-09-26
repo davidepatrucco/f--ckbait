@@ -3,6 +3,8 @@ import { JSDOM } from 'jsdom';
 import { Readability } from '@mozilla/readability';
 import { isIP } from 'node:net';
 import { lookup } from 'node:dns/promises';
+import { lookup as dnsLookup } from 'node:dns';
+import { Agent, fetch as undiciFetch } from 'undici';
 import { CONTENT_LIMITS } from './policy.mjs';
 
 // Config
@@ -95,6 +97,27 @@ export function isPrivateAddress(address) {
     return true;
 }
 
+
+// assertPublicUrl risolve il nome una volta, fetch lo risolveva di nuovo al connect:
+// un DNS con TTL 0 poteva rispondere con un IP pubblico al controllo e con uno
+// interno alla connessione (DNS rebinding). Qui il controllo avviene nella stessa
+// risoluzione usata dal socket, quindi l'IP connesso e' quello validato.
+function publicLookup(hostname, options, callback) {
+    dnsLookup(hostname, { ...options, all: true }, (err, addresses) => {
+        if (err) return callback(err);
+        if (!addresses.length || addresses.some(({ address }) => isPrivateAddress(address))) {
+            return callback(new Error('L\'host deve risolvere esclusivamente a indirizzi pubblici'));
+        }
+        if (options.all) return callback(null, addresses);
+        callback(null, addresses[0].address, addresses[0].family);
+    });
+}
+const publicAgent = new Agent({ connect: { lookup: publicLookup } });
+
+// fetch verso URL forniti dall'utente: da usare al posto del fetch globale.
+export function publicFetch(url, options = {}) {
+    return undiciFetch(url, { ...options, dispatcher: publicAgent });
+}
 
 export async function assertPublicUrl(validUrl) {
     const hostname = validUrl.hostname.toLowerCase().replace(/^\[|\]$/g, '');
@@ -223,7 +246,7 @@ export async function fetchWebContent(url) {
     const timeoutMs = parseInt(process.env.FETCH_TIMEOUT_MS || '8000', 10); // default 8s
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
         
-        const response = await fetch(validUrl.toString(), {
+        const response = await publicFetch(validUrl.toString(), {
             method: 'GET',
             // A redirect can turn a safe public URL into an internal one. Reject
             // it unless a redirect-aware, revalidating fetcher is introduced.

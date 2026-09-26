@@ -587,6 +587,13 @@ export async function authLoginHandler(event) {
             return createResponse(400, { error: 'Email e password richieste' });
         }
 
+        // Tentativi per email (finestre minuto/ora/giorno di policy.RATE_LIMITS): senza,
+        // le password erano indovinabili senza limite. Fail closed se la tabella non risponde.
+        try {
+            await checkRateLimit(`auth:${String(email).trim().toLowerCase()}`);
+        } catch {
+            return createResponse(429, { error: 'Troppi tentativi. Riprova più tardi.', code: 'RATE_LIMITED' });
+        }
         const result = await loginWithEmail(email, password);
         const { authToken, ...user } = result;
 
@@ -628,6 +635,13 @@ export async function authRegisterHandler(event) {
             return createResponse(400, { error: 'Email e password richieste' });
         }
 
+        // Tentativi per email (finestre minuto/ora/giorno di policy.RATE_LIMITS): senza,
+        // le password erano indovinabili senza limite. Fail closed se la tabella non risponde.
+        try {
+            await checkRateLimit(`auth:${String(email).trim().toLowerCase()}`);
+        } catch {
+            return createResponse(429, { error: 'Troppi tentativi. Riprova più tardi.', code: 'RATE_LIMITED' });
+        }
         const result = await registerWithEmail(email, password, name);
         const { authToken, ...user } = result;
 

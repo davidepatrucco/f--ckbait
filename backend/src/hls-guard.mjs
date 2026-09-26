@@ -11,7 +11,7 @@
 // risolvere nulla in autonomia, e viene comunque confinato ai protocolli necessari.
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { assertPublicUrl } from './web-fetcher.mjs';
+import { assertPublicUrl, publicFetch } from './web-fetcher.mjs';
 import { MEDIA_LIMITS } from './policy.mjs';
 
 // Una playlist è testo: oltre questa dimensione non è una playlist legittima.
@@ -45,7 +45,7 @@ async function fetchTextGuarded(url, timeoutMs) {
         await assertPublicUrl(current);
         for (let hop = 0; ; hop++) {
             if (hop > MEDIA_LIMITS.maxRedirects) throw fail('MEDIA_FETCH_FAILED', 'troppi redirect sulla playlist');
-            const res = await fetch(current, { signal: controller.signal, redirect: 'manual' });
+            const res = await publicFetch(current, { signal: controller.signal, redirect: 'manual' });
             if ([301, 302, 303, 307, 308].includes(res.status)) {
                 const location = res.headers.get('location');
                 if (!location) throw fail('MEDIA_FETCH_FAILED', 'redirect senza destinazione');

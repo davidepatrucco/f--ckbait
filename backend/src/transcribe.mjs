@@ -10,7 +10,7 @@
 // Fase 2 (non qui): ffmpeg + chunking + job async per video lunghi e HLS.
 import { toFile } from 'openai';
 import { getOpenAIClient } from './openai.mjs';
-import { assertPublicUrl } from './web-fetcher.mjs';
+import { assertPublicUrl, publicFetch } from './web-fetcher.mjs';
 import { MEDIA_LIMITS } from './policy.mjs';
 
 const MAX_MEDIA_BYTES = MEDIA_LIMITS.maxMediaBytes; // < 25MB (hard limit OpenAI)
@@ -83,7 +83,7 @@ export async function downloadMedia(mediaUrl) {
         let current = url;
         for (let hop = 0; ; hop++) {
             if (hop > MAX_REDIRECTS) { const e = new Error('Troppi redirect'); e.code = 'MEDIA_FETCH_FAILED'; throw e; }
-            res = await fetch(current, { signal: controller.signal, redirect: 'manual', headers: { Accept: 'audio/*,video/*,*/*' } });
+            res = await publicFetch(current, { signal: controller.signal, redirect: 'manual', headers: { Accept: 'audio/*,video/*,*/*' } });
             if (![301, 302, 303, 307, 308].includes(res.status)) break;
             const location = res.headers.get('location');
             if (!location) break;
