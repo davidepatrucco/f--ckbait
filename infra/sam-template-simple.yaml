@@ -57,6 +57,13 @@ Resources:
     Type: AWS::Serverless::Api
     Properties:
       StageName: !Ref Environment
+      # Tetto per stage: sopra, API Gateway risponde 429 senza invocare Lambda
+      # (la concurrency Lambda dell'account e' condivisa con altri progetti).
+      MethodSettings:
+        - ResourcePath: '/*'
+          HttpMethod: '*'
+          ThrottlingRateLimit: 20
+          ThrottlingBurstLimit: 40
 
   # Lambda Function
   SummarizeFunction:
@@ -220,6 +227,7 @@ Resources:
   UsersTable:
     Type: AWS::DynamoDB::Table
     Properties:
+      DeletionProtectionEnabled: true
       TableName: !Sub 'reading-intelligence-users-${Environment}'
       AttributeDefinitions:
         - AttributeName: id
@@ -236,6 +244,7 @@ Resources:
   SubscriptionsTable:
     Type: AWS::DynamoDB::Table
     Properties:
+      DeletionProtectionEnabled: true
       TableName: !Sub 'reading-intelligence-subscriptions-${Environment}'
       AttributeDefinitions:
         - AttributeName: userId
@@ -256,6 +265,7 @@ Resources:
   PaymentsTable:
     Type: AWS::DynamoDB::Table
     Properties:
+      DeletionProtectionEnabled: true
       TableName: !Sub 'reading-intelligence-payments-${Environment}'
       AttributeDefinitions:
         - AttributeName: paymentId
@@ -281,6 +291,7 @@ Resources:
   PaymentSessionsTable:
     Type: AWS::DynamoDB::Table
     Properties:
+      DeletionProtectionEnabled: true
       TableName: !Sub 'reading-intelligence-payments-${Environment}_sessions'
       AttributeDefinitions:
         - AttributeName: session_id
@@ -321,6 +332,7 @@ Resources:
   ConfigTable:
     Type: AWS::DynamoDB::Table
     Properties:
+      DeletionProtectionEnabled: true
       TableName: !Sub 'reading-intelligence-config-${Environment}'
       AttributeDefinitions:
         - AttributeName: configKey
@@ -339,6 +351,7 @@ Resources:
   TranscribeJobsTable:
     Type: AWS::DynamoDB::Table
     Properties:
+      DeletionProtectionEnabled: true
       TableName: !Sub 'reading-intelligence-transcribe-jobs-${Environment}'
       AttributeDefinitions:
         - AttributeName: jobId
@@ -377,6 +390,7 @@ Resources:
   SummaryCacheTable:
     Type: AWS::DynamoDB::Table
     Properties:
+      DeletionProtectionEnabled: true
       TableName: !Sub 'reading-intelligence-summary-cache-${Environment}'
       AttributeDefinitions:
         - AttributeName: cache_key
@@ -394,6 +408,7 @@ Resources:
   RateLimitTable:
     Type: AWS::DynamoDB::Table
     Properties:
+      DeletionProtectionEnabled: true
       TableName: !Sub 'reading-intelligence-rate-limit-${Environment}'
       AttributeDefinitions:
         - AttributeName: userId
@@ -411,6 +426,7 @@ Resources:
   AnalyticsTable:
     Type: AWS::DynamoDB::Table
     Properties:
+      DeletionProtectionEnabled: true
       TableName: !Sub 'reading-intelligence-analytics-${Environment}'
       AttributeDefinitions:
         - AttributeName: eventId

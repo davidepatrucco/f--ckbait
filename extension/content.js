@@ -610,7 +610,7 @@
             ${sourceNotesHtml(data.__notes)}
             ${data.truncated ? `<div style="background:#FFF7E6;border:1px solid #FFE1A8;color:#8a6d3b;border-radius:6px;padding:8px 10px;font-size:12px;margin-bottom:12px;">${ICON_WARN} ${esc(t('modal_truncated'))}</div>` : ''}
             <div class="lemonsqueezer-summary-content">
-                ${(data.summary || '').replace(/\n/g, '<br>')}
+                ${esc(data.summary).replace(/\n/g, '<br>')}
             </div>
         `;
         setupSourceSwitch(data);

@@ -115,6 +115,18 @@ export function buildBrand(brandId, options = {}) {
     const manifest = JSON.parse(readFileSync(join(outDir, 'manifest.json'), 'utf8'));
     manifest.name = cfg.storeName || cfg.displayName;
     if (cfg.store && cfg.store.summary) manifest.description = cfg.store.summary;
+    // Descrizione localizzata (lo store la mostra come summary della scheda): una per
+    // lingua in _locales, altrimenti resta il testo unico di store.summary.
+    if (cfg.store && cfg.store.summaryI18n) {
+        for (const [lang, text] of Object.entries(cfg.store.summaryI18n)) {
+            const file = join(outDir, '_locales', lang, 'messages.json');
+            if (!existsSync(file)) continue;
+            const msgs = JSON.parse(readFileSync(file, 'utf8'));
+            msgs.ext_description = { message: text };
+            writeFileSync(file, JSON.stringify(msgs, null, 2) + '\n');
+        }
+        manifest.description = '__MSG_ext_description__';
+    }
     if (manifest.action) manifest.action.default_title = cfg.storeName || cfg.displayName;
     // key pinnata (opzionale): rende stabile l'extension id nel load-unpacked, così il
     // redirect OAuth https://<id>.chromiumapp.org/ è registrabile una volta. Solo Chromium
