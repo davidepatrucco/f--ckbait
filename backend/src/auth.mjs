@@ -262,7 +262,9 @@ export function canUserSummarize(user, brandId = DEFAULT_BRAND) {
         return { canSummarize: true, usingTrial: true, trialRemaining: ent.trialRemaining };
     }
     // Se il periodo è scaduto, l'utilizzo effettivo riparte da 0.
-    const expired = ent.usage.resetDate && new Date() > new Date(ent.usage.resetDate);
+    // Data di reset assente (entitlement seminato da updateUserPlan prima del fix) vale
+    // come periodo scaduto: altrimenti il contatore non ripartirebbe mai.
+    const expired = !ent.usage.resetDate || new Date() > new Date(ent.usage.resetDate);
     const effectiveUsed = expired ? 0 : ent.usage.used;
     if (effectiveUsed >= ent.usage.limit) {
         return {
@@ -305,7 +307,9 @@ export async function incrementUsage(user, brandId = DEFAULT_BRAND) {
         }
         // Prove esaurite tra la lettura e la scrittura: si prosegue con la quota.
     }
-    const expired = ent.usage.resetDate && new Date() > new Date(ent.usage.resetDate);
+    // Data di reset assente (entitlement seminato da updateUserPlan prima del fix) vale
+    // come periodo scaduto: altrimenti il contatore non ripartirebbe mai.
+    const expired = !ent.usage.resetDate || new Date() > new Date(ent.usage.resetDate);
     // Semina l'entitlement con i valori correnti (continuità per utenti legacy).
     // Se il compare-and-swap sul reset perde la corsa (un'altra richiesta ha gia'
     // aperto il nuovo periodo), si ritenta come incremento normale: cosi' la guardia

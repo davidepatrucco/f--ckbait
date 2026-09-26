@@ -133,3 +133,10 @@ test('buildVerifyBody: prove e quota del brand richiesto, non del default', asyn
     assert.equal(lemon.trialRemaining, 0);
     assert.equal(lemon.usage.used, 1);
 });
+
+test('reset assente (entitlement seminato da updateUserPlan) non blocca per sempre la quota', () => {
+    // Downgrade da premium su un entitlement nato senza data di reset: se il nullo
+    // non valesse come scaduto, raggiunto il limite l'utente non ripartirebbe mai.
+    const user = u({ plan: 'free', trial_remaining: 0, usage_used: 1, usage_limit: 1, usage_reset_date: null });
+    assert.equal(canUserSummarize(user, 'lemonsqueezer').canSummarize, true);
+});

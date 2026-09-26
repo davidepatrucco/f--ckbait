@@ -1121,6 +1121,12 @@ export async function createCheckoutHandler(event) {
 
         // Brand corrente: checkout crea la subscription del brand giusto (vita commerciale separata).
         const checkoutBrand = resolveBrandId(event.headers?.['x-brand'] || event.headers?.['X-Brand'] || body.brand);
+        // Un secondo checkout con abbonamento gia' attivo creerebbe una seconda
+        // subscription fatturata. Chi ha cancellato a fine periodo resta premium e
+        // deve riattivare, non ricomprare.
+        if (getEntitlement(user, checkoutBrand).plan === 'premium') {
+            return createResponse(409, { error: 'Abbonamento già attivo per questo brand.', code: 'ALREADY_SUBSCRIBED' });
+        }
         const checkoutSession = await createCheckoutSession(user.id, user.email, checkoutBrand, planType);
         // Funnel: avvio checkout (best-effort, metadati soltanto).
         await logEvent({

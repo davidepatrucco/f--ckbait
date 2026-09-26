@@ -241,7 +241,8 @@ export async function incrementBrandUsage(userId, brandId, { seed, resetIfExpire
             // verrebbero tutte accettate.
             UpdateExpression = 'SET entitlements.#b.usage_used = :one, entitlements.#b.usage_reset_date = :reset';
             ExpressionAttributeValues[':reset'] = resetDate;
-            ConditionExpression = 'attribute_not_exists(entitlements.#b.usage_reset_date) OR entitlements.#b.usage_reset_date = :expected';
+            ConditionExpression = 'attribute_not_exists(entitlements.#b.usage_reset_date) OR attribute_type(entitlements.#b.usage_reset_date, :tnull) OR entitlements.#b.usage_reset_date = :expected';
+            ExpressionAttributeValues[':tnull'] = 'NULL';
             ExpressionAttributeValues[':expected'] = expectedResetDate ?? null;
         } else {
             UpdateExpression = 'SET entitlements.#b.usage_used = if_not_exists(entitlements.#b.usage_used, :zero) + :one';
@@ -319,7 +320,8 @@ export async function updateUserPlan(userId, brandId, newPlan, extra = {}) {
             plan: 'free',
             usage_used: 0,
             usage_limit: getFreeLimit(brandId),
-            usage_reset_date: null,
+            usage_reset_date: nextDailyReset(),
+            trial_remaining: getFreeTrial(brandId),
             subscription_status: 'none',
             stripe_customer_id: null,
             stripe_subscription_id: null

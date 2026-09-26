@@ -318,6 +318,9 @@ async function handleStripeEvent(event) {
 
     switch (event.type) {
         case 'checkout.session.completed':
+        // Metodi di pagamento asincroni: il completamento arriva con payment_status
+        // 'unpaid' e il pagamento effettivo con questo evento.
+        case 'checkout.session.async_payment_succeeded':
             await handleCheckoutCompleted(event.data.object);
             break;
         
@@ -618,6 +621,12 @@ async function handleCheckoutCompleted(session) {
 
     if (!userId) {
         console.error('Missing user ID in checkout session');
+        return;
+    }
+    // Premium solo a pagamento avvenuto ('paid') o non dovuto ('no_payment_required',
+    // es. coupon al 100%): una sessione 'unpaid' non concede nulla.
+    if (session.payment_status === 'unpaid') {
+        console.log(`Checkout ${session.id} not paid yet: no upgrade`);
         return;
     }
 
