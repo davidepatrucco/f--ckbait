@@ -133,6 +133,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const deleteAccountStatus = document.getElementById('deleteAccountStatus');
     const deleteAccountCancelBtn = document.getElementById('deleteAccountCancelBtn');
     const deleteAccountConfirmBtn = document.getElementById('deleteAccountConfirmBtn');
+    const marketingConsentSection = document.getElementById('marketingConsentSection');
+    const marketingConsentCheckbox = document.getElementById('marketingConsentCheckbox');
+    const marketingConsentError = document.getElementById('marketingConsentError');
 
     let currentUser = null;
 
@@ -560,6 +563,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             summarizeBtn.disabled = true;
         }
         if (deleteAccountSection) deleteAccountSection.hidden = !(currentUser && currentUser.email);
+        if (marketingConsentSection) marketingConsentSection.hidden = !(currentUser && currentUser.email);
+        if (marketingConsentCheckbox && currentUser) {
+            marketingConsentCheckbox.checked = currentUser.marketingConsent === true;
+        }
         resetDeleteAccountUI();
     }
 
@@ -941,6 +948,49 @@ if (!email || !password) {
     }
     
     logoutBtn.addEventListener('click', logout);
+
+    // Aggiornamento consenso marketing: POST al backend su ogni cambio checkbox.
+    // In caso di errore ripristina lo stato precedente e mostra un messaggio breve.
+    marketingConsentCheckbox?.addEventListener('change', async () => {
+        const granted = marketingConsentCheckbox.checked;
+        // Nasconde errore precedente
+        if (marketingConsentError) {
+            marketingConsentError.style.display = 'none';
+            marketingConsentError.textContent = '';
+        }
+        try {
+            const { authToken } = await chrome.storage.local.get(['authToken']);
+            if (!authToken) {
+                await logout();
+                return;
+            }
+            const response = await fetch(`${CONFIG.API_URL}/account/marketing-consent`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`,
+                    'X-Brand': (window.__BRAND__ && window.__BRAND__.apiBrand) || 'lemonsqueezer'
+                },
+                body: JSON.stringify({ granted })
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            // Aggiorna il valore in storage cosi' il flag sopravvive alla riapertura.
+            if (currentUser) {
+                currentUser.marketingConsent = granted;
+                await chrome.storage.local.set({ user: currentUser });
+            }
+        } catch (error) {
+            console.error('[POPUP] Errore consenso marketing:', error);
+            // Ripristina la checkbox allo stato precedente
+            marketingConsentCheckbox.checked = !granted;
+            if (marketingConsentError) {
+                marketingConsentError.textContent = t('popup_marketing_optin_error', undefined, 'Could not save your preference. Please try again.');
+                marketingConsentError.style.display = 'block';
+            }
+        }
+    });
 
     // Elimina account: richiede una conferma esplicita nel popup (mai window.confirm)
     // prima di chiamare l'endpoint distruttivo.

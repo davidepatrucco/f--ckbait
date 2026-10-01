@@ -10,7 +10,7 @@
 
 ## Provider: OpenAI (summaries)
 
-Consumer: `lemonsqueezer-summarize-<env>`. Secret:
+Consumer: `reading-intelligence-summarize-<env>`. Secret:
 `/lemonsqueezer/<env>/openai-api-key`.
 
 ### Effect of disabling
@@ -42,18 +42,18 @@ return a user-facing "temporarily unavailable" message.
    full stop.
    ```bash
    aws lambda put-function-concurrency --region eu-west-1 \
-     --function-name lemonsqueezer-summarize-<env> --reserved-concurrent-executions 0
+     --function-name reading-intelligence-summarize-<env> --reserved-concurrent-executions 0
    # re-enable: delete-function-concurrency
    ```
 
 ### Verification
 - Trigger one request; confirm the intended behavior (controlled error or cache-only).
-- Watch `/aws/lambda/lemonsqueezer-summarize-<env>` for error class and rate.
+- Watch `/aws/lambda/reading-intelligence-summarize-<env>` for error class and rate.
 
 ## Provider: Stripe (billing)
 
-Consumers: checkout in `lemonsqueezer-summarize-<env>`; webhook in
-`lemonsqueezer-stripe-webhook-<env>` (Function URL, CFN output `StripeWebhookUrl`).
+Consumers: checkout in `reading-intelligence-summarize-<env>`; webhook in
+`reading-intelligence-stripe-webhook-<env>` (Function URL, CFN output `StripeWebhookUrl`).
 Secrets: `/lemonsqueezer/<env>/stripe-secret-key`, `stripe-webhook-secret`.
 
 ### Disable checkout (stop new subscriptions)
@@ -66,7 +66,7 @@ Secrets: `/lemonsqueezer/<env>/stripe-secret-key`, `stripe-webhook-secret`.
 ### Disable webhook processing
 - Preferred: disable the endpoint in the **Stripe Dashboard** (stops delivery at the
   source; Stripe retries later, so events are not lost during a short window).
-- Hard stop: set reserved concurrency = 0 on `lemonsqueezer-stripe-webhook-<env>`.
+- Hard stop: set reserved concurrency = 0 on `reading-intelligence-stripe-webhook-<env>`.
   Warning: dropped events during the stop rely on Stripe's retry policy; verify the
   retry window covers the downtime, otherwise reconcile manually afterward.
 

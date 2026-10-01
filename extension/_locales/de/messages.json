@@ -493,5 +493,11 @@
   },
   "popup_delete_account_done": {
     "message": "Ihr Konto wurde gelöscht."
+  },
+  "popup_marketing_optin": {
+    "message": "Senden Sie mir Neuigkeiten und Angebote per E-Mail. Sie können dies jederzeit deaktivieren."
+  },
+  "popup_marketing_optin_error": {
+    "message": "Ihre Einstellung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut."
   }
 }

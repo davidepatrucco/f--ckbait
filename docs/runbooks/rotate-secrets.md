@@ -11,10 +11,10 @@ path prefix (from `backend/src/secrets.mjs`): `/lemonsqueezer/<env>/`.
 
 | Parameter | Type | Consumer |
 |---|---|---|
-| `/lemonsqueezer/<env>/openai-api-key` | SecureString | `lemonsqueezer-summarize-<env>` |
+| `/lemonsqueezer/<env>/openai-api-key` | SecureString | `reading-intelligence-summarize-<env>` |
 | `/lemonsqueezer/<env>/jwt-secret` | SecureString | auth in summarize Lambda |
 | `/lemonsqueezer/<env>/stripe-secret-key` | SecureString | summarize + webhook |
-| `/lemonsqueezer/<env>/stripe-webhook-secret` | SecureString | `lemonsqueezer-stripe-webhook-<env>` |
+| `/lemonsqueezer/<env>/stripe-webhook-secret` | SecureString | `reading-intelligence-stripe-webhook-<env>` |
 | `/lemonsqueezer/<env>/stripe-premium-monthly-price-id` | String | checkout |
 | `/lemonsqueezer/<env>/stripe-premium-yearly-price-id` | String | checkout |
 | `/lemonsqueezer/<env>/stripe-success-url` | String | checkout |
@@ -49,7 +49,7 @@ path prefix (from `backend/src/secrets.mjs`): `/lemonsqueezer/<env>/`.
    ```bash
    aws lambda update-function-configuration \
      --region eu-west-1 \
-     --function-name lemonsqueezer-summarize-<env> \
+     --function-name reading-intelligence-summarize-<env> \
      --environment "Variables={SECRET_ROTATED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
    ```
    (Adjust to merge, not replace, existing variables — read current config first with
@@ -62,7 +62,7 @@ path prefix (from `backend/src/secrets.mjs`): `/lemonsqueezer/<env>/`.
 ### openai-api-key
 - Create a new key in the OpenAI dashboard, keep old active.
 - After SSM write + recycle, trigger one summarize request and confirm `200` and a
-  non-empty summary. Check `/aws/lambda/lemonsqueezer-summarize-<env>` for auth
+  non-empty summary. Check `/aws/lambda/reading-intelligence-summarize-<env>` for auth
   errors (401 from OpenAI).
 - Revoke old OpenAI key.
 

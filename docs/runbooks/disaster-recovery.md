@@ -30,12 +30,12 @@ known-good version.
 ```bash
 # list versions (find last known-good)
 aws lambda list-versions-by-function --region eu-west-1 \
-  --function-name lemonsqueezer-summarize-<env> \
+  --function-name reading-intelligence-summarize-<env> \
   --query 'Versions[].[Version,LastModified]' --output table
 
 # if using an alias, repoint it (preferred, no integration change)
 aws lambda update-alias --region eu-west-1 \
-  --function-name lemonsqueezer-summarize-<env> \
+  --function-name reading-intelligence-summarize-<env> \
   --name <ALIAS> --function-version <GOOD_VERSION>
 ```
 
@@ -43,10 +43,10 @@ If invocations target `$LATEST` directly (no alias), redeploy the previous artif
 The repo ships `function.zip`; a known-good artifact can be re-published:
 ```bash
 aws lambda update-function-code --region eu-west-1 \
-  --function-name lemonsqueezer-summarize-<env> \
+  --function-name reading-intelligence-summarize-<env> \
   --zip-file fileb://function.zip --publish
 ```
-Repeat for `lemonsqueezer-stripe-webhook-<env>` if affected. Target RTO for a pure
+Repeat for `reading-intelligence-stripe-webhook-<env>` if affected. Target RTO for a pure
 code rollback: minutes.
 
 > Note on aliases: whether aliases exist is **not verified** in this scaffold. If not,

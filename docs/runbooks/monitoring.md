@@ -11,14 +11,14 @@
 | Latency p95 | Lambda `Duration`, API Gateway `Latency`/`IntegrationLatency` | summarize p95 |
 | Error rate | Lambda `Errors`, API Gateway `5XXError`/`4XXError` | ratio vs invocations |
 | Throttling / quota (429) | OpenAI 429 in logs; API Gateway usage-plan throttles; Lambda `Throttles` | upstream + self throttling |
-| Stripe events | `lemonsqueezer-stripe-webhook-<env>` logs; Stripe Dashboard | delivery success, signature failures |
+| Stripe events | `reading-intelligence-stripe-webhook-<env>` logs; Stripe Dashboard | delivery success, signature failures |
 | Cost per brand | analytics table aggregation (`docs/dashboard-spec.md` §1.7) + Cost Explorer tags | daily spend by brand |
 | DynamoDB health | `ThrottledRequests`, `SystemErrors`, `UserErrors` on analytics/cache tables | throttles/errors |
 
 ## Key metrics and namespaces
 
 - Lambda (`AWS/Lambda`, dimension `FunctionName`):
-  `lemonsqueezer-summarize-<env>`, `lemonsqueezer-stripe-webhook-<env>` —
+  `reading-intelligence-summarize-<env>`, `reading-intelligence-stripe-webhook-<env>` —
   `Invocations`, `Errors`, `Throttles`, `Duration` (use p95 stat), `ConcurrentExecutions`.
 - API Gateway (`AWS/ApiGateway`): `5XXError`, `4XXError`, `Latency`, `Count`.
 - DynamoDB (`AWS/DynamoDB`, dimension `TableName`): `ThrottledRequests`,
@@ -43,7 +43,7 @@
 
 ```bash
 aws logs put-metric-filter --region eu-west-1 \
-  --log-group-name /aws/lambda/lemonsqueezer-summarize-<env> \
+  --log-group-name /aws/lambda/reading-intelligence-summarize-<env> \
   --filter-name openai-429 \
   --filter-pattern '429' \
   --metric-transformations \
@@ -66,14 +66,14 @@ curl -s -o /dev/null -w '%{http_code} %{time_total}s\n' https://<api-id>.execute
 
 # recent errors (last 15 min)
 aws logs filter-log-events --region eu-west-1 \
-  --log-group-name /aws/lambda/lemonsqueezer-summarize-<env> \
+  --log-group-name /aws/lambda/reading-intelligence-summarize-<env> \
   --start-time $(( ($(date +%s) - 900) * 1000 )) \
   --filter-pattern '?ERROR ?Exception ?timeout'
 
 # lambda error metric (last hour)
 aws cloudwatch get-metric-statistics --region eu-west-1 \
   --namespace AWS/Lambda --metric-name Errors \
-  --dimensions Name=FunctionName,Value=lemonsqueezer-summarize-<env> \
+  --dimensions Name=FunctionName,Value=reading-intelligence-summarize-<env> \
   --start-time $(date -u -v-1H +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ) \
   --end-time $(date -u +%Y-%m-%dT%H:%M:%SZ) \
   --period 300 --statistics Sum

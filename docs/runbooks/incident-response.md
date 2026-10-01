@@ -33,9 +33,9 @@ For SEV3 the IC and engineer can be the same person.
 2. **Communicate**: open the incident channel; post initial summary (what, scope,
    suspected component, sev).
 3. **Triage — locate the failing component**:
-   - Summarize path: `/aws/lambda/lemonsqueezer-summarize-<env>` logs, error rate,
+   - Summarize path: `/aws/lambda/reading-intelligence-summarize-<env>` logs, error rate,
      throttles, duration.
-   - Stripe webhook: `/aws/lambda/lemonsqueezer-stripe-webhook-<env>` logs; Stripe
+   - Stripe webhook: `/aws/lambda/reading-intelligence-stripe-webhook-<env>` logs; Stripe
      Dashboard event delivery.
    - API Gateway REST: 4xx/5xx metrics, latency.
    - DynamoDB: throttling / system errors on analytics & cache tables.
@@ -43,7 +43,7 @@ For SEV3 the IC and engineer can be the same person.
    Quick log query:
    ```bash
    aws logs filter-log-events --region eu-west-1 \
-     --log-group-name /aws/lambda/lemonsqueezer-summarize-<env> \
+     --log-group-name /aws/lambda/reading-intelligence-summarize-<env> \
      --start-time $(( ($(date +%s) - 900) * 1000 )) \
      --filter-pattern '?ERROR ?Exception ?"5xx" ?timeout'
    ```

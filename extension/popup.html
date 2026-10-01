@@ -820,6 +820,16 @@
                 </div>
             </div>
 
+            <div id="marketingConsentSection" class="config-card" hidden>
+                <div class="input-group" style="margin-bottom:0">
+                    <label style="display:flex;align-items:flex-start;gap:8px;font-weight:400;color:#374151;font-size:var(--text-sm);cursor:pointer">
+                        <input type="checkbox" id="marketingConsentCheckbox" style="margin-top:2px;flex-shrink:0">
+                        <span id="marketingConsentLabel" data-i18n="popup_marketing_optin">Send me news and offers by email. You can turn this off at any time.</span>
+                    </label>
+                    <p id="marketingConsentError" class="setting-hint" style="color:var(--ls-red);display:none"></p>
+                </div>
+            </div>
+
             <div id="deleteAccountSection" class="config-card" hidden>
                 <button id="deleteAccountBtn" class="history-clear-btn" type="button" data-i18n="popup_delete_account">Elimina account</button>
                 <div id="deleteAccountConfirm" class="delete-confirm-card" hidden>

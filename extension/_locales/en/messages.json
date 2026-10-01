@@ -493,5 +493,11 @@
   },
   "popup_delete_account_done": {
     "message": "Your account has been deleted."
+  },
+  "popup_marketing_optin": {
+    "message": "Send me news and offers by email. You can turn this off at any time."
+  },
+  "popup_marketing_optin_error": {
+    "message": "Could not save your preference. Please try again."
   }
 }

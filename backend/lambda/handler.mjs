@@ -47,7 +47,7 @@ import {
     canDeleteLocalData,
     getBrandPricing
 } from '../src/payments.mjs';
-import { deleteUser } from '../src/dynamodb.mjs';
+import { deleteUser, updateMarketingConsent } from '../src/dynamodb.mjs';
 
 // Origins are deployment configuration.  Do not ship a fake extension ID or
 // fall back to a wildcard: callers from an unlisted web origin receive no CORS
@@ -520,6 +520,8 @@ export function buildVerifyBody(user, brandId) {
         plan: ent.plan,
         usage: ent.usage,
         trialRemaining: ent.trialRemaining,
+        // Consenso marketing letto dal record utente (default false se mai espresso).
+        marketingConsent: user.marketingConsent === true,
         valid: true
     };
 }
@@ -699,6 +701,37 @@ export async function accountDeleteHandler(event) {
         return createResponse(200, { deleted: true, userId: user.id });
     } catch (error) {
         console.error('Account deletion error:', error.message);
+        return createResponse(500, apiErrorBody('INTERNAL_ERROR'));
+    }
+}
+
+// Handler consenso marketing (GDPR art. 6.1.a e 7): aggiorna il flag per l'utente
+// autenticato. Il consenso è separato dai Termini, non è pre-selezionato, è liberamente
+// revocabile. Il server registra: granted, timestamp, sorgente, versione del testo.
+export async function accountMarketingConsentHandler(event) {
+    if (event.httpMethod === 'OPTIONS') {
+        return { statusCode: 200, headers: getCorsHeaders(event), body: '' };
+    }
+    if (event.httpMethod !== 'POST') {
+        return createResponse(405, { error: 'Metodo non supportato. Usa POST.' });
+    }
+    let user;
+    try {
+        user = await requireAuth(event);
+    } catch (authError) {
+        return createResponse(401, apiErrorBody('AUTH_REQUIRED'));
+    }
+    let body;
+    try { body = JSON.parse(event.body || '{}'); } catch { return createResponse(400, { error: 'Body non valido', code: 'INVALID_JSON' }); }
+    if (typeof body.granted !== 'boolean') {
+        return createResponse(400, { error: 'Il campo "granted" deve essere un booleano', code: 'INVALID_REQUEST' });
+    }
+    try {
+        const result = await updateMarketingConsent(user.id, body.granted);
+        console.log('Marketing consent updated:', user.id, body.granted);
+        return createResponse(200, result);
+    } catch (error) {
+        console.error('Error in accountMarketingConsentHandler:', error.message);
         return createResponse(500, apiErrorBody('INTERNAL_ERROR'));
     }
 }
@@ -1862,6 +1895,8 @@ export async function handler(event, context) {
             return await healthHandler(event);
         case '/account/delete':
             return await accountDeleteHandler(event);
+        case '/account/marketing-consent':
+            return await accountMarketingConsentHandler(event);
         case '/analytics/event':
             return await analyticsEventHandler(event);
         case '/admin/metrics':

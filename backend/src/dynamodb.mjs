@@ -359,6 +359,32 @@ export async function updateUserPlan(userId, brandId, newPlan, extra = {}) {
 }
 
 /**
+ * Aggiorna il consenso marketing dell'utente.
+ * Registra: granted (boolean), timestamp ISO, sorgente, versione del testo.
+ * GDPR art. 6.1.a e 7: il consenso va documentato (quando, come, su quale testo).
+ */
+export async function updateMarketingConsent(userId, granted) {
+    const updated_at = new Date().toISOString();
+    try {
+        const command = new UpdateCommand({
+            TableName: TABLE_NAME,
+            Key: { id: userId },
+            UpdateExpression: 'SET marketing_consent = :mc',
+            // Niente record fantasma se l'account e' stato cancellato nel frattempo.
+            ConditionExpression: 'attribute_exists(id)',
+            ExpressionAttributeValues: {
+                ':mc': { granted: Boolean(granted), updated_at, source: 'popup', text_version: 'v1' }
+            }
+        });
+        await docClient.send(command);
+        return { granted: Boolean(granted), updated_at };
+    } catch (error) {
+        console.error('Error updating marketing consent:', error);
+        throw new Error('Errore aggiornamento consenso marketing');
+    }
+}
+
+/**
  * Cancella l'utente (tutti gli entitlement per-brand sono nel record utente).
  * La cronologia è client-side; le subscription sono gestite a parte (payments).
  */
@@ -415,6 +441,8 @@ export function formatUserFromDynamoDB(dynamoUser) {
         // role letto fresco dal DB (default 'user'); usato dai gate admin (es. /admin/metrics).
         role: dynamoUser.role || 'user',
         entitlements,
+        // Consenso marketing (GDPR art. 6.1.a): default false se mai espresso.
+        marketingConsent: dynamoUser.marketing_consent?.granted === true,
         // Proiezione retrocompatibile (brand di default).
         plan: def.plan || 'free',
         usage: {

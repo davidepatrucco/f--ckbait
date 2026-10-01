@@ -40,16 +40,34 @@
     <p><a href="/privacy-policy.html">{{t.privacy_link}} →</a></p>
   </section>
 
-  <section class="block wrap" id="plan">
-    <div class="plan">
-      <div>
-        <p class="big">{{t.plan_title}}</p>
-        <p>{{t.plan_text}}</p>
+  <section class="block wrap" id="pricing">
+    <h2 class="title">{{t.pricing_title}}</h2>
+    <div class="pricing-grid">
+      <div class="pricing-card">
+        <h3>{{t.plan_free_title}}</h3>
+        <ul class="plan-feats">
+          <li>{{t.plan_free_feat1}}</li>
+          <li>{{t.plan_free_feat2}}</li>
+          <li>{{t.plan_free_feat3}}</li>
+        </ul>
+        <p class="plan-price">{{t.plan_free_price}}</p>
       </div>
-      <div>
-        <p>{{t.langs_text}}</p>
+      <div class="pricing-card pricing-card--soon">
+        <span class="plan-badge">{{t.plan_premium_soon}}</span>
+        <h3>{{t.plan_premium_title}}</h3>
+        <ul class="plan-feats">
+          <li>{{t.plan_premium_feat1}}</li>
+          <li>{{t.plan_premium_feat2}}</li>
+          <li>{{t.plan_premium_feat3}}</li>
+        </ul>
+        <p class="plan-price">{{t.plan_premium_month}}</p>
+        <p class="plan-price-alt">{{t.plan_premium_year}}</p>
+        <p class="plan-vat">{{t.plan_premium_vat}}</p>
       </div>
     </div>
+    <p class="plan-promo">{{t.plan_promo}}</p>
+    <p class="plan-extra">{{t.plan_signin}}</p>
+    <p class="plan-extra">{{t.langs_text}}</p>
   </section>
 
   <section class="block wrap center">

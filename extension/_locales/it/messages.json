@@ -493,5 +493,11 @@
   },
   "popup_delete_account_done": {
     "message": "Il tuo account è stato eliminato."
+  },
+  "popup_marketing_optin": {
+    "message": "Inviami notizie e offerte via email. Puoi disattivarlo in qualsiasi momento."
+  },
+  "popup_marketing_optin_error": {
+    "message": "Impossibile salvare la preferenza. Riprova."
   }
 }
