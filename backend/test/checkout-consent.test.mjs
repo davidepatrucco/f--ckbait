@@ -41,6 +41,9 @@ describe('BIF-48 checkout — consenso Termini e rinuncia al recesso', () => {
         await payments.createCheckoutSession('u1', 'user@example.test', 'lemonsqueezer', 'premium_monthly');
         assert.ok(capturedParams, 'stripe.checkout.sessions.create doveva essere chiamato');
         assert.deepEqual(capturedParams.consent_collection, { terms_of_service: 'required' });
+        // Coupon al 100%: niente carta richiesta se il totale e' 0.
+        assert.equal(capturedParams.payment_method_collection, 'if_required');
+        assert.equal(capturedParams.allow_promotion_codes, true);
     });
 
     it('passa un custom_text.terms_of_service_acceptance.message non vuoto', async () => {

@@ -177,6 +177,8 @@ export async function createCheckoutSession(userId, userEmail, brand = DEFAULT_B
             success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: cancelUrl,
             allow_promotion_codes: true,
+            // Coupon al 100%: senza questo Stripe chiede comunque la carta anche se il totale e' 0.
+            payment_method_collection: 'if_required',
             billing_address_collection: 'auto',
             subscription_data: {
                 metadata: {
@@ -233,7 +235,8 @@ export async function verifyCheckoutSession(sessionId, expectedUserId) {
             expand: ['subscription', 'customer']
         });
 
-        if (session.payment_status !== 'paid') {
+        // 'no_payment_required' = coupon al 100%: stesso esito del webhook (handleCheckoutCompleted).
+        if (session.payment_status !== 'paid' && session.payment_status !== 'no_payment_required') {
             return {
                 success: false,
                 status: session.payment_status,
