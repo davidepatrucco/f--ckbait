@@ -25,7 +25,7 @@ const ACTIVE_KEY = 'active';
 export const CONFIG_SCHEMA = {
     'plan.free.trialSummaries': { type: 'int', min: 0, max: 100, description: 'Prove gratuite iniziali per brand' },
     'plan.free.dailySummaries': { type: 'int', min: 0, max: 1000, description: 'Riassunti al giorno nel piano free' },
-    'plan.free.pdf': { type: 'int', min: 0, max: 1, description: 'PDF nel piano free: 0 = solo Premium, 1 = anche free' },
+    'plan.free.pdf': { type: 'int', min: 0, max: 1, description: 'PDF anche nel piano free (spento = solo Premium)' },
     'transcription.maxActiveJobs': { type: 'int', min: 1, max: 10, description: 'Trascrizioni contemporanee per utente' },
     'transcription.maxJobsPerDay': { type: 'int', min: 1, max: 500, description: 'Trascrizioni al giorno per utente' },
     'transcription.maxMinutesPerDay': { type: 'int', min: 1, max: 6000, description: 'Minuti trascritti al giorno per utente' },

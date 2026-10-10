@@ -1816,6 +1816,13 @@ async function refreshPolicy() {
     }
 }
 
+// Override attivi + valori nuovi, meno le chiavi da riportare al default.
+export function mergeConfigValues(current = {}, values = {}, reset = []) {
+    const merged = { ...(current || {}), ...values };
+    for (const k of reset) delete merged[k];
+    return merged;
+}
+
 // GET /admin/config — valori effettivi, schema e storico delle versioni.
 // POST /admin/config — nuova versione, validata. Protetto dalla chiave admin.
 export async function adminConfigHandler(event) {
@@ -1848,17 +1855,23 @@ export async function adminConfigHandler(event) {
     try { body = JSON.parse(event.body || '{}'); } catch { return createResponse(400, { error: 'Body non valido', code: 'INVALID_JSON' }); }
 
     const { values, errors } = validateConfig(body.values || {});
+    const reset = Array.isArray(body.reset) ? body.reset.filter((k) => k in CONFIG_SCHEMA) : [];
     if (errors.length) {
         // Nessuna applicazione parziale: un cambio con voci non valide viene
         // rifiutato per intero, altrimenti lo stato risultante e' imprevedibile.
         return createResponse(400, { error: 'Valori non validi', code: 'INVALID_CONFIG', errors });
     }
-    const problems = checkConsistency({ ...effectiveValues(), ...values });
+    // La nuova versione parte da quella attiva: salvare un solo valore non deve
+    // riportare ai default tutti gli altri override (applyOverrides azzera le chiavi
+    // assenti).
+    const active = await readActiveConfig().catch(() => null);
+    const merged = mergeConfigValues(active?.values, values, reset);
+    const problems = checkConsistency({ ...effectiveValues(), ...merged });
     if (problems.length) {
         return createResponse(400, { error: 'Configurazione incoerente', code: 'INCONSISTENT_CONFIG', problems });
     }
 
-    const record = await writeConfig(values, body.updatedBy || 'admin');
+    const record = await writeConfig(merged, String(body.updatedBy || 'admin').slice(0, 60));
     applyOverrides(record.values, record.version);
     return createResponse(200, {
         applied: POLICY_STATE.values,
