@@ -12,7 +12,10 @@ e crea:
 | Variabile | Valore |
 | --- | --- |
 | `AWS_DEPLOY_ROLE_ARN` | ARN della role AWS assumibile da GitHub Actions, ad esempio `arn:aws:iam::707688585651:role/lemonsqueezer-github-deploy` |
-| `ALLOWED_ORIGINS` | `chrome-extension://akglkopghhlleheelgjgnnkkbecngpgh` |
+| `ALLOWED_ORIGINS` | `chrome-extension://akglkopghhlleheelgjgnnkkbecngpgh,chrome-extension://ganjpeaajkjdldbhopcnibepkdldjmao` (sviluppo + Chrome Web Store) |
+
+`ALLOWED_ORIGINS` esiste anche come variabile degli environment `staging` e `production`
+(Settings → Environments), che ha la precedenza su quella del repository: aggiornarle tutte e tre.
 
 Non inserire chiavi AWS (`AWS_ACCESS_KEY_ID` o `AWS_SECRET_ACCESS_KEY`) in GitHub.
 La role usa OIDC e credenziali temporanee.
