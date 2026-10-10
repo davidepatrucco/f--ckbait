@@ -29,12 +29,15 @@ export const PLAN_POLICY = {
         trialSummaries: num('FREE_TRIAL_BONUS', 5),
         // Quota ricorrente dopo le prove.
         dailySummaries: num('FREE_PLAN_LIMIT', 1),
-        transcription: false
+        transcription: false,
+        // I riassunti di PDF sono riservati al piano premium.
+        pdf: false
     },
     premium: {
         trialSummaries: 0,
         dailySummaries: Infinity,
-        transcription: true
+        transcription: true,
+        pdf: true
     }
 };
 
@@ -136,6 +139,8 @@ export const SUPPORTED_ENV = [
 const OVERRIDE_TARGETS = {
     'plan.free.trialSummaries': (v) => { PLAN_POLICY.free.trialSummaries = v; },
     'plan.free.dailySummaries': (v) => { PLAN_POLICY.free.dailySummaries = v; },
+    // Booleano codificato come 0/1: 0 → false, qualsiasi altro numero → true.
+    'plan.free.pdf': (v) => { PLAN_POLICY.free.pdf = v !== 0; },
     'transcription.maxActiveJobs': (v) => { TRANSCRIPTION_LIMITS.maxActiveJobs = v; },
     'transcription.maxJobsPerDay': (v) => { TRANSCRIPTION_LIMITS.maxJobsPerDay = v; },
     'transcription.maxMinutesPerDay': (v) => { TRANSCRIPTION_LIMITS.maxMinutesPerDay = v; },
@@ -159,6 +164,8 @@ function currentValue(key) {
     switch (key) {
         case 'plan.free.trialSummaries': return PLAN_POLICY.free.trialSummaries;
         case 'plan.free.dailySummaries': return PLAN_POLICY.free.dailySummaries;
+        // Restituisce 0/1 (numerico) per passare la validazione Number.isFinite.
+        case 'plan.free.pdf': return PLAN_POLICY.free.pdf ? 1 : 0;
         case 'transcription.maxActiveJobs': return TRANSCRIPTION_LIMITS.maxActiveJobs;
         case 'transcription.maxJobsPerDay': return TRANSCRIPTION_LIMITS.maxJobsPerDay;
         case 'transcription.maxMinutesPerDay': return TRANSCRIPTION_LIMITS.maxMinutesPerDay;

@@ -71,7 +71,8 @@ async function handlePdfFileSummarize(request, sendResponse) {
             PDF_UNREADABLE: ['err_pdf_unreadable', 'This PDF could not be read.'],
             PDF_NO_TEXT: ['err_pdf_no_text', 'This PDF has no selectable text.'],
             CONTENT_TOO_LONG: ['err_pdf_too_long', 'This PDF is too long for a reliable summary.'],
-            AUTH_REQUIRED: ['err_auth_required', 'Sign-in required.']
+            AUTH_REQUIRED: ['err_auth_required', 'Sign-in required.'],
+            PREMIUM_REQUIRED: ['pdf_premium_required', 'PDF summaries are a Premium feature.']
         };
         const entry = map[code];
         return entry ? msg(entry[0], entry[1]) : (fallbackText || msg('err_pdf_generic', "The PDF couldn't be summarized."));
@@ -131,7 +132,8 @@ async function handlePdfFileSummarize(request, sendResponse) {
 // una scheda dedicata (il viewer PDF di Chrome non permette content script/modale).
 async function handlePdfSummarize(request, sendResponse) {
     const msg = (key, fallback) => { try { return chrome.i18n.getMessage(key) || fallback; } catch (e) { return fallback; } };
-    const friendly = (m, status) => {
+    const friendly = (m, status, code) => {
+        if (status === 403 && code === 'PREMIUM_REQUIRED') return msg('pdf_premium_required', 'PDF summaries are a Premium feature.');
         if (status === 429) return msg('err_quota_reached', 'Summary limit reached.');
         if (/TOO_LONG/i.test(m)) return msg('err_pdf_too_long', 'This PDF is too long.');
         if (/senza testo estraibile|scansione/i.test(m)) return msg('err_pdf_no_text', 'This PDF has no selectable text.');
@@ -165,7 +167,7 @@ async function handlePdfSummarize(request, sendResponse) {
         });
         const data = await res.json().catch(() => null);
         if (!res.ok) {
-            await chrome.storage.local.set({ pendingSummary: { error: friendly(data?.error || '', res.status) } });
+            await chrome.storage.local.set({ pendingSummary: { error: friendly(data?.error || '', res.status, data?.code) } });
         } else {
             await chrome.storage.local.set({ pendingSummary: { data, url: request.url } });
         }

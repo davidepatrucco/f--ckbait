@@ -5,7 +5,7 @@ import { validateSubscription } from '../src/subscription.mjs';
 import { checkRateLimit } from '../src/rate-limit.mjs';
 import { fetchWebContent, assertPublicUrl, extractPdfText } from '../src/web-fetcher.mjs';
 import { transcribeMedia } from '../src/transcribe.mjs';
-import { CONTENT_LIMITS, publicLimits, applyOverrides, effectiveValues, POLICY_STATE } from '../src/policy.mjs';
+import { CONTENT_LIMITS, PLAN_POLICY, publicLimits, applyOverrides, effectiveValues, POLICY_STATE } from '../src/policy.mjs';
 import { CONFIG_SCHEMA, validateConfig, checkConsistency, readActiveConfig, writeConfig, listConfigVersions } from '../src/config-store.mjs';
 import { createJob, getJob, updateJob, publicJobView, countUserJobs, reserveSlot, releaseSlot, MAX_ACTIVE_JOBS, MAX_JOBS_PER_DAY, MAX_MINUTES_PER_DAY } from '../src/transcribe-jobs.mjs';
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
@@ -149,6 +149,13 @@ function isYouTubeUrl(value) {
     }
 }
 
+// Verifica se l'entitlement di un utente permette i riassunti di PDF.
+// Funzione pura esportata per consentire test unitari senza DynamoDB.
+export function canUsePdf(entitlement) {
+    const plan = entitlement?.plan ?? 'free';
+    return PLAN_POLICY[plan]?.pdf === true;
+}
+
 // L'endpoint legacy /summarize e' stato RIMOSSO (audit esterno, bloccante):
 // verificava solo la PRESENZA dell'header x-api-key, senza validarne il valore ne'
 // autenticare un utente. Una chiave inventata raggiungeva il modello: vettore di
@@ -252,6 +259,7 @@ export async function summarizeUrlHandler(event) {
 
         let text;
         let title;
+        let isPdf = false;
         let fetchTime = 0;
         let videoDescription = '';
         let videoComments = [];
@@ -272,13 +280,23 @@ export async function summarizeUrlHandler(event) {
             console.log('[TIMING] Starting fetch for URL:', body.url);
             const fetchStartTime = Date.now();
             try {
-                ({ text, title } = await fetchWebContent(body.url));
+                ({ text, title, isPdf } = await fetchWebContent(body.url));
             } catch (fetchErr) {
                 const m = String(fetchErr?.message || '');
                 // Casi noti: messaggio chiaro al client (non un 500 generico).
                 if (/TOO_LONG/.test(m)) return createResponse(400, { error: 'TOO_LONG', code: 'CONTENT_TOO_LONG' });
                 if (/BOT_CHALLENGE/.test(m)) return createResponse(400, { error: 'BOT_CHALLENGE', code: 'BOT_CHALLENGE' });
                 throw fetchErr;
+            }
+            // Gate PDF: va prima di incrementUsage per non consumare quota.
+            // La cache non può aggirare il gate perché viene letta solo dopo il booking.
+            if (isPdf && !canUsePdf(getEntitlement(user, brandId))) {
+                return createResponse(403, {
+                    error: 'PDF summaries are a Premium feature.',
+                    code: 'PREMIUM_REQUIRED',
+                    feature: 'pdf',
+                    brand: brandId
+                });
             }
             fetchTime = Date.now() - fetchStartTime;
             console.log('[TIMING] Web fetch took:', fetchTime, 'ms');
@@ -1697,6 +1715,17 @@ export async function extractPdfHandler(event) {
 
         let user;
         try { user = await requireAuth(event); } catch (e) { return createResponse(401, { error: e.message, code: 'AUTH_REQUIRED' }); }
+
+        // Gate PDF: prima del decoding/estrazione, nessun consumo di quota.
+        const brandPdf = resolveBrandId(event.headers?.['x-brand'] || event.headers?.['X-Brand']);
+        if (!canUsePdf(getEntitlement(user, brandPdf))) {
+            return createResponse(403, {
+                error: 'PDF summaries are a Premium feature.',
+                code: 'PREMIUM_REQUIRED',
+                feature: 'pdf',
+                brand: brandPdf
+            });
+        }
 
         let body;
         try { body = JSON.parse(event.body); } catch { return createResponse(400, { error: 'Body non valido', code: 'INVALID_JSON' }); }

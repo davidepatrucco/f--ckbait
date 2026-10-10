@@ -282,7 +282,7 @@ export async function fetchWebContent(url) {
                 throw new Error('TOO_LONG: PDF troppo lungo per un riassunto affidabile');
             }
             const pdfTitle = decodeURIComponent((validUrl.pathname.split('/').pop() || 'PDF').replace(/\.pdf$/i, '')) || 'PDF';
-            return { text: pdfText.slice(0, MAX_TEXT_CHARS), title: pdfTitle };
+            return { text: pdfText.slice(0, MAX_TEXT_CHARS), title: pdfTitle, isPdf: true };
         }
         if (!contentType.includes('text/html')) {
             throw new Error('Il contenuto non è HTML');
