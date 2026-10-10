@@ -17,9 +17,25 @@ LemonSqueezer riassume qualsiasi articolo o pagina web in pochi secondi: i punti
 • Un clic sull'icona → riassunto immediato della pagina attiva
 • Bullet chiari e concisi, niente fronzoli
 • Lingua di output selezionabile e livello di sintesi regolabile
-• Funziona su articoli, blog, documentazione, PDF (anche aperti da file locale) e video: YouTube e qualsiasi video con sottotitoli; con Premium anche trascrizione dell'audio
+• Funziona su articoli, blog, documentazione e video: YouTube e qualsiasi video con sottotitoli
+• Con Premium anche i PDF (pure aperti da file locale) e la trascrizione dell'audio dei video senza sottotitoli
 
 Pensato per chi legge molto e ha poco tempo: capisci se e cosa vale la pena leggere, subito. Il contenuto della pagina viene elaborato al momento per generare il riassunto e non viene rivenduto a terzi.
+
+## Description (English, lingua predefinita dello store)
+**Summary (≤132):** TL;DR of any page in one click: the key points, no noise. Summaries in your language.
+
+LemonSqueezer summarizes any article or web page in seconds: the essential points as bullets, in the language you choose, with one click.
+
+• One click on the icon: an instant summary of the current page
+• Clear, concise bullets, no filler
+• Choose the output language and how short the summary should be
+• Works on articles, blogs, documentation and videos: YouTube and any video with subtitles
+• With Premium also PDFs (including local files) and audio transcription for videos without subtitles
+
+Free plan: 5 trial summaries, then 1 per day. Sign in with Google.
+
+Built for people who read a lot and have little time: know right away whether something is worth reading. Page content is processed on the fly to create the summary and is never sold to third parties.
 
 ## Keywords
 tldr, summary, riassunto, articoli, produttività, reading
