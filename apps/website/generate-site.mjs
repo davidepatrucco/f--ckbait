@@ -26,6 +26,7 @@
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync, copyFileSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 import { dirname, resolve, join } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -213,6 +214,14 @@ function copyLegal(brand, outDir) {
 export function generateBrand(brandId, year, dicts) {
   const brand = loadBrand(brandId);
   const vars = brandVars(brand, year);
+  // Assets are served with a one-year immutable cache: the ?v= content hash makes a
+  // changed icon reach browsers that already cached the old one.
+  const h = createHash('sha256');
+  for (const f of ['icon.svg', 'icon-128.png', 'og.png']) {
+    const src = join(BRANDS_DIR, brand.id, 'assets', f);
+    if (existsSync(src)) h.update(readFileSync(src));
+  }
+  vars.assetV = h.digest('hex').slice(0, 10);
   const outDir = join(DIST_DIR, brandId);
   // Clean first: a page removed from the generator must not survive from an old run
   // and get published.
