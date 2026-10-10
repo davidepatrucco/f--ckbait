@@ -1,6 +1,6 @@
-# Store listing — LemonSqueezer — TL;DR
+# Store listing — LemonSqueezer
 
-**Nome (store):** LemonSqueezer — TL;DR
+**Nome (store):** LemonSqueezer
 **Categoria:** Productivity
 **Tagline:** Skip the noise. Get the point.
 **Privacy:** https://lemonsqueezer.app/privacy-policy.html
