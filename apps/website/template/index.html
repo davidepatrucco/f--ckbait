@@ -35,29 +35,43 @@
     <div class="pricing-grid">
       <div class="pricing-card">
         <h3>{{t.plan_free_title}}</h3>
+        <p class="plan-desc">{{t.plan_free_desc}}</p>
+        <p class="plan-price">{{t.plan_free_price}} <span>{{t.plan_free_unit}}</span></p>
+        <p class="plan-alt">&nbsp;</p>
         <ul class="plan-feats">
           <li>{{t.plan_free_feat1}}</li>
           <li>{{t.plan_free_feat2}}</li>
           <li>{{t.plan_free_feat3}}</li>
         </ul>
-        <p class="plan-price">{{t.plan_free_price}}</p>
+        <div class="plan-cta">{{!ctaTag}}</div>
       </div>
-      <div class="pricing-card pricing-card--soon">
+      <div class="pricing-card pricing-card--featured">
         <span class="plan-badge">{{t.plan_premium_soon}}</span>
         <h3>{{t.plan_premium_title}}</h3>
+        <p class="plan-desc">{{t.plan_premium_desc}}</p>
+        <p class="plan-price">{{t.plan_premium_month}} <span>{{t.plan_premium_unit}}</span></p>
+        <p class="plan-alt">{{t.plan_premium_alt}}</p>
         <ul class="plan-feats">
+          <li>{{t.plan_premium_feat3}}</li>
           <li>{{t.plan_premium_feat1}}</li>
           <li>{{t.plan_premium_feat2}}</li>
-          <li>{{t.plan_premium_feat3}}</li>
         </ul>
-        <p class="plan-price">{{t.plan_premium_month}}</p>
-        <p class="plan-price-alt">{{t.plan_premium_year}}</p>
-        <p class="plan-vat">{{t.plan_premium_vat}}</p>
+        <div class="plan-cta"><span class="cta" aria-disabled="true">{{t.plan_premium_soon}}</span></div>
+      </div>
+      <div class="pricing-card">
+        <h3>{{t.plan_biz_title}}</h3>
+        <p class="plan-desc">{{t.plan_biz_desc}}</p>
+        <p class="plan-price">{{t.plan_biz_price}}</p>
+        <p class="plan-alt">&nbsp;</p>
+        <ul class="plan-feats">
+          <li>{{t.plan_biz_feat1}}</li>
+          <li>{{t.plan_biz_feat2}}</li>
+          <li>{{t.plan_biz_feat3}}</li>
+        </ul>
+        <div class="plan-cta"><a class="cta cta-ghost" href="mailto:contact@bifa.digital?subject={{displayName}}%20Business">{{t.plan_biz_cta}}</a></div>
       </div>
     </div>
-    <p class="plan-promo">{{t.plan_promo}}</p>
-    <p class="plan-extra">{{t.plan_signin}}</p>
-    <p class="plan-extra">{{t.langs_text}}</p>
+    <p class="plan-extra">{{t.plan_promo}} {{t.plan_signin}} {{t.langs_text}}</p>
   </section>
 
   <section class="block wrap center">
