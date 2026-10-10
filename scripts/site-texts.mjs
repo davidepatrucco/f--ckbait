@@ -3,11 +3,17 @@
 //
 //   node scripts/site-texts.mjs export [file.csv]   JSON del sito -> CSV (da importare nel foglio)
 //   node scripts/site-texts.mjs import file.csv     CSV del foglio -> apps/website/i18n/*.json
+//   node scripts/site-texts.mjs sync foglio.csv     unione a tre vie (quella del workflow)
+//
+// sync: confronta il foglio con l'ultima versione gia' importata
+// (apps/website/i18n/sheet-snapshot.csv) e applica ai JSON solo le celle cambiate nel
+// foglio da allora. Cosi' un testo cambiato nel codice non viene sovrascritto dal valore
+// vecchio rimasto nel foglio, e una chiave nuova non ancora nel foglio resta com'e'.
 //
 // Il foglio ha una riga per testo e le colonne: key, en, it, es, fr, de.
 // L'import rifiuta il file (codice 1, nessuna scrittura) se mancano colonne, se una
 // chiave e' ripetuta o se una cella di traduzione e' vuota: un buco non va online.
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -67,6 +73,21 @@ export function fromCsv(text) {
     return { dicts, errors };
 }
 
+// Unione a tre vie: base = foglio all'ultimo import, sheet = foglio ora, repo = JSON attuali.
+export function mergeSheet(repo, base, sheet) {
+    const out = structuredClone(repo);
+    const changed = [];
+    for (const key of Object.keys(sheet.en)) {
+        for (const l of LANGS) {
+            const now = sheet[l][key];
+            if (base[l]?.[key] === now) continue;   // cella non toccata nel foglio
+            if (out[l][key] !== now) changed.push(`${key}.${l}`);
+            out[l][key] = now;
+        }
+    }
+    return { dicts: out, changed };
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
     const [cmd, file] = process.argv.slice(2);
     if (cmd === 'export') {
@@ -78,8 +99,19 @@ if (import.meta.url === `file://${process.argv[1]}`) {
         if (errors.length) { console.error(errors.join('\n')); process.exit(1); }
         for (const l of LANGS) writeFileSync(join(I18N, `${l}.json`), JSON.stringify(dicts[l], null, 2) + '\n');
         console.log(`ok: ${Object.keys(dicts.en).length} testi x ${LANGS.length} lingue`);
+    } else if (cmd === 'sync' && file) {
+        const text = readFileSync(file, 'utf8');
+        const sheet = fromCsv(text);
+        if (sheet.errors.length) { console.error(sheet.errors.join('\n')); process.exit(1); }
+        const snap = join(I18N, 'sheet-snapshot.csv');
+        const base = existsSync(snap) ? fromCsv(readFileSync(snap, 'utf8')).dicts : Object.fromEntries(LANGS.map((l) => [l, {}]));
+        const repo = Object.fromEntries(LANGS.map((l) => [l, JSON.parse(readFileSync(join(I18N, `${l}.json`), 'utf8'))]));
+        const { dicts, changed } = mergeSheet(repo, base, sheet.dicts);
+        for (const l of LANGS) writeFileSync(join(I18N, `${l}.json`), JSON.stringify(dicts[l], null, 2) + '\n');
+        writeFileSync(snap, toCsv(sheet.dicts));
+        console.log(changed.length ? `aggiornati ${changed.length}: ${changed.join(', ')}` : 'nessuna cella cambiata nel foglio');
     } else {
-        console.error('uso: node scripts/site-texts.mjs export [file.csv] | import file.csv');
+        console.error('uso: node scripts/site-texts.mjs export [file.csv] | import file.csv | sync foglio.csv');
         process.exit(1);
     }
 }
