@@ -14,6 +14,14 @@ Parameters:
   HostedZoneId:
     Type: AWS::Route53::HostedZone::Id
     Description: Route 53 hosted zone of DomainName
+  BasicAuth:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: >
+      Pre-launch password gate. Value of the Authorization header ("Basic <base64 user:pass>");
+      empty = site public. Legal pages and assets stay public (store, Google consent and
+      Stripe link to them).
 
 Resources:
   SiteBucket:
@@ -61,10 +69,19 @@ Resources:
       FunctionConfig:
         Comment: Language redirect on / and directory index rewrite
         Runtime: cloudfront-js-2.0
-      FunctionCode: |
+      FunctionCode: !Sub |
         function handler(event) {
           var req = event.request;
           var uri = req.uri;
+          var gate = '${BasicAuth}';
+          var open = uri === '/privacy-policy.html' || uri === '/terms.html' || uri.indexOf('/assets/') === 0;
+          if (gate && !open) {
+            var a = req.headers.authorization;
+            if (!a || a.value !== gate) {
+              return { statusCode: 401, statusDescription: 'Unauthorized',
+                headers: { 'www-authenticate': { value: 'Basic realm="preview"' }, 'cache-control': { value: 'no-store' } } };
+            }
+          }
           var langs = ['en', 'it', 'es', 'fr', 'de'];
           if (uri === '/' || uri === '') {
             var pick = 'en';
