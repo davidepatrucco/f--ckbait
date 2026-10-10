@@ -66,14 +66,14 @@
     @media (prefers-color-scheme: dark) { .cta { border-color: color-mix(in srgb, var(--ink) 20%, transparent); } }
     .cta.small { padding: 9px 16px; font-size: 14px; }
 
-    .hero { padding: 88px 0 40px; text-align: center; }
+    .hero { padding-block: 88px 40px; text-align: center; }
     .hero h1 { font-size: clamp(34px, 6vw, 60px); line-height: 1.04; letter-spacing: -0.035em; margin: 0 auto 20px; max-width: 16ch; font-weight: 800; }
     .hero p.sub { font-size: clamp(17px, 2.2vw, 21px); color: var(--ink-2); margin: 0 auto 32px; max-width: 42ch; }
     .hero .note { margin: 14px 0 0; font-size: 13px; color: var(--ink-2); }
-    .shot { margin: 56px auto 0; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); box-shadow: 0 30px 80px -30px rgba(0,0,0,.35); background: var(--bg-2); }
-    .shot img { width: 100%; aspect-ratio: 1280 / 800; object-fit: cover; object-position: 100% 0; }
+    .shot { margin: 40px auto 0; }
+    .hero-art { display: block; width: 100%; height: auto; }
 
-    section.block { padding: 72px 0; border-top: 1px solid var(--line); }
+    section.block { padding-block: 72px; border-top: 1px solid var(--line); }
     h2.title { font-size: clamp(26px, 3.4vw, 36px); letter-spacing: -0.03em; line-height: 1.1; margin: 0 0 32px; font-weight: 800; }
     .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
     .card { background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; }
@@ -105,7 +105,6 @@
     @media (max-width: 760px) {
       nav.main { display: none; }
       .wordmark .text { display: none; }   /* icon only: the name would collide with the language switcher */
-      .shot img { aspect-ratio: 4 / 5; }  /* taller crop on phones: the popup on the right stays visible */
       .grid3, .plan { grid-template-columns: 1fr; }
       .hero { padding-top: 56px; }
       header.site .row { min-height: 56px; }

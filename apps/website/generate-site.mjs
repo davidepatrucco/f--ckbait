@@ -7,7 +7,7 @@
 //   404.html                 error page (English) with links to every language
 //   privacy-policy.html      copied from legal/ (bilingual IT+EN, language-neutral URL)
 //   terms.html               idem
-//   assets/                  icon.svg, icon-128.png, hero.png (store screenshot)
+//   assets/                  icon.svg, icon-128.png, hero.png (og:image: brand og.png or store screenshot)
 //   <lang>/index.html        landing        lang ∈ en it es fr de
 //   <lang>/faq.html
 //   <lang>/thank-you.html    checkout return pages (noindex)
@@ -193,9 +193,11 @@ function copyAssets(brand, outDir) {
     if (!existsSync(src)) throw new GenerateError(`missing asset ${src}`);
     copyFileSync(src, join(assets, f));
   }
-  // Hero: the real popup screenshot from the store assets (exists for every brand).
-  const hero = join(STORE_DIR, brand.id, 'screenshots', '02-testo-popup.png');
-  if (!existsSync(hero)) throw new GenerateError(`missing hero screenshot ${hero}`);
+  // Link-preview image (og:image): the brand's og.png if present, else the store popup
+  // screenshot (exists for every brand). The homepage itself shows the animated SVG.
+  const og = join(brandAssets, 'og.png');
+  const hero = existsSync(og) ? og : join(STORE_DIR, brand.id, 'screenshots', '02-testo-popup.png');
+  if (!existsSync(hero)) throw new GenerateError(`missing hero image ${hero}`);
   copyFileSync(hero, join(assets, 'hero.png'));
 }
 
