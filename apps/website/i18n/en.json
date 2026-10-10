@@ -20,7 +20,7 @@
   "works_title": "Works on",
   "works_web_t": "Web pages",
   "works_web_d": "Articles, blogs, documentation, newsletters.",
-  "works_pdf_t": "PDF documents",
+  "works_pdf_t": "PDF documents · Premium",
   "works_pdf_d": "Online, or a file on your disk opened in the browser.",
   "works_video_t": "Videos",
   "works_video_d": "YouTube and any video with subtitles. With Premium, also videos without subtitles, from the audio.",
@@ -29,7 +29,7 @@
   "plan_free_title": "Free",
   "plan_free_feat1": "5 summaries to try",
   "plan_free_feat2": "Then 1 summary per day",
-  "plan_free_feat3": "Web pages, PDFs, videos with subtitles",
+  "plan_free_feat3": "Web pages and videos with subtitles",
   "plan_free_price": "0 €",
   "plan_premium_title": "Premium",
   "plan_premium_feat1": "Unlimited summaries",
@@ -49,7 +49,7 @@
   "faq4_q": "How many summaries are free?",
   "faq4_a": "5 to try, then 1 per day. Premium, with unlimited summaries, is coming soon.",
   "faq5_q": "What content does it work on?",
-  "faq5_a": "Web pages, PDF documents (also a local file opened in the browser), YouTube and any video with subtitles. With Premium, also videos without subtitles, transcribed from the audio.",
+  "faq5_a": "Web pages, YouTube and any video with subtitles. With Premium, also PDF documents (online or a file from your computer) and videos without subtitles, transcribed from the audio.",
   "faq6_q": "Which languages?",
   "faq6_a": "The interface is in English, Italian, Spanish, French and German. The summary is written in the language you choose in the extension.",
   "faq7_q": "How do I delete my account or get help?",
@@ -84,5 +84,8 @@
   "plan_biz_feat1": "Everything in Premium, for the whole team",
   "plan_biz_feat2": "One invoice for the company",
   "plan_biz_feat3": "Direct support",
-  "plan_biz_cta": "Contact us"
+  "plan_biz_cta": "Contact us",
+  "plan_premium_feat4": "PDF documents, online or from your computer",
+  "plan_biz_feat4": "Extended privacy: no texts or summaries stored on our servers",
+  "plan_biz_feat5": "Custom options: summary length and style, team default language"
 }

@@ -20,7 +20,7 @@
   "works_title": "Funktioniert mit",
   "works_web_t": "Webseiten",
   "works_web_d": "Artikel, Blogs, Dokumentation, Newsletter.",
-  "works_pdf_t": "PDF-Dokumente",
+  "works_pdf_t": "PDF-Dokumente · Premium",
   "works_pdf_d": "Online oder eine Datei von deiner Festplatte, im Browser geöffnet.",
   "works_video_t": "Videos",
   "works_video_d": "YouTube und jedes Video mit Untertiteln. Mit Premium auch Videos ohne Untertitel, aus der Tonspur.",
@@ -29,7 +29,7 @@
   "plan_free_title": "Kostenlos",
   "plan_free_feat1": "5 Zusammenfassungen zum Ausprobieren",
   "plan_free_feat2": "Danach 1 Zusammenfassung pro Tag",
-  "plan_free_feat3": "Webseiten, PDFs, Videos mit Untertiteln",
+  "plan_free_feat3": "Webseiten und Videos mit Untertiteln",
   "plan_free_price": "0 €",
   "plan_premium_title": "Premium",
   "plan_premium_feat1": "Unbegrenzte Zusammenfassungen",
@@ -49,7 +49,7 @@
   "faq4_q": "Wie viele Zusammenfassungen sind kostenlos?",
   "faq4_a": "5 zum Ausprobieren, danach 1 pro Tag. Premium mit unbegrenzten Zusammenfassungen kommt bald.",
   "faq5_q": "Mit welchen Inhalten funktioniert es?",
-  "faq5_a": "Webseiten, PDF-Dokumente (auch eine lokale Datei, die im Browser geöffnet ist), YouTube und jedes Video mit Untertiteln. Mit Premium auch Videos ohne Untertitel, aus der Tonspur transkribiert.",
+  "faq5_a": "Webseiten, YouTube und alle Videos mit Untertiteln. Mit Premium auch PDF-Dokumente (online oder eine Datei vom eigenen Computer) und Videos ohne Untertitel, aus dem Ton transkribiert.",
   "faq6_q": "In welchen Sprachen?",
   "faq6_a": "Die Oberfläche gibt es auf Englisch, Italienisch, Spanisch, Französisch und Deutsch. Die Zusammenfassung wird in der Sprache geschrieben, die du in der Erweiterung wählst.",
   "faq7_q": "Wie lösche ich mein Konto oder bekomme Hilfe?",
@@ -84,5 +84,8 @@
   "plan_biz_feat1": "Alles aus Premium, fürs ganze Team",
   "plan_biz_feat2": "Eine Rechnung für das Unternehmen",
   "plan_biz_feat3": "Direkter Support",
-  "plan_biz_cta": "Kontakt aufnehmen"
+  "plan_biz_cta": "Kontakt aufnehmen",
+  "plan_premium_feat4": "PDF-Dokumente, online oder vom eigenen Computer",
+  "plan_biz_feat4": "Erweiterter Datenschutz: keine Texte oder Zusammenfassungen auf unseren Servern gespeichert",
+  "plan_biz_feat5": "Individuelle Optionen: Länge und Stil der Zusammenfassungen, Standardsprache fürs Team"
 }

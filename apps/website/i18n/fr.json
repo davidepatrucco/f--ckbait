@@ -20,7 +20,7 @@
   "works_title": "Fonctionne avec",
   "works_web_t": "Pages web",
   "works_web_d": "Articles, blogs, documentation, newsletters.",
-  "works_pdf_t": "Documents PDF",
+  "works_pdf_t": "Documents PDF · Premium",
   "works_pdf_d": "En ligne, ou un fichier de votre disque ouvert dans le navigateur.",
   "works_video_t": "Vidéos",
   "works_video_d": "YouTube et toute vidéo sous-titrée. Avec Premium, aussi les vidéos sans sous-titres, à partir de l'audio.",
@@ -29,7 +29,7 @@
   "plan_free_title": "Gratuit",
   "plan_free_feat1": "5 résumés d'essai",
   "plan_free_feat2": "Puis 1 résumé par jour",
-  "plan_free_feat3": "Pages web, PDF, vidéos sous-titrées",
+  "plan_free_feat3": "Pages web et vidéos sous-titrées",
   "plan_free_price": "0 €",
   "plan_premium_title": "Premium",
   "plan_premium_feat1": "Résumés illimités",
@@ -49,7 +49,7 @@
   "faq4_q": "Combien de résumés sont gratuits ?",
   "faq4_a": "5 d'essai, puis 1 par jour. Premium, avec des résumés illimités, arrive bientôt.",
   "faq5_q": "Avec quels contenus ça marche ?",
-  "faq5_a": "Pages web, documents PDF (aussi un fichier local ouvert dans le navigateur), YouTube et toute vidéo sous-titrée. Avec Premium, aussi les vidéos sans sous-titres, transcrites à partir de l'audio.",
+  "faq5_a": "Pages web, YouTube et toute vidéo sous-titrée. Avec Premium, aussi les documents PDF (en ligne ou un fichier de votre ordinateur) et les vidéos sans sous-titres, transcrites à partir de l'audio.",
   "faq6_q": "Dans quelles langues ?",
   "faq6_a": "L'interface est en anglais, italien, espagnol, français et allemand. Le résumé est rédigé dans la langue que vous choisissez dans l'extension.",
   "faq7_q": "Comment supprimer mon compte ou obtenir de l'aide ?",
@@ -84,5 +84,8 @@
   "plan_biz_feat1": "Tout Premium, pour toute l'équipe",
   "plan_biz_feat2": "Une seule facture pour l'entreprise",
   "plan_biz_feat3": "Assistance directe",
-  "plan_biz_cta": "Nous contacter"
+  "plan_biz_cta": "Nous contacter",
+  "plan_premium_feat4": "Documents PDF, en ligne ou depuis votre ordinateur",
+  "plan_biz_feat4": "Confidentialité renforcée : aucun texte ni résumé conservé sur nos serveurs",
+  "plan_biz_feat5": "Options sur mesure : longueur et style des résumés, langue par défaut de l'équipe"
 }

@@ -20,7 +20,7 @@
   "works_title": "Funciona con",
   "works_web_t": "Páginas web",
   "works_web_d": "Artículos, blogs, documentación, boletines.",
-  "works_pdf_t": "Documentos PDF",
+  "works_pdf_t": "Documentos PDF · Premium",
   "works_pdf_d": "En línea, o un archivo de tu disco abierto en el navegador.",
   "works_video_t": "Vídeos",
   "works_video_d": "YouTube y cualquier vídeo con subtítulos. Con Premium, también vídeos sin subtítulos, a partir del audio.",
@@ -29,7 +29,7 @@
   "plan_free_title": "Gratuito",
   "plan_free_feat1": "5 resúmenes de prueba",
   "plan_free_feat2": "Luego 1 resumen al día",
-  "plan_free_feat3": "Páginas web, PDF, vídeos con subtítulos",
+  "plan_free_feat3": "Páginas web y vídeos con subtítulos",
   "plan_free_price": "0 €",
   "plan_premium_title": "Premium",
   "plan_premium_feat1": "Resúmenes ilimitados",
@@ -49,7 +49,7 @@
   "faq4_q": "¿Cuántos resúmenes son gratis?",
   "faq4_a": "5 de prueba y después 1 al día. Premium, con resúmenes ilimitados, llegará pronto.",
   "faq5_q": "¿Con qué contenidos funciona?",
-  "faq5_a": "Páginas web, documentos PDF (también un archivo local abierto en el navegador), YouTube y cualquier vídeo con subtítulos. Con Premium, también vídeos sin subtítulos, transcritos a partir del audio.",
+  "faq5_a": "Páginas web, YouTube y cualquier vídeo con subtítulos. Con Premium, también documentos PDF (en línea o un archivo de tu ordenador) y vídeos sin subtítulos, transcritos a partir del audio.",
   "faq6_q": "¿En qué idiomas?",
   "faq6_a": "La interfaz está en inglés, italiano, español, francés y alemán. El resumen se escribe en el idioma que elijas en la extensión.",
   "faq7_q": "¿Cómo elimino mi cuenta o pido ayuda?",
@@ -84,5 +84,8 @@
   "plan_biz_feat1": "Todo Premium, para todo el equipo",
   "plan_biz_feat2": "Una sola factura para la empresa",
   "plan_biz_feat3": "Soporte directo",
-  "plan_biz_cta": "Contáctanos"
+  "plan_biz_cta": "Contáctanos",
+  "plan_premium_feat4": "Documentos PDF, en línea o desde tu ordenador",
+  "plan_biz_feat4": "Privacidad ampliada: ningún texto ni resumen guardado en nuestros servidores",
+  "plan_biz_feat5": "Opciones a medida: longitud y estilo de los resúmenes, idioma predeterminado del equipo"
 }

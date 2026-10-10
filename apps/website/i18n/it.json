@@ -20,7 +20,7 @@
   "works_title": "Funziona su",
   "works_web_t": "Pagine web",
   "works_web_d": "Articoli, blog, documentazione, newsletter.",
-  "works_pdf_t": "Documenti PDF",
+  "works_pdf_t": "Documenti PDF · Premium",
   "works_pdf_d": "Online, oppure un file sul tuo disco aperto nel browser.",
   "works_video_t": "Video",
   "works_video_d": "YouTube e qualsiasi video con sottotitoli. Con Premium anche i video senza sottotitoli, dall'audio.",
@@ -29,7 +29,7 @@
   "plan_free_title": "Gratuito",
   "plan_free_feat1": "5 riassunti di prova",
   "plan_free_feat2": "Poi 1 riassunto al giorno",
-  "plan_free_feat3": "Pagine web, PDF, video con sottotitoli",
+  "plan_free_feat3": "Pagine web e video con sottotitoli",
   "plan_free_price": "0 €",
   "plan_premium_title": "Premium",
   "plan_premium_feat1": "Riassunti illimitati",
@@ -49,7 +49,7 @@
   "faq4_q": "Quanti riassunti sono gratuiti?",
   "faq4_a": "5 di prova, poi 1 al giorno. Premium, con riassunti illimitati, è in arrivo.",
   "faq5_q": "Su quali contenuti funziona?",
-  "faq5_a": "Pagine web, documenti PDF (anche un file locale aperto nel browser), YouTube e qualsiasi video con sottotitoli. Con Premium anche i video senza sottotitoli, trascritti dall'audio.",
+  "faq5_a": "Pagine web, YouTube e qualsiasi video con sottotitoli. Con Premium anche i documenti PDF (online o un file dal tuo computer) e i video senza sottotitoli, trascritti dall'audio.",
   "faq6_q": "In quali lingue?",
   "faq6_a": "L'interfaccia è in inglese, italiano, spagnolo, francese e tedesco. Il riassunto è scritto nella lingua che scegli nell'estensione.",
   "faq7_q": "Come elimino l'account o chiedo aiuto?",
@@ -84,5 +84,8 @@
   "plan_biz_feat1": "Tutto Premium, per tutto il team",
   "plan_biz_feat2": "Un'unica fattura per l'azienda",
   "plan_biz_feat3": "Assistenza diretta",
-  "plan_biz_cta": "Contattaci"
+  "plan_biz_cta": "Contattaci",
+  "plan_premium_feat4": "Documenti PDF, online o dal tuo computer",
+  "plan_biz_feat4": "Privacy estesa: nessun testo o riassunto conservato sui nostri server",
+  "plan_biz_feat5": "Opzioni su misura: lunghezza e stile dei riassunti, lingua predefinita del team"
 }
