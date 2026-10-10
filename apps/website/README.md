@@ -68,3 +68,17 @@ aws cloudformation deploy --region us-east-1 --stack-name site-<brand> --templat
 
 - `cd backend && node --test test/website-gen.test.mjs` — chiavi dei dizionari, escape, colore del pulsante, generazione completa senza placeholder né inglese residuo.
 - Controllo visivo: renderizzare `dist/<brand>` con un server locale e Playwright (desktop/mobile, chiaro/scuro); nessun overflow orizzontale, nessun `{{`/`undefined`.
+
+## Testi: foglio Google
+
+I testi delle pagine si modificano nel foglio Google "Testi sito LemonSqueezer" (una riga per
+testo, colonne `key, en, it, es, fr, de`). Il workflow `sync-site-texts.yml` legge il foglio
+pubblicato come CSV (URL nella variabile del repo `SITE_TEXTS_CSV_URL`) ogni ora al minuto
+17, oppure subito con "Run workflow"; se un testo è cambiato fa il commit dei JSON e avvia
+`deploy-site.yml`. Celle vuote, chiavi ripetute o colonne mancanti bloccano tutto.
+
+- `node scripts/site-texts.mjs export testi.csv` — JSON → CSV, per (ri)creare il foglio.
+- `node scripts/site-texts.mjs import testi.csv` — CSV → JSON, la stessa conversione del workflow.
+
+Non rinominare o cancellare le chiavi: i template le usano (`{{t.chiave}}`). Una chiave
+nuova nel foglio non compare sul sito finché un template non la usa.

@@ -1,0 +1,58 @@
+name: Sync site texts (Google Sheet)
+
+# Legge il foglio Google dei testi (pubblicato come CSV, URL nella variabile del repo
+# SITE_TEXTS_CSV_URL), lo converte in apps/website/i18n/*.json e, se qualcosa e'
+# cambiato, fa il commit su main e avvia la pubblicazione del sito.
+# Un foglio con celle vuote o colonne mancanti viene rifiutato: il sito resta com'era.
+# Il push fatto con GITHUB_TOKEN non avvia altri workflow da solo, per questo la
+# pubblicazione viene avviata esplicitamente.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 * * * *'
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: site-texts-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Scarica il foglio
+        env:
+          URL: ${{ vars.SITE_TEXTS_CSV_URL }}
+        run: |
+          if [ -z "$URL" ]; then echo "SITE_TEXTS_CSV_URL non impostata: niente da fare"; exit 0; fi
+          curl -fsSL --retry 3 "$URL" -o "$RUNNER_TEMP/texts.csv"
+          echo "CSV_OK=1" >> "$GITHUB_ENV"
+
+      - name: Converti e controlla
+        if: env.CSV_OK == '1'
+        run: |
+          node scripts/site-texts.mjs import "$RUNNER_TEMP/texts.csv"
+          node apps/website/generate-site.mjs lemonsqueezer
+
+      - name: Commit e pubblica
+        if: env.CSV_OK == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --quiet -- apps/website/i18n; then echo "nessun testo cambiato"; exit 0; fi
+          git diff --stat -- apps/website/i18n
+          git config user.name "site-texts-bot"
+          git config user.email "site-texts-bot@users.noreply.github.com"
+          git add apps/website/i18n
+          git commit -m "content(site): texts from Google Sheet"
+          git push origin HEAD:main
+          gh workflow run deploy-site.yml --ref main
