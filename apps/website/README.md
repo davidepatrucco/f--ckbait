@@ -69,6 +69,17 @@ aws cloudformation deploy --region us-east-1 --stack-name site-<brand> --templat
 - `cd backend && node --test test/website-gen.test.mjs` — chiavi dei dizionari, escape, colore del pulsante, generazione completa senza placeholder né inglese residuo.
 - Controllo visivo: renderizzare `dist/<brand>` con un server locale e Playwright (desktop/mobile, chiaro/scuro); nessun overflow orizzontale, nessun `{{`/`undefined`.
 
+## A/B del claim nella hero
+
+Il titolo della home ha 4 varianti (`hero_claim_a` … `hero_claim_d` nei dizionari e nel foglio).
+L'HTML contiene la variante `a` (quella che leggono motori di ricerca e chi non ha JavaScript);
+uno script inline subito dopo l'`<h1>` ne sceglie una a caso a ogni visualizzazione, prima del
+primo disegno, e aggiunge ai link del Chrome Web Store
+`utm_source=<dominio>&utm_medium=site&utm_campaign=hero_<variante>`.
+Le installazioni per variante si leggono nelle statistiche del Chrome Web Store (sorgenti UTM).
+Niente cookie né localStorage: non serve consenso. `?hero=b` forza una variante, per vederla.
+Finché `urls.chromeStore` nel brand.json è vuoto il pulsante è "In arrivo" e non c'è nulla da misurare.
+
 ## Testi: foglio Google
 
 I testi delle pagine si modificano nel foglio Google "Testi sito LemonSqueezer" (una riga per
