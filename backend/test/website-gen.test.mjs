@@ -7,7 +7,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { render, onColor, htmlEscape, LANGS } from '../../apps/website/generate-site.mjs';
+import { render, onColor, htmlEscape, LANGS, HERO_VARIANTS, heroAbScript } from '../../apps/website/generate-site.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SITE = join(ROOT, 'apps', 'website');
@@ -65,4 +65,18 @@ test('la generazione completa non lascia placeholder e produce tutte le pagine',
     assert.ok(readdirSync(join(dist, 'assets')).includes('hero.png'));
     // Nessuna pagina di pricing finche' i pagamenti non sono attivi.
     assert.ok(!readdirSync(dist).includes('pricing.html'));
+});
+
+test('A/B della hero: ogni lingua ha tutte le varianti e lo script non si chiude da un testo', () => {
+    for (const lang of LANGS) {
+        const t = JSON.parse(readFileSync(join(SITE, 'i18n', `${lang}.json`), 'utf8'));
+        for (const v of HERO_VARIANTS) assert.ok(t[`hero_claim_${v}`], `${lang}: manca hero_claim_${v}`);
+    }
+    const t = { hero_claim_a: 'A', hero_claim_b: '</script><b>x', hero_claim_c: 'C {{displayName}}', hero_claim_d: 'D' };
+    const js = heroAbScript(t, { displayName: 'Lemon' });
+    assert.equal(js.match(/<\/script>/g).length, 1, 'un testo ha chiuso il tag script');
+    assert.ok(js.includes('C Lemon'));
+    const html = readFileSync(join(SITE, 'dist', 'lemonsqueezer', 'it', 'index.html'), 'utf8');
+    assert.ok(html.includes('<h1 id="hero-claim">Risparmia tempo. Prendi il succo.</h1>'), 'la variante a non e’ nel HTML');
+    assert.ok(html.includes("utm_campaign','hero_'+k"));
 });

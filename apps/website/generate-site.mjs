@@ -179,6 +179,24 @@ function ctaTag(vars, t) {
   return `<span class="cta" aria-disabled="true">${htmlEscape(t.cta_soon)}</span>`;
 }
 
+// Hero A/B test: the page ships claim "a" (what crawlers and no-JS visitors read); a
+// small inline script right after the <h1> picks one variant at random on every page
+// view, before first paint, and tags the Chrome Web Store links with
+// utm_campaign=hero_<variant> so installs per claim show up in the store's statistics.
+// Nothing is stored in the browser (no cookie, no localStorage): no consent needed.
+// ?hero=<variant> forces one, for previewing.
+export const HERO_VARIANTS = ['a', 'b', 'c', 'd'];
+
+export function heroAbScript(t, vars) {
+  const claims = Object.fromEntries(HERO_VARIANTS.map((v) => [v, interpolate(t[`hero_claim_${v}`], vars)]));
+  // "<" escaped so no claim text can close the <script> element.
+  const data = JSON.stringify(claims).replace(/</g, '\\u003c');
+  return `<script>(function(){var c=${data},v=Object.keys(c),m=/[?&]hero=([a-z])/.exec(location.search),k=m&&c[m[1]]?m[1]:v[Math.floor(Math.random()*v.length)];` +
+    `var h=document.getElementById('hero-claim');if(h)h.textContent=c[k];document.documentElement.setAttribute('data-hero',k);` +
+    `document.addEventListener('DOMContentLoaded',function(){document.querySelectorAll('a.cta[href^="https://chromewebstore.google.com/"],a.cta[href^="https://chrome.google.com/webstore/"]').forEach(function(a){` +
+    `var u=new URL(a.href);u.searchParams.set('utm_source',location.hostname);u.searchParams.set('utm_medium','site');u.searchParams.set('utm_campaign','hero_'+k);a.href=u.toString();});});})();</script>`;
+}
+
 function writePage(outPath, html, written) {
   mkdirSync(dirname(outPath), { recursive: true });
   writeFileSync(outPath, html, 'utf8');
@@ -253,7 +271,8 @@ export function generateBrand(brandId, year, dicts) {
           hreflang: NOINDEX.has(page) ? '' : hreflangTags(page, vars.siteUrl),
           langLinks: langLinks(page, lang, dicts, false),
           langLinksInline: langLinks(page, lang, dicts, true),
-          ctaTag: ctaTag(vars, t)
+          ctaTag: ctaTag(vars, t),
+          heroAb: heroAbScript(t, vars)
         }
       };
       const { out, missing } = render(readFileSync(join(TEMPLATE_DIR, `${page}.html`), 'utf8'), ctx);
