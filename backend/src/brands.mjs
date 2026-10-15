@@ -6,11 +6,9 @@
 // Free = 1 summary/giorno (reset giornaliero, vedi getNextResetDate in auth.mjs).
 import { PLAN_POLICY } from './policy.mjs';
 
-const FREE_LIMIT_DEFAULT = PLAN_POLICY.free.dailySummaries;
-// Prove gratuite iniziali, consumate PRIMA che entri in vigore il limite giornaliero:
-// 1 riassunto al giorno e' troppo ruvido per chi installa l'estensione e deve capire
-// se gli serve. Una tantum per brand, non si ricaricano.
-const FREE_TRIAL_DEFAULT = PLAN_POLICY.free.trialSummaries;
+// Prove gratuite iniziali (PLAN_POLICY.free.trialSummaries), consumate PRIMA che entri
+// in vigore il limite giornaliero: 1 riassunto al giorno e' troppo ruvido per chi
+// installa l'estensione e deve capire se gli serve. Una tantum per brand.
 
 export const DEFAULT_BRAND = 'lemonsqueezer';
 
@@ -22,8 +20,6 @@ export const BRANDS = {
         promptProfile: 'summary.standard',
         outputSchema: 'summary',
         defaultMode: 'standard',
-        freeLimit: FREE_LIMIT_DEFAULT,
-        freeTrial: FREE_TRIAL_DEFAULT,
         stripe: {
             monthlyPriceKey: 'STRIPE_LEMONSQUEEZER_PREMIUM_MONTHLY_PRICE_ID',
             yearlyPriceKey: 'STRIPE_LEMONSQUEEZER_PREMIUM_YEARLY_PRICE_ID'
@@ -36,8 +32,6 @@ export const BRANDS = {
         promptProfile: 'scout.evaluate',
         outputSchema: 'attention',
         defaultMode: 'standard',
-        freeLimit: FREE_LIMIT_DEFAULT,
-        freeTrial: FREE_TRIAL_DEFAULT,
         stripe: {
             monthlyPriceKey: 'STRIPE_SCOUT_PREMIUM_MONTHLY_PRICE_ID',
             yearlyPriceKey: 'STRIPE_SCOUT_PREMIUM_YEARLY_PRICE_ID'
@@ -50,8 +44,6 @@ export const BRANDS = {
         promptProfile: 'signal.insights',
         outputSchema: 'insights',
         defaultMode: 'standard',
-        freeLimit: FREE_LIMIT_DEFAULT,
-        freeTrial: FREE_TRIAL_DEFAULT,
         stripe: {
             monthlyPriceKey: 'STRIPE_SIGNAL_PREMIUM_MONTHLY_PRICE_ID',
             yearlyPriceKey: 'STRIPE_SIGNAL_PREMIUM_YEARLY_PRICE_ID'
@@ -64,8 +56,6 @@ export const BRANDS = {
         promptProfile: 'briefly.brief',
         outputSchema: 'brief',
         defaultMode: 'standard',
-        freeLimit: FREE_LIMIT_DEFAULT,
-        freeTrial: FREE_TRIAL_DEFAULT,
         stripe: {
             monthlyPriceKey: 'STRIPE_BRIEFLY_PREMIUM_MONTHLY_PRICE_ID',
             yearlyPriceKey: 'STRIPE_BRIEFLY_PREMIUM_YEARLY_PRICE_ID'
@@ -78,8 +68,6 @@ export const BRANDS = {
         promptProfile: 'nobull.noise',
         outputSchema: 'noise',
         defaultMode: 'standard',
-        freeLimit: FREE_LIMIT_DEFAULT,
-        freeTrial: FREE_TRIAL_DEFAULT,
         stripe: {
             monthlyPriceKey: 'STRIPE_NOBULL_PREMIUM_MONTHLY_PRICE_ID',
             yearlyPriceKey: 'STRIPE_NOBULL_PREMIUM_YEARLY_PRICE_ID'
@@ -106,13 +94,14 @@ export function getBrandSite(id) {
     return getBrand(id).site;
 }
 
+// Letti dalla policy a ogni chiamata, non copiati al caricamento: cosi' un cambio
+// fatto dalla configurazione a runtime (plan.free.*) vale subito, senza rilascio.
 export function getFreeLimit(id) {
-    return getBrand(id).freeLimit;
+    return PLAN_POLICY.free.dailySummaries;
 }
 // Prove gratuite iniziali del brand (0 = disattivate).
 export function getFreeTrial(brandId) {
-    const b = BRANDS[brandId] || BRANDS[DEFAULT_BRAND];
-    return Number.isFinite(b?.freeTrial) ? b.freeTrial : FREE_TRIAL_DEFAULT;
+    return PLAN_POLICY.free.trialSummaries;
 }
 
 

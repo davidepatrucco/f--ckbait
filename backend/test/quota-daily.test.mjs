@@ -29,3 +29,22 @@ describe('A3 quota free = 1/giorno', () => {
         assert.equal(canUserSummarize(user, 'scout').canSummarize, true);
     });
 });
+
+describe('limite free modificato a runtime', () => {
+    it('vale subito anche per gli utenti gia esistenti', async () => {
+        const { applyOverrides } = await import('../src/policy.mjs');
+        const { getEntitlement, canUserSummarize } = await import('../src/auth.mjs');
+        const future = new Date(Date.now() + 86400000).toISOString();
+        const user = { id: 'u', entitlements: { lemonsqueezer: { plan: 'free', trial_remaining: 0, usage_used: 1, usage_limit: 1, usage_reset_date: future } } };
+        assert.equal(canUserSummarize(user, 'lemonsqueezer').canSummarize, false);
+        applyOverrides({ 'plan.free.dailySummaries': 10 });
+        try {
+            assert.equal(getFreeLimit('lemonsqueezer'), 10);
+            assert.equal(getEntitlement(user, 'lemonsqueezer').usage.limit, 10);
+            assert.equal(canUserSummarize(user, 'lemonsqueezer').canSummarize, true);
+        } finally {
+            applyOverrides({});
+        }
+        assert.equal(getFreeLimit('lemonsqueezer'), 1);
+    });
+});

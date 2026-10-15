@@ -235,7 +235,11 @@ export function getEntitlement(user, brandId) {
         plan: raw.plan || 'free',
         usage: {
             used: raw.usage_used || 0,
-            limit: raw.usage_limit || freeLimit,
+            // Il piu' alto tra il limite salvato sull'utente e quello corrente della
+            // policy: il salvato e' una copia del giorno in cui l'entitlement e' nato, e
+            // da solo non seguirebbe un aumento fatto dalla configurazione a runtime.
+            // Il premium non ha limite (canUserSummarize/incrementUsage escono prima).
+            limit: Math.max(Number(raw.usage_limit) || 0, freeLimit),
             resetDate: raw.usage_reset_date || null
         },
         // Prove iniziali: assenti sugli entitlement creati prima di questa funzione,
