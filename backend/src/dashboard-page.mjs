@@ -83,6 +83,8 @@ function block(title, m){
     '<div class="grid" style="margin:0">'+
     '<div>'+kv('Install',a.installs)+kv('Open',a.opens)+kv('Login',a.logins)+kv('First-summary users',a.firstSummaryUsers)+kv('Activation %',fmt(a.activationPct,'%'))+'</div>'+
     '<div>'+kv('Summaries',e.summaries)+kv('Active users',e.activeUsers)+kv('Summaries/User',e.summariesPerUser)+kv('Repeat %',fmt(e.repeatPct,'%'))+'</div>'+
+    '<div>'+kv('Web',(e.summariesByType||{}).web||0)+kv('Video',(e.summariesByType||{}).video||0)+kv('PDF',(e.summariesByType||{}).pdf||0)+kv('From cache',e.summariesCached||0)+kv('Failed',e.summariesFailed||0)+'</div>'+
+    (e.failedByCode&&Object.keys(e.failedByCode).length?'<div>'+Object.entries(e.failedByCode).sort((a,b)=>b[1]-a[1]).map(([k,n])=>kv(k,n)).join('')+'</div>':'')+
     '<div>'+kv('Retention D1',fmt(r.d1,'%'))+kv('Retention D7',fmt(r.d7,'%'))+kv('Retention D30',fmt(r.d30,'%'))+kv('Coorte',r.cohort)+'</div>'+
     '<div>'+kv('Users',mo.totalUsers)+kv('Premium',mo.premiumUsers)+kv('Paid %',fmt(mo.paidPct,'%'))+kv('Checkout avviati',mo.checkoutStarted)+kv('Subscription attivate',mo.subscriptionActivated)+kv('Cost/summary $',mo.cost.perSummary)+kv('Cost/user $',mo.cost.perActiveUser)+'</div>'+
     '</div></div>';

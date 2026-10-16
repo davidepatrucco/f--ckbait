@@ -166,6 +166,22 @@ export function canUsePdf(entitlement) {
 // Handler per riassumere URL (con autenticazione)
 export async function summarizeUrlHandler(event) {
     const startTime = Date.now();
+    // Contesto per contare anche i riassunti falliti (summary_failed): riempito man
+    // mano che la richiesta avanza, letto dal catch finale.
+    const track = { event };
+    const logFailed = (errorCode) => logSummaryEvent({
+        eventType: 'summary_failed',
+        userId: track.user?.id,
+        userPlan: track.user ? getEntitlement(track.user, track.brandId).plan : undefined,
+        brandId: track.brandId,
+        url: track.url,
+        contentType: track.contentType,
+        durationMs: Date.now() - startTime,
+        browser: event.headers?.['x-client'] || event.headers?.['X-Client'],
+        clientVersion: event.headers?.['x-client-version'] || event.headers?.['X-Client-Version'],
+        success: false,
+        errorCode
+    }).catch(() => null);
     console.log('[TIMING] Handler started at:', new Date().toISOString());
     
     try {
@@ -215,10 +231,12 @@ export async function summarizeUrlHandler(event) {
             return createResponse(400, apiErrorBody('INVALID_BRAND', { brand: rawBrand }));
         }
         const brandId = resolveBrandId(rawBrand);
+        track.brandId = brandId; track.user = user; track.url = body.url;
 
         // Verifica limiti piano (per-brand)
         const usageCheck = canUserSummarize(user, brandId);
         if (!usageCheck.canSummarize) {
+            await logFailed('USAGE_LIMIT_EXCEEDED');
             return createResponse(429, apiErrorBody('USAGE_LIMIT_EXCEEDED', {
                 error: usageCheck.reason,
                 brand: brandId,
@@ -228,6 +246,7 @@ export async function summarizeUrlHandler(event) {
         }
 
         const hasTranscript = typeof body.transcript === 'string';
+        track.contentType = hasTranscript ? 'video' : 'web';
         // Client-extracted page text: the extension reads the already-rendered DOM
         // in the user's browser and sends the article text. Preferred over the
         // server re-fetch because JSDOM+Readability on large pages exceeded API
@@ -284,13 +303,15 @@ export async function summarizeUrlHandler(event) {
             } catch (fetchErr) {
                 const m = String(fetchErr?.message || '');
                 // Casi noti: messaggio chiaro al client (non un 500 generico).
-                if (/TOO_LONG/.test(m)) return createResponse(400, { error: 'TOO_LONG', code: 'CONTENT_TOO_LONG' });
-                if (/BOT_CHALLENGE/.test(m)) return createResponse(400, { error: 'BOT_CHALLENGE', code: 'BOT_CHALLENGE' });
+                if (/TOO_LONG/.test(m)) { await logFailed('CONTENT_TOO_LONG'); return createResponse(400, { error: 'TOO_LONG', code: 'CONTENT_TOO_LONG' }); }
+                if (/BOT_CHALLENGE/.test(m)) { await logFailed('BOT_CHALLENGE'); return createResponse(400, { error: 'BOT_CHALLENGE', code: 'BOT_CHALLENGE' }); }
                 throw fetchErr;
             }
             // Gate PDF: va prima di incrementUsage per non consumare quota.
             // La cache non può aggirare il gate perché viene letta solo dopo il booking.
+            if (isPdf) track.contentType = 'pdf';
             if (isPdf && !canUsePdf(getEntitlement(user, brandId))) {
+                await logFailed('PREMIUM_REQUIRED');
                 return createResponse(403, {
                     error: 'PDF summaries are a Premium feature.',
                     code: 'PREMIUM_REQUIRED',
@@ -303,6 +324,7 @@ export async function summarizeUrlHandler(event) {
         }
         
         if (!text || text.length < 50) {
+            await logFailed('INSUFFICIENT_CONTENT');
             return createResponse(400, {
                 error: 'Non è possibile estrarre contenuto sufficiente da questo URL',
                 code: 'INSUFFICIENT_CONTENT'
@@ -341,6 +363,7 @@ export async function summarizeUrlHandler(event) {
             user = await incrementUsage(user, brandId);
         } catch (e) {
             if (e.code === 'USAGE_LIMIT_REACHED') {
+                await logFailed('USAGE_LIMIT_EXCEEDED');
                 const entLim = getEntitlement(user, brandId);
                 return createResponse(429, apiErrorBody('USAGE_LIMIT_EXCEEDED', {
                     error: 'Limite giornaliero raggiunto', brand: brandId, plan: 'free', resetDate: entLim.usage.resetDate
@@ -359,6 +382,19 @@ export async function summarizeUrlHandler(event) {
                 console.log('[CACHE] Content hash hit:', { elapsedMs: Date.now() - cacheStartTime });
                 // Quota già prenotata sopra; il cache-hit consuma la prenotazione.
                 const entHit = getEntitlement(user, brandId);
+                await logSummaryEvent({
+                    userId: user.id,
+                    userPlan: entHit.plan,
+                    brandId,
+                    url: body.url,
+                    language,
+                    contentType: isPdf ? 'pdf' : sourceType,
+                    cached: true,
+                    durationMs: Date.now() - startTime,
+                    browser: event.headers?.['x-client'] || event.headers?.['X-Client'],
+                    clientVersion: event.headers?.['x-client-version'] || event.headers?.['X-Client-Version'],
+                    success: true
+                });
                 return createResponse(200, {
                     summary: cachedSummary.summary,
                     readingTimeMinutes: cachedSummary.readingTimeMinutes,
@@ -408,6 +444,7 @@ export async function summarizeUrlHandler(event) {
         if (!summary || (!summary.text && !summary.output)) {
             console.error('Summary object is invalid:', summary);
             await refundUsage(user, brandId); // refund: prenotazione non onorata
+            await logFailed('INVALID_OPENAI_RESPONSE');
             return createResponse(500, {
                 error: 'Risposta OpenAI non valida',
                 code: 'INVALID_OPENAI_RESPONSE'
@@ -455,6 +492,8 @@ export async function summarizeUrlHandler(event) {
                 outputTokens: summary.usage?.output_tokens || 0,
                 costEstimate: summary.usage?.cost_estimate || 0,
                 durationMs: analyticsTime,
+                contentType: isPdf ? 'pdf' : sourceType,
+                cached: false,
                 userAgent: event.headers?.['User-Agent'],
                 browser: event.headers?.['x-client'] || event.headers?.['X-Client'],
                 clientVersion: event.headers?.['x-client-version'] || event.headers?.['X-Client-Version'],
@@ -497,6 +536,7 @@ export async function summarizeUrlHandler(event) {
         
     } catch (error) {
         console.error('Error in summarizeUrlHandler:', error);
+        await logFailed(String(error?.code || error?.message || 'PROCESSING_ERROR').slice(0, 60));
         console.error('Error message:', error.message);
         console.error('Error stack:', error.stack);
         

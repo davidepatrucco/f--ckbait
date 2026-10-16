@@ -48,6 +48,9 @@ function emptyBrandAgg() {
     return {
         installs: 0, opens: 0, logins: 0, checkoutStarted: 0, subscriptionActivated: 0,
         summaries: 0, costTotal: 0,
+        // Dettaglio dei riassunti: per tipo di contenuto, serviti dalla cache, falliti.
+        byType: { web: 0, video: 0, pdf: 0, unknown: 0 }, cached: 0,
+        failed: 0, failedByCode: {},
         userSummaryDays: new Map(),  // userId → Set(dayIndex) dei summary
         userSummaryCount: new Map(), // userId → n° summary (per repeat/summaries-per-user)
     };
@@ -90,6 +93,8 @@ function summarizeBrand(agg, users, nowDay) {
         },
         engagement: {
             summaries: agg.summaries, activeUsers,
+            summariesByType: { ...agg.byType }, summariesCached: agg.cached,
+            summariesFailed: agg.failed, failedByCode: { ...agg.failedByCode },
             summariesPerUser: activeUsers ? Number((userSummaries / activeUsers).toFixed(2)) : 0,
             repeatPct: activeUsers ? Number(((repeatUsers / activeUsers) * 100).toFixed(1)) : null
         },
@@ -138,8 +143,16 @@ export async function computePortfolioMetrics({ days = 30 } = {}) {
             case 'login_completed': agg.logins++; break;
             case 'checkout_started': agg.checkoutStarted++; break;
             case 'subscription_activated': agg.subscriptionActivated++; break;
+            case 'summary_failed': {
+                agg.failed++;
+                const code = ev.error_code || 'UNKNOWN';
+                agg.failedByCode[code] = (agg.failedByCode[code] || 0) + 1;
+                break;
+            }
             case 'summary_completed': {
                 agg.summaries++;
+                agg.byType[ev.content_type in agg.byType ? ev.content_type : 'unknown']++;
+                if (ev.cached === true) agg.cached++;
                 agg.costTotal += Number(ev.cost_estimate || 0);
                 if (ev.userId) {
                     if (!agg.userSummaryDays.has(ev.userId)) agg.userSummaryDays.set(ev.userId, new Set());
@@ -189,6 +202,9 @@ export async function computePortfolioMetrics({ days = 30 } = {}) {
         allAgg.installs += a.installs; allAgg.opens += a.opens; allAgg.logins += a.logins;
         allAgg.checkoutStarted += a.checkoutStarted; allAgg.subscriptionActivated += a.subscriptionActivated;
         allAgg.summaries += a.summaries; allAgg.costTotal += a.costTotal;
+        for (const k of Object.keys(a.byType)) allAgg.byType[k] += a.byType[k];
+        allAgg.cached += a.cached; allAgg.failed += a.failed;
+        for (const [k, n] of Object.entries(a.failedByCode)) allAgg.failedByCode[k] = (allAgg.failedByCode[k] || 0) + n;
         for (const [uid, set] of a.userSummaryDays) {
             const key = b + ':' + uid; // stesso utente su brand diversi = coorti separate
             allAgg.userSummaryDays.set(key, set);

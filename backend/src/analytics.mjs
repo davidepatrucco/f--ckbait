@@ -73,7 +73,12 @@ export function buildAnalyticsEvent(eventData) {
         browser: eventData.browser || null,
         client_version: eventData.clientVersion || null,
         success: eventData.success !== false,
-        error_code: eventData.errorCode || null
+        error_code: eventData.errorCode || null,
+        // Tipo di contenuto (web | video | pdf) e riassunto servito dalla cache: senza
+        // questi campi la dashboard non distingue i video e non conta i riassunti
+        // ripetuti della stessa pagina.
+        content_type: eventData.contentType || null,
+        cached: eventData.cached === true
     };
 }
 

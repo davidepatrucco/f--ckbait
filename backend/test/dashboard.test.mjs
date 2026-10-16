@@ -76,3 +76,18 @@ describe('#4 dashboard: adminMetricsHandler guard', () => {
         assert.equal(tampered.statusCode, 401, 'una sessione manomessa deve essere rifiutata');
     });
 });
+
+describe('evento analytics: tipo di contenuto, cache e fallimenti', () => {
+    it('registra content_type, cached ed error_code', async () => {
+        const { buildAnalyticsEvent } = await import('../src/analytics.mjs');
+        const ok = buildAnalyticsEvent({ eventType: 'summary_completed', url: 'https://www.youtube.com/watch?v=x', contentType: 'video', cached: true });
+        assert.equal(ok.content_type, 'video');
+        assert.equal(ok.cached, true);
+        assert.equal(ok.url_domain, 'youtube.com');
+        const ko = buildAnalyticsEvent({ eventType: 'summary_failed', success: false, errorCode: 'USAGE_LIMIT_EXCEEDED' });
+        assert.equal(ko.event_type, 'summary_failed');
+        assert.equal(ko.success, false);
+        assert.equal(ko.error_code, 'USAGE_LIMIT_EXCEEDED');
+        assert.equal(ko.cached, false);
+    });
+});
