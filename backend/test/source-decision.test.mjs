@@ -31,7 +31,7 @@ test('ogni combinazione di input produce un’azione valida (nessun buco)', () =
         { len: 0, rawLen: 0 },                 // assente
         { len: 120, rawLen: 120 },             // scarso
         { len: 5000, rawLen: 5000 },           // sostanzioso
-        { len: 40000, rawLen: 200000 }         // troppo lungo (rawLen oltre soglia)
+        { len: 40000, rawLen: 400000 }         // troppo lungo (rawLen oltre soglia)
     ];
     const blockedStates = [null, 'PAYWALL', 'LOGIN_WALL', 'CONSENT_WALL', 'CANVAS_DOC'];
     const videoStates = [];
@@ -208,7 +208,7 @@ test('paywall senza testo: avviso paywall', () => {
 });
 
 test('testo troppo lungo: avviso TOO_LONG', () => {
-    const out = RI.decideSummarySource(inv({ text: { len: 40000, rawLen: 200000 } }), { plan: 'free' });
+    const out = RI.decideSummarySource(inv({ text: { len: 40000, rawLen: 400000 } }), { plan: 'free' });
     assert.equal(out.action, 'UNSUPPORTED');
     assert.equal(out.code, 'TOO_LONG');
 });

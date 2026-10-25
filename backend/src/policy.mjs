@@ -65,9 +65,12 @@ export const CONTENT_LIMITS = {
     // (scelta di prodotto: nessun riassunto parziale silenzioso).
     minUsableChars: num('MIN_USABLE_CHARS', 50),
     richTextChars: num('RICH_TEXT_CHARS', 400),
-    maxTextChars: num('MAX_TEXT_CHARS', 40000),
-    tooLongChars: num('TOO_LONG_CHARS', 80000),
-    maxClientTextChars: num('MAX_CLIENT_TEXT_CHARS', 50000),
+    // 250.000 caratteri (~65.000 token, ~0,3 centesimi col modello economy): copre
+    // le voci lunghe di Wikipedia. Misurato in dev il 2026-10-25: 40k, 80k e 120k
+    // caratteri rispondono tutti in ~5 s, lontano dal limite di 29 s del gateway.
+    maxTextChars: num('MAX_TEXT_CHARS', 250000),
+    tooLongChars: num('TOO_LONG_CHARS', 250000),
+    maxClientTextChars: num('MAX_CLIENT_TEXT_CHARS', 250000),
     maxTranscriptChars: num('MAX_TRANSCRIPT_CHARS', 120000),
     maxPdfPages: num('MAX_PDF_PAGES', 50),
     maxPdfUploadBytes: num('MAX_PDF_UPLOAD_BYTES', Math.floor(3.5 * 1024 * 1024))

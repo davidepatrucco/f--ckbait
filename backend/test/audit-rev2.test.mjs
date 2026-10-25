@@ -83,11 +83,11 @@ test('il tetto sui minuti intercetta cio’ che i tetti sui job non vedono', () 
 
 // --- #5 il PDF veniva tagliato in silenzio ------------------------------------
 test('un PDF oltre la soglia dichiara la parzialità', () => {
-    // Il caso segnalato: una pagina, 59.999 caratteri, nessun indicatore.
-    const text = 'a'.repeat(59999);
-    const res = buildPdfExtractionResult(text, 'doc');
+    // Il caso segnalato: una pagina oltre la soglia, nessun indicatore.
+    const over = CONTENT_LIMITS.maxTextChars + 19999;
+    const res = buildPdfExtractionResult('a'.repeat(over), 'doc');
     assert.equal(res.truncated, true, 'il taglio non puo’ essere silenzioso');
-    assert.equal(res.characters, 59999, 'il conteggio originale deve essere esposto');
+    assert.equal(res.characters, over, 'il conteggio originale deve essere esposto');
     assert.equal(res.usedCharacters, CONTENT_LIMITS.maxTextChars);
     assert.equal(res.text.length, CONTENT_LIMITS.maxTextChars);
 });

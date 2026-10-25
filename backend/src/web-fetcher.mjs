@@ -7,11 +7,9 @@ import { lookup as dnsLookup } from 'node:dns';
 import { Agent, fetch as undiciFetch } from 'undici';
 import { CONTENT_LIMITS } from './policy.mjs';
 
-// Config
-const MAX_TEXT_CHARS = CONTENT_LIMITS.maxTextChars;
-// Oltre questa soglia il contenuto è troppo lungo per un riassunto affidabile:
-// meglio un messaggio chiaro che un riassunto parziale (niente chunking per ora).
-const TOO_LONG_CHARS = CONTENT_LIMITS.tooLongChars;
+// Limiti letti a ogni richiesta (non copiati al caricamento): un cambio fatto dalla
+// configurazione a runtime (content.*) vale subito. Oltre TOO_LONG il contenuto e'
+// rifiutato con un messaggio chiaro invece di un riassunto parziale.
 
 // Estrae il testo da un PDF (buffer) con pdfjs-dist (build legacy per Node, no worker).
 // Cap a 50 pagine / 200k char per restare nei 29s di API Gateway.
@@ -278,11 +276,11 @@ export async function fetchWebContent(url) {
             if (!pdfText || pdfText.length < 50) {
                 throw new Error('PDF senza testo estraibile (probabile scansione/immagine).');
             }
-            if (pdfText.length > TOO_LONG_CHARS) {
+            if (pdfText.length > CONTENT_LIMITS.tooLongChars) {
                 throw new Error('TOO_LONG: PDF troppo lungo per un riassunto affidabile');
             }
             const pdfTitle = decodeURIComponent((validUrl.pathname.split('/').pop() || 'PDF').replace(/\.pdf$/i, '')) || 'PDF';
-            return { text: pdfText.slice(0, MAX_TEXT_CHARS), title: pdfTitle, isPdf: true };
+            return { text: pdfText.slice(0, CONTENT_LIMITS.maxTextChars), title: pdfTitle, isPdf: true };
         }
         if (!contentType.includes('text/html')) {
             throw new Error('Il contenuto non è HTML');
@@ -314,14 +312,14 @@ export async function fetchWebContent(url) {
         console.log(`Extracted title and text (extraction time: ${extractEnd - extractStart} ms)`);
 
         // Troppo lungo: messaggio chiaro invece di un riassunto parziale inaffidabile.
-        if (text.length > TOO_LONG_CHARS) {
+        if (text.length > CONTENT_LIMITS.tooLongChars) {
             throw new Error('TOO_LONG: contenuto troppo lungo per un riassunto affidabile');
         }
 
         // Trim text to a max length to reduce tokens
-        if (text.length > MAX_TEXT_CHARS) {
-            console.log(`Trimming extracted text from ${text.length} to ${MAX_TEXT_CHARS} chars`);
-            text = text.substring(0, MAX_TEXT_CHARS);
+        if (text.length > CONTENT_LIMITS.maxTextChars) {
+            console.log(`Trimming extracted text from ${text.length} to ${CONTENT_LIMITS.maxTextChars} chars`);
+            text = text.substring(0, CONTENT_LIMITS.maxTextChars);
         }
         
         if (!text || text.length < 50) {

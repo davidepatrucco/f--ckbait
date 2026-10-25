@@ -144,8 +144,9 @@ export async function registerWithEmail(email, password, name) {
             { expiresIn: '30d' }
         );
 
+        const { passwordHash, passwordSalt, ...publicUser } = newUser;
         return {
-            ...newUser,
+            ...publicUser,
             authToken
         };
     } catch (error) {
