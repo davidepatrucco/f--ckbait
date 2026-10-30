@@ -1146,12 +1146,7 @@
             modal.remove();
         });
         
-        modal.querySelector('.lemonsqueezer-modal-overlay').addEventListener('click', (e) => {
-            if (e.target === e.currentTarget) {
-                modal.remove();
-            }
-        });
-        
+        // Niente chiusura con un clic fuori: un clic per sbaglio faceva perdere il riassunto.
         // Chiudi con ESC
         const escHandler = (e) => {
             if (e.key === 'Escape' && document.getElementById('lemonsqueezer-modal')) {
@@ -1982,7 +1977,11 @@
                 title: data.title || t('modal_summary'),
                 url: data.originalUrl || window.location.href,
                 cached: Boolean(data.cached),
-                sourceType: data.sourceType || 'web'
+                sourceType: data.sourceType || 'web',
+                // Il testo resta salvato: dalla cronologia si riapre il riassunto, non solo la pagina.
+                summary: data.summary || data.text || '',
+                output: data.output && typeof data.output === 'object' ? data.output : null,
+                truncated: Boolean(data.truncated)
             };
             const { summaryHistory = [] } = await chrome.storage.local.get(['summaryHistory']);
             const withoutDuplicate = summaryHistory.filter((existing) => existing.url !== entry.url);

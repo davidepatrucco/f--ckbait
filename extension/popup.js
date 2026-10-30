@@ -335,7 +335,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         historyList.querySelectorAll('[data-history-index]').forEach((item) => {
             item.addEventListener('click', () => {
                 const entry = entries[Number(item.dataset.historyIndex)];
-                if (entry?.url) chrome.tabs.create({ url: entry.url });
+                if (entry?.summary || entry?.output) {
+                    chrome.storage.local.set({ pendingSummary: { data: entry, url: entry.url } })
+                        .then(() => chrome.tabs.create({ url: chrome.runtime.getURL('summary.html') }));
+                } else if (entry?.url) chrome.tabs.create({ url: entry.url });
             });
         });
     }
