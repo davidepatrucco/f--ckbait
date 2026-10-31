@@ -2,84 +2,196 @@
 {{@_header}}
 <main>
   <section class="hero wrap">
-    <h1 id="hero-claim">{{t.hero_claim_a}}</h1>
-    {{!heroAb}}
-    <p class="sub">{{heroSub}}</p>
-    {{!ctaTag}}
-    <p class="note">{{t.cta_note}}</p>
-    <figure class="shot">
-      {{@_hero}}
-    </figure>
-  </section>
-
-  <section class="block wrap" id="how">
-    <h2 class="title">{{t.how_title}}</h2>
-    <div class="grid3">
-      <div class="card"><span class="n">1</span><h3>{{t.how1_t}}</h3><p>{{t.how1_d}}</p></div>
-      <div class="card"><span class="n">2</span><h3>{{t.how2_t}}</h3><p>{{t.how2_d}}</p></div>
-      <div class="card"><span class="n">3</span><h3>{{t.how3_t}}</h3><p>{{t.how3_d}}</p></div>
+    <div class="hero-disc" aria-hidden="true"><svg class="lemon"><use href="#lemon"/></svg></div>
+    <div class="hero-copy" data-in>
+      <h1 id="hero-claim">{{t.hero_claim_a}}</h1>
+      {{!heroAb}}
+      <p class="sub">{{heroSub}}</p>
+      <div class="act">{{!ctaTag}}<p class="note">{{t.cta_note}}</p></div>
     </div>
   </section>
 
-  <section class="block wrap" id="works">
-    <h2 class="title">{{t.works_title}}</h2>
-    <div class="grid3">
-      <div class="card"><h3>{{t.works_web_t}}</h3><p>{{t.works_web_d}}</p></div>
-      <div class="card"><h3>{{t.works_pdf_t}}</h3><p>{{t.works_pdf_d}}</p></div>
-      <div class="card"><h3>{{t.works_video_t}}</h3><p>{{t.works_video_d}}</p></div>
+  <section class="s sq" id="squeeze" aria-labelledby="sq-title" data-words="{{t.sq_words}}" data-min="{{t.sq_read_min}}" data-sec="{{t.sq_read_sec}}">
+    <div class="sq-left" data-in>
+      <h2 class="head" id="sq-title">{{t.sq_title}}</h2>
+      <p class="lead">{{t.sq_lead}}</p>
+      <p class="sq-clause" aria-live="polite"><span class="big" id="sq-big">2.502</span><span class="small" id="sq-small">{{t.sq_stage_full}}</span></p>
+    </div>
+    <div class="sq-right">
+      <div class="card-ui" data-ui id="sq-card">
+        <div class="bar"><img src="/assets/icon-128.png?v={{assetV}}" alt="" width="22" height="22">{{displayName}}</div>
+        <div class="body">
+          <div class="t">Citrus × limon</div>
+          <div class="meta" id="sq-meta"><span>it.wikipedia.org</span></div>
+          <div id="sq-text"><p>Il limone è un albero da frutto appartenente alla famiglia delle Rutaceae. Il nome comune limone si può riferire tanto alla pianta quanto al suo frutto.</p></div>
+        </div>
+      </div>
+    </div>
+    <div class="sq-control">
+      <label for="sq-range">{{t.sq_range}}</label>
+      <div class="sq-track" id="sq-track"><input class="sq-range" id="sq-range" type="range" min="0" max="3" step="1" value="0" aria-valuetext="{{t.sq_stage_full}}"></div>
+      <div class="sq-stops" role="group" aria-label="{{t.sq_range}}">
+        <button type="button" data-stop="0" aria-pressed="true">{{t.sq_stage_full}}</button>
+        <button type="button" data-stop="1" aria-pressed="false">{{t.sq_stage_50}}</button>
+        <button type="button" data-stop="2" aria-pressed="false">{{t.sq_stage_20}}</button>
+        <button type="button" data-stop="3" aria-pressed="false">{{t.sq_stage_10}}</button>
+      </div>
     </div>
   </section>
 
+  <section class="s show wrap" id="works" aria-labelledby="works-title">
+    <ul class="show-list" data-in>
+      <li><h2 id="works-title">{{t.works_title}}</h2></li>
+      <li><button type="button" data-show="0" aria-pressed="true">{{t.works_web_t}}</button></li>
+      <li><button type="button" data-show="1" aria-pressed="false">{{t.works_video_t}}</button></li>
+      <li><button type="button" data-show="2" aria-pressed="false">{{t.works_pdf_t}}</button></li>
+    </ul>
+    <div class="show-stage">
+      <div class="show-disc" aria-hidden="true"><svg class="lemon"><use href="#lemon"/></svg></div>
+      <figure class="show-pic on"><img src="/assets/site/lemon-squeezer-p298-scammell-s-cyclopedia.jpg?v={{assetV}}" alt="{{t.cap_squeezer}}" width="1280" height="538"><figcaption>{{t.cap_squeezer}}</figcaption></figure>
+      <figure class="show-pic"><img src="/assets/site/citrus-limonum-lemon.jpg?v={{assetV}}" alt="{{t.cap_botanical}}" width="1600" height="2111" loading="lazy"><figcaption>{{t.cap_botanical}}</figcaption></figure>
+      <figure class="show-pic"><img src="/assets/site/jacques-le-moyne-de-morgues-lemon-and.jpg?v={{assetV}}" alt="{{t.cap_lemoyne}}" width="1600" height="2323" loading="lazy"><figcaption>{{t.cap_lemoyne}}</figcaption></figure>
+    </div>
+    <div class="show-fact" aria-live="polite">
+        <p data-fact="0">{{t.works_web_d}}</p><p data-cap="0">{{t.cap_squeezer}}</p>
+        <p data-fact="1" hidden>{{t.works_video_d}}</p><p data-cap="1" hidden>{{t.cap_botanical}}</p>
+        <p data-fact="2" hidden>{{t.works_pdf_d}}</p><p data-cap="2" hidden>{{t.cap_lemoyne}}</p>
+      </div>
+  </section>
 
-  <section class="block wrap" id="pricing">
-    <h2 class="title">{{t.pricing_title}}</h2>
-    <div class="pricing-grid">
-      <div class="pricing-card">
+  <section class="s board" aria-labelledby="f-title">
+    <div class="tile t-h"><h2 id="f-title">{{t.f_title}}</h2></div>
+    <div class="tile t-v pic">
+      <video src="/assets/site/lemon-1-2019-09-13.webm?v={{assetV}}" poster="/assets/site/lemon-1-2019-09-13-poster.jpg?v={{assetV}}" muted loop playsinline autoplay preload="none" aria-label="{{t.cap_crate}}"></video>
+      <div class="cap"><b>{{t.f_long_t}}</b><span>{{t.f_long_d}}</span></div>
+    </div>
+    <div class="tile t-l" data-ui>
+      <div class="ui-select" aria-hidden="true"><div>{{t.lang_name}} <svg width="0.6em" height="0.6em" viewBox="0 0 10 10"><path d="M1 3l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></div></div>
+      <div class="cap"><b>{{t.f_lang_t}}</b><span>{{t.f_lang_d}}</span></div>
+    </div>
+    <div class="tile t-s ink-cap" data-ui>
+      <div class="ui-btn" aria-hidden="true">{{t.f_send_btn}}</div>
+      <div class="cap"><b>{{t.f_send_t}}</b><span>{{t.f_send_d}}</span></div>
+    </div>
+    <div class="tile t-t" data-ui>
+      <div class="ui-fig" id="f-time" aria-hidden="true">11 min → 54 s</div>
+      <div class="cap"><b>{{t.f_time_t}}</b><span>{{t.f_time_d}}</span></div>
+    </div>
+    <div class="tile t-g pic"><img src="/assets/site/still-life-with-lemon-juan-gris-1926.jpg?v={{assetV}}" alt="{{t.cap_gris}}" width="1600" height="2094" loading="lazy"><div class="cap"><span>{{t.cap_gris}}</span></div></div>
+    <div class="tile t-n" data-ui>
+      <div class="ui-fig" aria-hidden="true">250.000</div>
+      <div class="cap"><b>{{t.f_long_t}}</b><span>{{t.f_long_d}}</span></div>
+    </div>
+    <div class="tile t-b pic"><img src="/assets/site/drawing-lemons-and-lemon-blossoms-in-a.jpg?v={{assetV}}" alt="{{t.cap_basket}}" width="1600" height="1194" loading="lazy"><div class="cap"><span>{{t.cap_basket}}</span></div></div>
+  </section>
+
+  <section class="s price wrap" id="pricing" aria-labelledby="pr-title">
+    <div class="price-intro" data-in>
+      <h2 id="pr-title">{{t.pricing_title}}</h2>
+      <p>{{t.plan_signin}} {{t.langs_text}}</p>
+    </div>
+    <div class="price-fig" data-in>
+      <p class="price-num">{{t.plan_premium_month}}<small>{{t.plan_premium_unit}}</small></p>
+      <div class="price-disc" aria-hidden="true"><svg class="lemon"><use href="#lemon"/></svg></div>
+      <p class="price-alt"><b>{{t.plan_premium_title}}</b> · {{t.plan_premium_desc}}. {{t.plan_premium_alt}}</p>
+      <ul class="price-incl">
+        <li>{{t.plan_premium_feat1}}</li>
+        <li>{{t.plan_premium_feat4}}</li>
+        <li>{{t.plan_premium_feat2}}</li>
+        <li>{{t.plan_premium_feat3}}</li>
+      </ul>
+      <span class="cta" aria-disabled="true">{{t.plan_premium_soon}}</span>
+    </div>
+    <div class="price-more" data-in>
+      <div>
         <h3>{{t.plan_free_title}}</h3>
-        <p class="plan-desc">{{t.plan_free_desc}}</p>
-        <p class="plan-price">{{t.plan_free_price}} <span>{{t.plan_free_unit}}</span></p>
-        <p class="plan-alt">&nbsp;</p>
-        <ul class="plan-feats">
-          <li>{{t.plan_free_feat1}}</li>
-          <li>{{t.plan_free_feat2}}</li>
-          <li>{{t.plan_free_feat3}}</li>
-        </ul>
-        <div class="plan-cta">{{!ctaTag}}</div>
+        <p class="p">{{t.plan_free_price}} <small>{{t.plan_free_unit}}</small></p>
+        <p>{{t.plan_free_feat1}}. {{t.plan_free_feat2}}. {{t.plan_free_feat3}}.</p>
       </div>
-      <div class="pricing-card pricing-card--featured">
-        <span class="plan-badge">{{t.plan_premium_soon}}</span>
-        <h3>{{t.plan_premium_title}}</h3>
-        <p class="plan-desc">{{t.plan_premium_desc}}</p>
-        <p class="plan-price">{{t.plan_premium_month}} <span>{{t.plan_premium_unit}}</span></p>
-        <p class="plan-alt">{{t.plan_premium_alt}}</p>
-        <ul class="plan-feats">
-          <li>{{t.plan_premium_feat3}}</li>
-          <li>{{t.plan_premium_feat1}}</li>
-          <li>{{t.plan_premium_feat2}}</li>
-          <li>{{t.plan_premium_feat4}}</li>
-        </ul>
-        <div class="plan-cta"><span class="cta" aria-disabled="true">{{t.plan_premium_soon}}</span></div>
-      </div>
-      <div class="pricing-card">
+      <div>
         <h3>{{t.plan_biz_title}}</h3>
-        <p class="plan-desc">{{t.plan_biz_desc}}</p>
-        <p class="plan-price">{{t.plan_biz_price}}</p>
-        <p class="plan-alt">&nbsp;</p>
-        <ul class="plan-feats">
-          <li>{{t.plan_biz_feat1}}</li>
-          <li>{{t.plan_biz_feat2}}</li>
-          <li>{{t.plan_biz_feat3}}</li>
-          <li>{{t.plan_biz_feat4}}</li>
-          <li>{{t.plan_biz_feat5}}</li>
-        </ul>
-        <div class="plan-cta"><a class="cta cta-ghost" href="mailto:contact@bifa.digital?subject={{displayName}}%20Business">{{t.plan_biz_cta}}</a></div>
+        <p class="p">{{t.plan_biz_price}}</p>
+        <p>{{t.plan_biz_feat1}}. {{t.plan_biz_feat4}}. <a href="mailto:contact@bifa.digital?subject={{displayName}}%20Business">{{t.plan_biz_cta}}</a></p>
+      </div>
+      <div>
+        <h3>{{t.faq9_q}}</h3>
+        <p>{{t.plan_promo}}</p>
       </div>
     </div>
-    <p class="plan-extra">{{t.plan_promo}} {{t.plan_signin}} {{t.langs_text}}</p>
   </section>
 
-  <section class="block wrap center">
-    {{!ctaTag}}
+  <section class="s faq wrap" aria-labelledby="faq-title">
+    <h2 class="head" id="faq-title">{{t.faq_title}}</h2>
+    <div class="drawer">
+      <details name="faq" open><summary><span class="tab">{{t.faq_tab1}}</span>{{t.faq1_q}}</summary><p>{{t.faq1_a}}</p></details>
+      <details name="faq"><summary><span class="tab">{{t.faq_tab2}}</span>{{t.faq2_q}}</summary><p>{{t.faq2_a}}</p></details>
+      <details name="faq"><summary><span class="tab">{{t.faq_tab3}}</span>{{t.faq3_q}}</summary><p>{{t.faq3_a}}</p></details>
+      <details name="faq"><summary><span class="tab">{{t.faq_tab4}}</span>{{t.faq4_q}}</summary><p>{{t.faq4_a}}</p></details>
+      <details name="faq"><summary><span class="tab">{{t.faq_tab5}}</span>{{t.faq5_q}}</summary><p>{{t.faq5_a}}</p></details>
+      <details name="faq"><summary><span class="tab">{{t.faq_tab6}}</span>{{t.faq6_q}}</summary><p>{{t.faq6_a}}</p></details>
+    </div>
+    <p class="more"><a href="/{{lang}}/faq.html">{{t.faq_all}}</a></p>
+  </section>
+
+  <section class="s" aria-label="{{t.cta_word}}">
+    {{!ctaBand}}
   </section>
 </main>
+<script>
+(function () {
+  var D = {{!squeezeData}}, lang = document.documentElement.lang;
+  var S = document.getElementById('squeeze').dataset;
+  var T = { words: S.words, min: S.min, sec: S.sec,
+    names: [].map.call(document.querySelectorAll('[data-stop]'), function (b) { return b.textContent; }) };
+  var FULL = 2502, keys = [null, '50', '20', '10'];
+  var nf = new Intl.NumberFormat(lang);
+  var range = document.getElementById('sq-range'), track = document.getElementById('sq-track');
+  var big = document.getElementById('sq-big'), small = document.getElementById('sq-small');
+  var meta = document.getElementById('sq-meta'), text = document.getElementById('sq-text'), card = document.getElementById('sq-card');
+  var first = text.innerHTML, stops = document.querySelectorAll('[data-stop]');
+  function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; e.textContent = txt; return e; }
+  function secs(w) { return Math.max(1, Math.round(w / 220 * 60)); }
+  var t20 = D['20'] && D['20'].stats ? D['20'].stats.summaryWords : 0;
+  if (t20) document.getElementById('f-time').textContent = Math.round(FULL / 220) + ' min → ' + secs(t20) + ' s';
+  function show(i) {
+    var k = keys[i], d = k && D[k];
+    if (k && !d) return;
+    var words = d ? d.stats.summaryWords : FULL;
+    big.textContent = T.words.replace('%n', nf.format(words));
+    small.textContent = T.names[i] + ' · ' + (d ? T.sec.replace('%n', secs(words)) : T.min.replace('%n', Math.round(FULL / 220)));
+    range.value = i; range.setAttribute('aria-valuetext', T.names[i]);
+    track.style.setProperty('--fill', (i / 3 * 100) + '%');
+    stops.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.stop == i)); });
+    card.classList.add('fade');
+    setTimeout(function () {
+      meta.innerHTML = ''; meta.appendChild(el('span', '', 'it.wikipedia.org'));
+      if (d) { meta.appendChild(el('span', 'hi', T.words.replace('%n', nf.format(words)))); meta.appendChild(el('span', '', T.sec.replace('%n', secs(words)))); }
+      if (!d) { text.innerHTML = first; }
+      else {
+        var ul = document.createElement('ul');
+        d.summary.split('\n').map(function (s) { return s.replace(/^[•\-\s]+/, '').trim(); }).filter(Boolean).forEach(function (s) { ul.appendChild(el('li', '', s)); });
+        text.innerHTML = ''; text.appendChild(ul);
+      }
+      card.classList.remove('fade');
+    }, 200);
+  }
+  range.addEventListener('input', function () { show(Number(range.value)); });
+  stops.forEach(function (b) { b.addEventListener('click', function () { show(Number(b.dataset.stop)); }); });
+  big.textContent = T.words.replace('%n', nf.format(FULL));
+  small.textContent = T.names[0] + ' · ' + T.min.replace('%n', Math.round(FULL / 220));
+
+  // Showcase: choosing a kind of content swaps the picture on the lemon (slow crossfade)
+  // and its fact; it also moves on by itself every six seconds until the visitor chooses.
+  var pics = document.querySelectorAll('.show-pic'), shows = document.querySelectorAll('[data-show]'), cur = 0, timer;
+  function pick(i) {
+    cur = i;
+    pics.forEach(function (p, j) { p.classList.toggle('on', j === i); });
+    shows.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.show == i)); });
+    document.querySelectorAll('[data-fact],[data-cap]').forEach(function (p) { p.hidden = (p.dataset.fact || p.dataset.cap) != i; });
+  }
+  shows.forEach(function (b) { b.addEventListener('click', function () { clearInterval(timer); pick(Number(b.dataset.show)); }); });
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) timer = setInterval(function () { if (!document.hidden) pick((cur + 1) % pics.length); }, 6000);
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { var v = document.querySelector('video'); if (v) { v.removeAttribute('autoplay'); v.pause(); } }
+})();
+</script>
 {{@_footer}}

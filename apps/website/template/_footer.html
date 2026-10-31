@@ -1,10 +1,40 @@
-<footer class="site wrap">
-  <nav aria-label="Legal">
-    <a href="/privacy-policy.html">{{t.footer_privacy}}</a>
-    <a href="/terms.html">{{t.footer_terms}}</a>
-    <a href="mailto:contact@bifa.digital">{{t.footer_contact}}</a>
-  </nav>
-  <div>© {{year}} {{displayName}} · {{t.footer_rights}}</div>
+<footer class="site">
+  <div class="foot-mark" aria-hidden="true">
+    <svg viewBox="-100 -100 200 100"><use href="#lemon" x="-100" y="-100" width="200" height="200" class="lemon"/></svg>
+    <div class="word">{{displayName}}</div>
+  </div>
+  <div class="foot-cols">
+    <nav aria-label="{{displayName}}">
+      <a href="/{{lang}}/#squeeze">{{t.nav_how}}</a>
+      <a href="/{{lang}}/#pricing">{{t.pricing_title}}</a>
+      <a href="/{{lang}}/faq.html">{{t.nav_faq}}</a>
+    </nav>
+    <nav aria-label="Legal">
+      <a href="/privacy-policy.html">{{t.footer_privacy}}</a>
+      <a href="/terms.html">{{t.footer_terms}}</a>
+    </nav>
+    <nav aria-label="{{t.lang_label}}"><p>{{!langLinksInline}}</p></nav>
+    <div class="addr">
+      <span>{{t.footer_rights}}</span>
+      <a href="mailto:contact@bifa.digital">contact@bifa.digital</a>
+    </div>
+  </div>
+  <p class="foot-credits">{{t.footer_images}}: {{!credits}}. {{t.sq_credit}}</p>
+  <div class="foot-last">
+    <span>© {{year}} {{displayName}}</span>
+    {{!ctaTag}}
+  </div>
 </footer>
+<script>
+(function () {
+  // Entrances: each block's parts rise in turn as the block enters, once.
+  var els = document.querySelectorAll('[data-in]');
+  if (!('IntersectionObserver' in window)) { els.forEach(function (e) { e.classList.add('in'); }); return; }
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (en) { if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); } });
+  }, { rootMargin: '0px 0px -8% 0px' });
+  els.forEach(function (e) { io.observe(e); });
+})();
+</script>
 </body>
 </html>

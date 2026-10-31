@@ -61,3 +61,6 @@ test/README.md
 # QA: profili Chromium e build temporanee generate dai test i18n
 qa/.chrome-profile/
 qa/.i18n-builds/
+
+# taste-skill: direzione, schermate e misure locali
+.taste-skill/

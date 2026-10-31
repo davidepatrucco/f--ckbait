@@ -24,7 +24,7 @@
 // Usage:
 //   node apps/website/generate-site.mjs <brand> | --all   [--year=2026]
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync, copyFileSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync, copyFileSync, cpSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { dirname, resolve, join } from 'node:path';
@@ -218,6 +218,37 @@ function copyAssets(brand, outDir) {
   const hero = existsSync(og) ? og : join(STORE_DIR, brand.id, 'screenshots', '02-testo-popup.png');
   if (!existsSync(hero)) throw new GenerateError(`missing hero image ${hero}`);
   copyFileSync(hero, join(assets, 'hero.png'));
+  // Pictures, fonts and the squeeze demo data of the brand's own site design
+  // (brands/<id>/site/assets, optional): copied as-is under /assets/site/.
+  const site = join(BRANDS_DIR, brand.id, 'site', 'assets');
+  if (existsSync(site)) cpSync(site, join(assets, 'site'), { recursive: true });
+}
+
+// brands/<id>/site/: real summaries of one article at the extension's three lengths
+// (squeeze.json, per language) and the credits of the found pictures (credits.json).
+function siteData(brand) {
+  const dir = join(BRANDS_DIR, brand.id, 'site');
+  const squeeze = existsSync(join(dir, 'squeeze.json')) ? readJson(join(dir, 'squeeze.json'), 'squeeze.json') : {};
+  const credits = existsSync(join(dir, 'assets', 'credits.json')) ? readJson(join(dir, 'assets', 'credits.json'), 'credits.json') : [];
+  return { squeeze, credits };
+}
+
+function creditsHtml(credits) {
+  return credits.map((c) => {
+    const who = c.creator && !/^unknown/i.test(c.creator) ? `, ${htmlEscape(c.creator)}` : '';
+    return `<a href="${htmlEscape(c.page)}" rel="noopener">${htmlEscape(c.title)}</a>${who}${c.date ? `, ${htmlEscape(c.date)}` : ''} (${htmlEscape(c.license)})`;
+  }).join(' · ');
+}
+
+// Closing band: the whole band is the store link once the listing is public; until
+// then the same band, not clickable, says the extension is coming.
+function ctaBand(vars, t) {
+  const arrow = '<svg class="band-arrow" viewBox="0 0 48 48" aria-hidden="true"><path d="M12 36 36 12M16 12h20v20" fill="none" stroke="currentColor" stroke-width="4"/></svg>';
+  const word = `<span class="band-word">${htmlEscape(t.cta_word)}</span>`;
+  if (/^https:\/\//.test(vars.chromeStoreUrl)) {
+    return `<a class="band cta" href="${htmlEscape(vars.chromeStoreUrl)}" rel="noopener"><span class="band-line">${htmlEscape(interpolate(t.cta_band_live, vars))}</span>${arrow}${word}</a>`;
+  }
+  return `<div class="band band-soon"><span class="band-line">${htmlEscape(interpolate(t.cta_band_soon, vars))}</span>${word}</div>`;
 }
 
 function copyLegal(brand, outDir) {
@@ -239,7 +270,13 @@ export function generateBrand(brandId, year, dicts) {
     const src = join(BRANDS_DIR, brand.id, 'assets', f);
     if (existsSync(src)) h.update(readFileSync(src));
   }
+  const siteDir = join(BRANDS_DIR, brand.id, 'site', 'assets');
+  if (existsSync(siteDir)) for (const f of readdirSync(siteDir, { recursive: true }).sort()) {
+    const p = join(siteDir, String(f));
+    if (statSync(p).isFile()) h.update(readFileSync(p));
+  }
   vars.assetV = h.digest('hex').slice(0, 10);
+  const site = siteData(brand);
   const outDir = join(DIST_DIR, brandId);
   // Clean first: a page removed from the generator must not survive from an old run
   // and get published.
@@ -272,7 +309,11 @@ export function generateBrand(brandId, year, dicts) {
           langLinks: langLinks(page, lang, dicts, false),
           langLinksInline: langLinks(page, lang, dicts, true),
           ctaTag: ctaTag(vars, t),
-          heroAb: heroAbScript(t, vars)
+          ctaBand: ctaBand(vars, t),
+          heroAb: heroAbScript(t, vars),
+          credits: creditsHtml(site.credits),
+          // "<" escaped so no summary text can close the <script> element.
+          squeezeData: JSON.stringify(site.squeeze[lang] || {}).replace(/</g, '\\u003c')
         }
       };
       const { out, missing } = render(readFileSync(join(TEMPLATE_DIR, `${page}.html`), 'utf8'), ctx);
@@ -291,7 +332,8 @@ export function generateBrand(brandId, year, dicts) {
       hreflang: page === 'root-index' ? hreflangTags('index', vars.siteUrl) : '',
       langLinks: langLinks('index', 'en', dicts, false),
       langLinksInline: langLinks('index', 'en', dicts, true),
-      ctaTag: ctaTag(vars, en)
+      ctaTag: ctaTag(vars, en),
+      credits: creditsHtml(site.credits)
     }
   });
   for (const [tpl, outName] of [['root-index', 'index.html'], ['404', '404.html']]) {
