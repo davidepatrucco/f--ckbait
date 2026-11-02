@@ -502,5 +502,8 @@
     },
     "popup_marketing_optin_error": {
         "message": "Ihre Einstellung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut."
+    },
+    "modal_saved_label": {
+        "message": "Lesezeit gespart"
     }
 }

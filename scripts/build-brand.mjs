@@ -97,6 +97,10 @@ export function buildBrand(brandId, options = {}) {
     const locales = readdirSync(join(outDir, '_locales'));
     if (!locales.includes('en')) throw new Error('_locales senza la lingua di default (en)');
 
+    // 1c-bis. Carattere Switzer (Fontshare, ITF Free Font License), usato da popup,
+    //     pagina risultati e riquadro nella pagina (web_accessible_resources).
+    cpSync(join(EXT, 'fonts'), join(outDir, 'fonts'), { recursive: true });
+
     // 1d. Soglie generate dalla fonte unica del backend: il pacchetto non contiene
     //     numeri scritti a mano, quindi browser e server non possono divergere.
     writeFileSync(join(outDir, 'policy-config.js'), generatePolicyJs());

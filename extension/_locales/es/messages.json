@@ -502,5 +502,8 @@
     },
     "popup_marketing_optin_error": {
         "message": "No se pudo guardar tu preferencia. Por favor, inténtalo de nuevo."
+    },
+    "modal_saved_label": {
+        "message": "de lectura ahorrados"
     }
 }

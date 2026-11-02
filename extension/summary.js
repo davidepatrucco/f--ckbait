@@ -32,10 +32,20 @@
     const data = payload?.data || {};
     const url = payload?.url || data.originalUrl || data.url || '';
     root.innerHTML = '';
-    root.appendChild(Object.assign(el('h1', data.title || t('summarypage_title')), {}));
+    root.appendChild(el('h1', data.title || t('summarypage_title')));
     if (url) {
       const src = el('div'); src.className = 'src';
-      const a = el('a', url); a.href = url; a.target = '_blank'; src.appendChild(a); root.appendChild(src);
+      let host = url; try { host = new URL(url).hostname.replace(/^www\./, ''); } catch (e) { /* resta l'URL */ }
+      const a = el('a', host); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; src.appendChild(a); root.appendChild(src);
+    }
+    // Tempo risparmiato, quando il risultato porta le statistiche (stessa regola del riquadro).
+    const st = data.stats || {};
+    if (st.originalWords > 0 && st.summaryWords >= 0) {
+      const secs = Math.max(1, Math.round((st.originalWords - st.summaryWords) / 220 * 60));
+      const fig = secs >= 60 ? `${Math.floor(secs / 60)} min${secs % 60 ? ` ${secs % 60} s` : ''}` : `${secs} s`;
+      const p = el('p'); p.className = 'saved';
+      p.appendChild(el('b', fig)); p.appendChild(el('span', t('modal_saved_label', undefined, 'of reading saved')));
+      root.appendChild(p);
     }
     if (data.truncated) {
       const n = el('div'); n.className = 'note';
@@ -45,7 +55,12 @@
     }
     // Schema summary (testo) oppure output strutturato (brand): render generico.
     if (data.summary || data.text) {
-      const c = el('div'); c.className = 'content'; c.textContent = data.summary || data.text; root.appendChild(c);
+      const lines = String(data.summary || data.text).split('\n').map((l) => l.replace(/^\s*[•\-*]\s*/, '').trim()).filter(Boolean);
+      if (lines.length > 1) {
+        const ul = el('ul'); ul.className = 'points'; lines.forEach((l) => ul.appendChild(el('li', l))); root.appendChild(ul);
+      } else {
+        const c = el('div'); c.className = 'content'; c.textContent = data.summary || data.text; root.appendChild(c);
+      }
     } else if (data.output && typeof data.output === 'object') {
       for (const [k, v] of Object.entries(data.output)) {
         if (Array.isArray(v) && v.length) {

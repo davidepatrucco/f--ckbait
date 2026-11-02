@@ -711,26 +711,6 @@ if (!email || !password) {
             premiumBtn.id = 'premiumBtn';
             premiumBtn.className = 'premium-btn';
             premiumBtn.textContent = t('popup_upgrade', undefined, 'Upgrade to Premium');
-            premiumBtn.style.cssText = `
-                width: 100%;
-                padding: 10px 12px;
-                margin-top: 10px;
-                background: #111827;
-                color: #f9fafb;
-                border: none;
-                border-radius: 10px;
-                font-size: 13px;
-                font-weight: 600;
-                cursor: pointer;
-                transition: background 0.2s ease;
-            `;
-            
-            premiumBtn.addEventListener('mouseover', () => {
-                premiumBtn.style.background = '#0b1220';
-            });
-            premiumBtn.addEventListener('mouseout', () => {
-                premiumBtn.style.background = '#111827';
-            });
             
             premiumBtn.addEventListener('click', handlePremiumUpgrade);
             
@@ -797,26 +777,6 @@ if (!email || !password) {
             manageBtn.id = 'manageSubscriptionBtn';
             manageBtn.className = 'premium-btn';
             manageBtn.textContent = t('popup_manage_subscription', undefined, 'Manage subscription');
-            manageBtn.style.cssText = `
-                width: 100%;
-                padding: 10px 12px;
-                margin-top: 10px;
-                background: #f3f4f6;
-                color: #111827;
-                border: 1px solid #d1d5db;
-                border-radius: 10px;
-                font-size: 13px;
-                font-weight: 600;
-                cursor: pointer;
-                transition: background 0.2s ease;
-            `;
-
-            manageBtn.addEventListener('mouseover', () => {
-                manageBtn.style.background = '#e5e7eb';
-            });
-            manageBtn.addEventListener('mouseout', () => {
-                manageBtn.style.background = '#f3f4f6';
-            });
 
             manageBtn.addEventListener('click', handleManageSubscription);
 

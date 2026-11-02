@@ -502,5 +502,8 @@
     },
     "popup_marketing_optin_error": {
         "message": "Impossible d'enregistrer votre préférence. Veuillez réessayer."
+    },
+    "modal_saved_label": {
+        "message": "de lecture gagnées"
     }
 }

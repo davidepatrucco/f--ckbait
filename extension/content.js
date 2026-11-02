@@ -34,6 +34,11 @@
     const ICON_VIDEO = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px"><rect x="2" y="6" width="14" height="12" rx="2"></rect><path d="M16 10l6-3v10l-6-3z"></path></svg>';
     const ICON_DOC = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px"><path d="M6 2h9l5 5v15H6z"></path><path d="M15 2v5h5"></path><path d="M9 13h6M9 17h6"></path></svg>';
     const ICON_WARN = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px"><path d="M12 3l10 18H2z"></path><path d="M12 10v4M12 17h.01"></path></svg>';
+    // La fetta di limone del sito: unico segno del brand nel riquadro.
+    const LEMON_SLICE = (cls) => {
+        const segs = [0, 36, 72, 108, 144, 180, 216, 252, 288, 324].map((r) => `<path d="M0 -8 L-21 -80 A84 84 0 0 1 21 -80 Z" transform="rotate(${r})"/>`).join('');
+        return `<svg class="${cls}" viewBox="-100 -100 200 200" aria-hidden="true"><circle r="100" fill="${BRAND_PRIMARY}"/><circle r="90" fill="#fff9dc"/><g fill="${BRAND_PRIMARY}">${segs}</g></svg>`;
+    };
 
 
     // Funzione per calcolare la densità del testo in un elemento
@@ -410,14 +415,15 @@
         modal.id = 'lemonsqueezer-modal';
         modal.innerHTML = getModalStyles() + `
             <div class="lemonsqueezer-modal-overlay">
-                <div class="lemonsqueezer-modal-content">
+                <div class="lemonsqueezer-modal-content" role="dialog" aria-modal="true" aria-label="${esc(brandTitle())}">
                     <div class="lemonsqueezer-modal-header">
+                        ${LEMON_SLICE('ls-slice')}
                         <h3>${esc(brandTitle())}</h3>
-                        <button class="lemonsqueezer-modal-close">&times;</button>
+                        <button class="lemonsqueezer-modal-close" aria-label="${esc(t('app_close', undefined, 'Close'))}">&times;</button>
                     </div>
                     <div class="lemonsqueezer-modal-body" id="lemonsqueezer-modal-body">
                         <div class="lemonsqueezer-loading">
-                            <div class="lemonsqueezer-spinner"></div>
+                            ${LEMON_SLICE('lemonsqueezer-spinner')}
                             <div class="lemonsqueezer-loading-text">${esc(t('modal_loading', undefined, 'Analyzing...'))}</div>
                             <div class="lemonsqueezer-url-preview">${data.url ? esc(shortUrl(data.url)) : ''}</div>
                         </div>
@@ -465,9 +471,9 @@
         const canSwitch = isVideo ? alt.text : alt.video;
         const switchLabel = esc(t(isVideo ? 'source_switch_to_text' : 'source_switch_to_video', undefined, isVideo ? 'Summarize the text instead' : 'Summarize the video instead'));
         const btn = canSwitch
-            ? `<button id="lemonsqueezer-switch-source" data-target="${isVideo ? 'text' : 'video'}" style="background:none;border:none;color:#0969da;cursor:pointer;font-size:12px;text-decoration:underline;padding:0;">${switchLabel}</button>`
+            ? `<button id="lemonsqueezer-switch-source" data-target="${isVideo ? 'text' : 'video'}">${switchLabel}</button>`
             : '';
-        return `<div class="lemonsqueezer-source-badge" style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:#F2F4F7;border-radius:6px;padding:6px 10px;font-size:12px;margin-bottom:10px;">
+        return `<div class="lemonsqueezer-source-badge">
             <span>${label}</span>${btn}
         </div>`;
     }
@@ -475,7 +481,7 @@
     function sourceNotesHtml(notes) {
         const list = (Array.isArray(notes) ? notes : []).filter((n) => NOTE_KEYS[n]);
         if (!list.length) return '';
-        return list.map((n) => `<div style="background:#FFF7E6;border:1px solid #FFE1A8;color:#8a6d3b;border-radius:6px;padding:8px 10px;font-size:12px;margin-bottom:8px;">${ICON_WARN} ${esc(t(NOTE_KEYS[n]))}</div>`).join('');
+        return list.map((n) => `<p class="ls-note">${esc(t(NOTE_KEYS[n]))}</p>`).join('');
     }
 
     // Switch di fonte: rilancia il riassunto forzando l'altra fonte.
@@ -536,6 +542,7 @@
         
         // Calcola tempo risparmiato solo se abbiamo i dati
         let timeSavedText = '';
+        let savedFigure = '';
         if (isVideo || (originalWordsCount > 0 && summaryWordsCount >= 0)) {
             const summarySeconds = (summaryWordsCount / 220) * 60;
             const timeSavedMinutes = isVideo
@@ -550,6 +557,8 @@
                 timeSavedMinutes
             });
             
+            const savedSeconds = Math.max(1, Math.round(timeSavedMinutes * 60));
+            savedFigure = savedSeconds >= 60 ? `${Math.floor(savedSeconds / 60)} min${savedSeconds % 60 ? ` ${savedSeconds % 60} s` : ''}` : `${savedSeconds} s`;
             if (timeSavedMinutes >= 1) {
                 const minutes = Math.floor(timeSavedMinutes);
                 const seconds = Math.round((timeSavedMinutes - minutes) * 60);
@@ -568,50 +577,20 @@
         
         console.log('DEBUG risultato:', { readingTimeDisplay, timeSavedText });
         
+        // Il riassunto arriva come righe "• punto": diventa una vera lista.
+        const points = String(data.summary || '').split('\n').map((l) => l.replace(/^\s*[•\-*]\s*/, '').trim()).filter(Boolean);
+        const bodyHtml = points.length > 1
+            ? `<ul class="ls-points">${points.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>`
+            : `<p class="ls-text">${esc(data.summary)}</p>`;
+        const words = t('modal_words', [String(data.stats?.summaryWords || data.wordsCount || 0)]);
         modalBody.innerHTML = `
-            <div class="lemonsqueezer-summary-meta">
-                <strong>${esc(data.title || t('modal_summary', undefined, 'Summary'))}</strong>
-                <div class="lemonsqueezer-stats">
-                    <div class="lemonsqueezer-stat-item">
-                        <span class="lemonsqueezer-stat-icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M4 5h10"></path>
-                                <path d="M4 9h10"></path>
-                                <path d="M4 13h6"></path>
-                                <path d="M14 4h6v16h-6"></path>
-                            </svg>
-                        </span>
-                        <span class="lemonsqueezer-stat-text">${readingTimeDisplay}</span>
-                    </div>
-                    <div class="lemonsqueezer-stat-item">
-                        <span class="lemonsqueezer-stat-icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M12 20h9"></path>
-                                <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path>
-                            </svg>
-                        </span>
-                        <span class="lemonsqueezer-stat-text">${esc(t('modal_words', [String(data.stats?.summaryWords || data.wordsCount || 0)]))}</span>
-                    </div>
-                    <div class="lemonsqueezer-stat-item lemonsqueezer-stat-highlight">
-                        <span class="lemonsqueezer-stat-icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M13 2L4 14h7l-1 8 9-12h-7z"></path>
-                            </svg>
-                        </span>
-                        <span class="lemonsqueezer-stat-text">${timeSavedText}</span>
-                    </div>
-                    ${data.cached ? `<div class="lemonsqueezer-stat-item"><span class="lemonsqueezer-stat-text">${esc(t('modal_cached', undefined, 'From cache'))}</span></div>` : ''}
-                </div>
-                <div class="lemonsqueezer-url">
-                    ${safeLink(data.originalUrl)}
-                </div>
-            </div>
+            <h2 class="ls-title">${esc(data.title || t('modal_summary', undefined, 'Summary'))}</h2>
+            ${safeLink(data.originalUrl, 'ls-src')}
+            <p class="ls-saved">${savedFigure ? `<b>${esc(savedFigure)}</b><span>${esc(t('modal_saved_label', undefined, 'of reading saved'))}</span>` : `<span>${esc(timeSavedText)}</span>`}<span>${esc(readingTimeDisplay)} · ${esc(words)}${data.cached ? ` · ${esc(t('modal_cached', undefined, 'From cache'))}` : ''}</span></p>
             ${sourceBadgeHtml(data)}
             ${sourceNotesHtml(data.__notes)}
-            ${data.truncated ? `<div style="background:#FFF7E6;border:1px solid #FFE1A8;color:#8a6d3b;border-radius:6px;padding:8px 10px;font-size:12px;margin-bottom:12px;">${ICON_WARN} ${esc(t('modal_truncated'))}</div>` : ''}
-            <div class="lemonsqueezer-summary-content">
-                ${esc(data.summary).replace(/\n/g, '<br>')}
-            </div>
+            ${data.truncated ? `<p class="ls-note">${esc(t('modal_truncated'))}</p>` : ''}
+            ${bodyHtml}
         `;
         setupSourceSwitch(data);
         
@@ -816,325 +795,95 @@
 
     // Funzione helper per ottenere gli stili del modal
     function getModalStyles() {
+        const font = (w) => { try { return chrome.runtime.getURL(`fonts/switzer-${w}.woff2`); } catch (e) { return ''; } };
+        // Stesso linguaggio del sito: Switzer, il giallo del brand su un fondo bianco, la
+        // fetta di limone come unico segno, niente righe sottili e niente ombre a riposo
+        // (l'unica ombra e' quella del riquadro, che galleggia sulla pagina).
+        // Le regole sono legate a #lemonsqueezer-modal e azzerano quelle della pagina ospite.
         return `
             <style>
+            @font-face { font-family: LSSwitzer; src: url(${font(400)}) format("woff2"); font-weight: 400; font-display: swap; }
+            @font-face { font-family: LSSwitzer; src: url(${font(600)}) format("woff2"); font-weight: 600; font-display: swap; }
+            @font-face { font-family: LSSwitzer; src: url(${font(800)}) format("woff2"); font-weight: 800; font-display: swap; }
+            #lemonsqueezer-modal, #lemonsqueezer-modal * { box-sizing: border-box; margin: 0; padding: 0; border: 0; background: none; font: inherit; color: inherit; letter-spacing: inherit; text-transform: none; text-shadow: none; box-shadow: none; float: none; }
             #lemonsqueezer-modal {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                z-index: 999999;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                --ls-y: ${BRAND_PRIMARY}; --ls-ink: #16181c; --ls-muted: #555b64; --ls-tone: #f2f2ee; --ls-pale: #fff4b8;
+                position: fixed; inset: 0; z-index: 2147483646;
+                font-family: LSSwitzer, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+                font-size: 16px; line-height: 1.5; color: var(--ls-ink); letter-spacing: -0.005em; -webkit-font-smoothing: antialiased;
             }
-            
-            .lemonsqueezer-modal-overlay {
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 0, 0.7);
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                padding: 20px;
-            }
-            
-            .lemonsqueezer-modal-content {
-                background: white;
-                border-radius: 12px;
-                max-width: 600px;
-                width: 100%;
-                max-height: 80vh;
-                overflow-y: auto;
-                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            }
-            
-            .lemonsqueezer-loading {
-                text-align: center;
-                padding: 40px 20px;
-            }
-            
-            .lemonsqueezer-spinner {
-                display: inline-block;
-                width: 40px;
-                height: 40px;
-                border: 4px solid #f3f3f3;
-                border-top: 4px solid ${BRAND_PRIMARY};
-                border-radius: 50%;
-                animation: spin 1s linear infinite;
-                margin-bottom: 20px;
-            }
-            
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
-            
-            .lemonsqueezer-loading-text {
-                font-size: 18px;
-                color: #333;
-                margin-bottom: 10px;
-                font-weight: 500;
-            }
-            
-            .lemonsqueezer-url-preview {
-                font-size: 12px;
-                color: #666;
-                word-break: break-all;
-                max-width: 500px;
-                margin: 0 auto;
-                line-height: 1.4;
-            }
-            
-            .lemonsqueezer-error {
-                text-align: center;
-                padding: 40px 20px;
-            }
-            
-            .lemonsqueezer-error-icon {
-                width: 44px;
-                height: 44px;
-                margin: 0 auto 16px;
-                color: #d32f2f;
-            }
+            #lemonsqueezer-modal .lemonsqueezer-modal-overlay { position: absolute; inset: 0; background: rgba(22, 24, 28, .55); display: flex; justify-content: center; align-items: center; padding: 20px; }
+            #lemonsqueezer-modal .lemonsqueezer-modal-content { position: relative; background: #fff; border-radius: 20px; width: 100%; max-width: 620px; max-height: 86vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 30px 80px rgba(0, 0, 0, .35); }
+            #lemonsqueezer-modal .lemonsqueezer-modal-header { display: flex; align-items: center; gap: 10px; padding: 14px 14px 14px 20px; background: var(--ls-ink); color: #fff; flex: none; }
+            #lemonsqueezer-modal .lemonsqueezer-modal-header h3 { font-size: 16px; font-weight: 600; margin-right: auto; }
+            #lemonsqueezer-modal .ls-slice { width: 22px; height: 22px; flex: none; display: block; }
+            #lemonsqueezer-modal .lemonsqueezer-modal-close { width: 36px; height: 36px; border-radius: 999px; display: grid; place-items: center; font-size: 22px; line-height: 1; cursor: pointer; color: #fff; transition: background .15s; }
+            #lemonsqueezer-modal .lemonsqueezer-modal-close:hover { background: #33363c; }
+            #lemonsqueezer-modal .lemonsqueezer-modal-close:focus-visible, #lemonsqueezer-modal button:focus-visible, #lemonsqueezer-modal a:focus-visible { outline: 3px solid var(--ls-y); outline-offset: 2px; }
+            #lemonsqueezer-modal .lemonsqueezer-modal-body { padding: 24px 24px 8px; overflow-y: auto; }
 
-            .lemonsqueezer-error-icon svg {
-                width: 100%;
-                height: 100%;
-            }
-            
-            .lemonsqueezer-error-title {
-                font-size: 18px;
-                font-weight: 600;
-                color: #d32f2f;
-                margin-bottom: 12px;
-            }
-            
-            .lemonsqueezer-error-message {
-                font-size: 14px;
-                color: #666;
-                margin-bottom: 24px;
-                line-height: 1.4;
-            }
-            
-            .lemonsqueezer-modal-header {
-                padding: 20px 20px 15px;
-                border-bottom: 1px solid #e5e5e5;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }
-            
-            .lemonsqueezer-modal-header h3 {
-                margin: 0;
-                font-size: 18px;
-                color: #333;
-            }
-            
-            .lemonsqueezer-modal-close {
-                background: none;
-                border: none;
-                font-size: 24px;
-                cursor: pointer;
-                color: #666;
-                padding: 0;
-                width: 30px;
-                height: 30px;
-                border-radius: 50%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-            
-            .lemonsqueezer-modal-close:hover {
-                background: #f5f5f5;
-                color: #333;
-            }
-            
-            .lemonsqueezer-modal-body {
-                padding: 20px;
-            }
-            
-            .lemonsqueezer-summary-meta {
-                margin-bottom: 20px;
-                padding-bottom: 15px;
-                border-bottom: 1px solid #e5e5e5;
-            }
-            
-            .lemonsqueezer-summary-meta strong {
-                font-size: 16px;
-                color: #333;
-                display: block;
-                margin-bottom: 12px;
-                line-height: 1.3;
-            }
-            
-            .lemonsqueezer-stats {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 12px;
-                margin-bottom: 10px;
-            }
-            
-            .lemonsqueezer-stat-item {
-                display: flex;
-                align-items: center;
-                gap: 6px;
-                background: #f8f9fa;
-                border: 1px solid #e9ecef;
-                border-radius: 6px;
-                padding: 6px 10px;
-                font-size: 13px;
-                color: #495057;
-            }
-            
-            .lemonsqueezer-stat-highlight {
-                background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-                border-color: #28a745;
-                color: white;
-                font-weight: 600;
-                animation: pulse 2s infinite;
-            }
-            
-            @keyframes pulse {
-                0% { transform: scale(1); }
-                50% { transform: scale(1.02); }
-                100% { transform: scale(1); }
-            }
-            
-            .lemonsqueezer-stat-icon {
-                width: 14px;
-                height: 14px;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-            }
+            #lemonsqueezer-modal .ls-title { font-size: 22px; font-weight: 600; letter-spacing: -0.03em; line-height: 1.15; }
+            #lemonsqueezer-modal .ls-src { display: inline-block; margin-top: 6px; font-size: 14px; color: var(--ls-muted); text-decoration: none; }
+            #lemonsqueezer-modal .ls-src:hover { color: var(--ls-ink); text-decoration: underline; }
+            #lemonsqueezer-modal .ls-saved { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin: 20px -24px 0; padding: 16px 24px; background: var(--ls-y); color: #16181c; }
+            #lemonsqueezer-modal .ls-saved b { font-size: 30px; font-weight: 600; letter-spacing: -0.04em; line-height: 1; font-variant-numeric: tabular-nums; }
+            #lemonsqueezer-modal .ls-saved span { font-size: 14px; }
+            #lemonsqueezer-modal .ls-points { list-style: none; margin: 22px 0 8px; display: grid; gap: 14px; }
+            #lemonsqueezer-modal .ls-points li { position: relative; padding-left: 26px; font-size: 16px; line-height: 1.55; }
+            #lemonsqueezer-modal .ls-points li::before { content: ""; position: absolute; left: 2px; top: .42em; width: 12px; height: 12px; border-radius: 50%; background: var(--ls-y); }
+            #lemonsqueezer-modal .ls-text { margin: 22px 0 8px; white-space: pre-line; }
+            #lemonsqueezer-modal .lemonsqueezer-source-badge { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 16px; padding: 8px 12px; border-radius: 12px; background: var(--ls-tone); font-size: 14px; }
+            #lemonsqueezer-modal #lemonsqueezer-switch-source { color: var(--ls-ink); text-decoration: underline; cursor: pointer; font-size: 14px; }
+            #lemonsqueezer-modal .ls-note { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: var(--ls-pale); font-size: 14px; }
 
-            .lemonsqueezer-stat-icon svg {
-                width: 14px;
-                height: 14px;
-            }
+            #lemonsqueezer-modal .lemonsqueezer-modal-footer { display: flex; gap: 10px; justify-content: flex-end; padding: 16px 24px 20px; flex: none; }
+            #lemonsqueezer-modal .lemonsqueezer-btn-primary, #lemonsqueezer-modal .lemonsqueezer-btn-secondary { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 20px; border-radius: 999px; font-size: 15px; font-weight: 600; cursor: pointer; transition: transform .15s, background .15s; }
+            #lemonsqueezer-modal .lemonsqueezer-btn-primary { background: var(--ls-ink); color: #fff; }
+            #lemonsqueezer-modal .lemonsqueezer-btn-primary:hover { background: #000; transform: translateY(-1px); }
+            #lemonsqueezer-modal .lemonsqueezer-btn-secondary { background: var(--ls-tone); color: var(--ls-ink); }
+            #lemonsqueezer-modal .lemonsqueezer-btn-secondary:hover { background: #e6e6e1; }
+            #lemonsqueezer-modal .lemonsqueezer-btn-primary:active, #lemonsqueezer-modal .lemonsqueezer-btn-secondary:active { transform: scale(.98); }
+            #lemonsqueezer-modal .lemonsqueezer-btn-icon, #lemonsqueezer-modal .lemonsqueezer-btn-icon svg { width: 16px; height: 16px; display: inline-flex; }
 
-            .lemonsqueezer-stat-highlight .lemonsqueezer-stat-icon svg {
-                color: #ffffff;
-            }
-            
-            .lemonsqueezer-stat-text {
-                font-size: 13px;
-                line-height: 1;
-            }
-            
-            .lemonsqueezer-url {
-                font-size: 12px;
-            }
-            
-            .lemonsqueezer-url a {
-                color: #0066cc;
-                text-decoration: none;
-                word-break: break-all;
-                line-height: 1.3;
-            }
-            
-            .lemonsqueezer-summary-content {
-                line-height: 1.6;
-                color: #333;
-                font-size: 15px;
-            }
-            
-            .lemonsqueezer-modal-footer {
-                padding: 15px 20px 20px;
-                display: flex;
-                gap: 10px;
-                justify-content: flex-end;
-            }
-            
-            .lemonsqueezer-btn-primary,
-            .lemonsqueezer-btn-secondary {
-                padding: 10px 16px;
-                border-radius: 6px;
-                border: none;
-                cursor: pointer;
-                font-size: 14px;
-                font-weight: 500;
-                display: inline-flex;
-                align-items: center;
-                gap: 8px;
-            }
+            /* Attesa: la fetta di limone gira, al posto dello spinner generico. */
+            #lemonsqueezer-modal .lemonsqueezer-loading { display: grid; justify-items: center; gap: 10px; padding: 40px 12px 48px; text-align: center; }
+            #lemonsqueezer-modal .lemonsqueezer-spinner { width: 72px; height: 72px; margin-bottom: 10px; animation: ls-spin 1.4s cubic-bezier(.5,.1,.5,.9) infinite; }
+            #lemonsqueezer-modal .lemonsqueezer-loading-text { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
+            #lemonsqueezer-modal .lemonsqueezer-url-preview { font-size: 14px; color: var(--ls-muted); word-break: break-all; max-width: 46ch; }
+            @keyframes ls-spin { to { transform: rotate(360deg); } }
 
-            .lemonsqueezer-btn-icon {
-                width: 14px;
-                height: 14px;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-            }
+            #lemonsqueezer-modal .lemonsqueezer-error { display: grid; justify-items: start; gap: 12px; padding: 12px 0 20px; }
+            #lemonsqueezer-modal .lemonsqueezer-error-icon { width: 40px; height: 40px; color: #b42318; }
+            #lemonsqueezer-modal .lemonsqueezer-error-icon svg { width: 100%; height: 100%; }
+            #lemonsqueezer-modal .lemonsqueezer-error-title { font-size: 22px; font-weight: 600; letter-spacing: -0.03em; }
+            #lemonsqueezer-modal .lemonsqueezer-error-message { font-size: 16px; max-width: 50ch; }
+            #lemonsqueezer-modal .lemonsqueezer-error-notes { width: 100%; }
 
-            .lemonsqueezer-btn-icon svg {
-                width: 14px;
-                height: 14px;
-            }
-            
-            .lemonsqueezer-btn-primary {
-                background: ${BRAND_PRIMARY};
-                color: ${BRAND_INK};
-            }
+            /* Output strutturati degli altri brand */
+            #lemonsqueezer-modal .lemonsqueezer-brandout { padding-bottom: 12px; }
+            #lemonsqueezer-modal .lsb-hero-num { font-size: 56px; font-weight: 600; letter-spacing: -0.04em; line-height: 1; }
+            #lemonsqueezer-modal .lsb-hero-label { font-size: 14px; color: var(--ls-muted); margin-top: 6px; }
+            #lemonsqueezer-modal .lsb-badge { display: inline-block; margin: 14px 0; padding: 6px 14px; border-radius: 999px; color: #fff; font-weight: 600; font-size: 14px; }
+            #lemonsqueezer-modal .lsb-metrics { display: flex; gap: 8px; margin: 14px 0; }
+            #lemonsqueezer-modal .lsb-metric { flex: 1; background: var(--ls-tone); border-radius: 12px; padding: 12px; }
+            #lemonsqueezer-modal .lsb-metric b { display: block; font-size: 22px; font-weight: 600; }
+            #lemonsqueezer-modal .lsb-metric span { font-size: 14px; color: var(--ls-muted); }
+            #lemonsqueezer-modal .lsb-note { margin: 10px 0; }
+            #lemonsqueezer-modal .lsb-note-label { font-weight: 600; }
+            #lemonsqueezer-modal .lsb-section-title { margin: 18px 0 8px; font-size: 18px; font-weight: 600; }
+            #lemonsqueezer-modal .lsb-list { list-style: disc; padding-left: 20px; margin-bottom: 12px; }
+            #lemonsqueezer-modal .lsb-list li { margin: 6px 0; }
 
-            .lemonsqueezer-btn-primary:hover {
-                background: ${BRAND_PRIMARY_700};
+            @media (max-width: 520px) {
+                #lemonsqueezer-modal .lemonsqueezer-modal-overlay { padding: 0; align-items: flex-end; }
+                #lemonsqueezer-modal .lemonsqueezer-modal-content { max-height: 92vh; border-radius: 20px 20px 0 0; }
+                #lemonsqueezer-modal .lemonsqueezer-modal-body { padding: 20px 16px 8px; }
+                #lemonsqueezer-modal .ls-saved { margin-inline: -16px; padding-inline: 16px; }
+                #lemonsqueezer-modal .lemonsqueezer-modal-footer { padding: 12px 16px 16px; }
             }
-            
-            .lemonsqueezer-btn-secondary {
-                background: #f5f5f5;
-                color: #333;
-            }
-            
-            .lemonsqueezer-btn-secondary:hover {
-                background: #e5e5e5;
-            }
-
-            .lemonsqueezer-brandout { padding: 20px; }
-            .lemonsqueezer-brandout .lsb-hero { text-align: center; margin-bottom: 6px; }
-            .lemonsqueezer-brandout .lsb-hero-num { font-size: 56px; font-weight: 800; color: ${BRAND_PRIMARY}; line-height: 1; }
-            .lemonsqueezer-brandout .lsb-hero-label { font-size: 12px; color: #8a94a3; text-transform: uppercase; letter-spacing: .5px; margin-top: 4px; }
-            .lemonsqueezer-brandout .lsb-badge {
-                display: block; width: fit-content; margin: 12px auto; padding: 6px 14px; border-radius: 999px;
-                color: #fff; font-weight: 700; font-size: 14px;
-            }
-            .lemonsqueezer-brandout .lsb-metrics { display: flex; gap: 10px; margin: 12px 0; }
-            .lemonsqueezer-brandout .lsb-metric { flex: 1; background: #f7f8fa; border-radius: 10px; padding: 10px; text-align: center; }
-            .lemonsqueezer-brandout .lsb-metric b { display: block; font-size: 18px; color: ${BRAND_INK}; }
-            .lemonsqueezer-brandout .lsb-metric span { font-size: 11px; color: #8a94a3; }
-            .lemonsqueezer-brandout .lsb-note { margin: 10px 0; font-size: 14px; color: #26303c; }
-            .lemonsqueezer-brandout .lsb-note-label { font-weight: 700; color: ${BRAND_INK}; }
-            .lemonsqueezer-brandout .lsb-section-title { margin: 16px 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .4px; color: #8a94a3; }
-            .lemonsqueezer-brandout .lsb-list { margin: 0 0 8px; padding-left: 18px; }
-            .lemonsqueezer-brandout .lsb-list li { margin: 6px 0; font-size: 14px; color: #26303c; line-height: 1.5; }
-            
-            /* Login modal styles */
-            .lemonsqueezer-login {
-                text-align: center;
-                padding: 40px 20px;
-            }
-            
-            .lemonsqueezer-login-icon {
-                font-size: 48px;
-                margin-bottom: 16px;
-            }
-            
-            .lemonsqueezer-login-title {
-                font-size: 18px;
-                font-weight: 600;
-                color: #333;
-                margin-bottom: 12px;
-            }
-            
-            .lemonsqueezer-login-message {
-                font-size: 14px;
-                color: #666;
-                margin-bottom: 20px;
-                line-height: 1.4;
+            @media (prefers-reduced-motion: reduce) {
+                #lemonsqueezer-modal .lemonsqueezer-spinner { animation-duration: 6s; }
+                #lemonsqueezer-modal * { transition: none !important; }
             }
             </style>
         `;
@@ -1703,13 +1452,14 @@
     // l'URL mostrava la stringa "undefined".
     // Un href non escapato accetta anche `javascript:`: cliccarlo eseguirebbe codice.
     // Si ammettono solo http/https, e sia l'attributo sia il testo passano da esc().
-    function safeLink(u) {
+    function safeLink(u, cls) {
         const raw = String(u || '');
         if (!raw) return '';
         let parsed;
         try { parsed = new URL(raw); } catch { return `<span>${esc(shortUrl(raw))}</span>`; }
         if (!['http:', 'https:'].includes(parsed.protocol)) return `<span>${esc(shortUrl(raw))}</span>`;
-        return `<a href="${esc(parsed.href)}" target="_blank" rel="noopener noreferrer">${esc(shortUrl(parsed.href))}</a>`;
+        const label = cls ? parsed.hostname.replace(/^www\./, '') : shortUrl(parsed.href);
+        return `<a${cls ? ` class="${cls}"` : ''} href="${esc(parsed.href)}" target="_blank" rel="noopener noreferrer">${esc(label)}</a>`;
     }
 
     function shortUrl(u) {
@@ -1981,7 +1731,8 @@
                 // Il testo resta salvato: dalla cronologia si riapre il riassunto, non solo la pagina.
                 summary: data.summary || data.text || '',
                 output: data.output && typeof data.output === 'object' ? data.output : null,
-                truncated: Boolean(data.truncated)
+                truncated: Boolean(data.truncated),
+                stats: data.stats ? { originalWords: data.stats.originalWords || 0, summaryWords: data.stats.summaryWords || 0 } : null
             };
             const { summaryHistory = [] } = await chrome.storage.local.get(['summaryHistory']);
             const withoutDuplicate = summaryHistory.filter((existing) => existing.url !== entry.url);

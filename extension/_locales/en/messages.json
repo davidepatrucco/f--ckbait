@@ -502,5 +502,8 @@
     },
     "popup_marketing_optin_error": {
         "message": "Could not save your preference. Please try again."
+    },
+    "modal_saved_label": {
+        "message": "of reading saved"
     }
 }
