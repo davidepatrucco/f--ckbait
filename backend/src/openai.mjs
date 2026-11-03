@@ -348,10 +348,11 @@ export async function summarizeWithOpenAI(content) {
         // poche righe, cosi' il 50% tornava al 10%). Partendo dalla fonte, non dal
         // riassunto corto, e con un numero fisso di bullet imposto dallo schema.
         if (countWords(summaryText) < plan.targetWords * 0.6 && plan.bulletCount > 1) {
-            const perBullet = Math.round(plan.targetWords / plan.bulletCount);
+            // Il modello economico scrive ~70% di quanto chiesto: si chiede il 40% in piu'.
+            const perBullet = Math.round((plan.targetWords * 1.4) / plan.bulletCount);
             completion = await requestCompletion([
                 { role: 'system', content: systemPrompt },
-                { role: 'user', content: `${userPrompt}\n\nScrivi ESATTAMENTE ${plan.bulletCount} bullet, ognuno di ${perBullet} parole circa (${plan.targetWords} parole in tutto): ogni bullet copre una parte diversa della fonte con fatti, numeri ed esempi concreti. Il lettore ha scelto un riassunto esteso: un testo piu' corto e' un errore.` }
+                { role: 'user', content: `${userPrompt}\n\nScrivi ESATTAMENTE ${plan.bulletCount} bullet, ognuno di ${perBullet} parole circa (${perBullet * plan.bulletCount} parole in tutto): ogni bullet copre una parte diversa della fonte con fatti, numeri ed esempi concreti. Il lettore ha scelto un riassunto esteso: un testo piu' corto e' un errore.` }
             ], true, plan.bulletCount);
             addUsage(completion);
             const expanded = coerceBullets(readResponseText(completion));
