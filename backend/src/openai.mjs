@@ -217,7 +217,7 @@ export async function summarizeWithOpenAI(content) {
             const premium = fallbackModel();
             if (model !== premium) { console.warn('[ROUTER] fallback → premium', { from: model, reason }); model = premium; }
         };
-        const requestCompletion = async (messages, strictSchema = true) => client.chat.completions.create({
+        const requestCompletion = async (messages, strictSchema = true, minItems = 1) => client.chat.completions.create({
             model,
             messages,
             reasoning_effort: 'minimal',
@@ -233,7 +233,7 @@ export async function summarizeWithOpenAI(content) {
                         properties: {
                             bullets: {
                                 type: 'array',
-                                minItems: 1,
+                                minItems,
                                 maxItems: plan.bulletCount,
                                 items: { type: 'string' }
                             }
@@ -343,6 +343,23 @@ export async function summarizeWithOpenAI(content) {
         if (!bullets.length) throw new Error('Risposta OpenAI non utilizzabile');
 
         let summaryText = bullets.map((bullet) => `• ${bullet}`).join('\n');
+        // Un solo tentativo di espansione se il modello resta molto sotto la lunghezza
+        // scelta (succede col modello economico: ignora "circa N parole" e chiude in
+        // poche righe, cosi' il 50% tornava al 10%). Partendo dalla fonte, non dal
+        // riassunto corto, e con un numero fisso di bullet imposto dallo schema.
+        if (countWords(summaryText) < plan.targetWords * 0.6 && plan.bulletCount > 1) {
+            const perBullet = Math.round(plan.targetWords / plan.bulletCount);
+            completion = await requestCompletion([
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: `${userPrompt}\n\nScrivi ESATTAMENTE ${plan.bulletCount} bullet, ognuno di ${perBullet} parole circa (${plan.targetWords} parole in tutto): ogni bullet copre una parte diversa della fonte con fatti, numeri ed esempi concreti. Il lettore ha scelto un riassunto esteso: un testo piu' corto e' un errore.` }
+            ], true, plan.bulletCount);
+            addUsage(completion);
+            const expanded = coerceBullets(readResponseText(completion));
+            if (expanded.length && countWords(expanded.join(' ')) > countWords(summaryText)) {
+                bullets = expanded;
+                summaryText = bullets.map((bullet) => `• ${bullet}`).join('\n');
+            }
+        }
         // Un solo tentativo di compressione se il modello supera il budget.
         if (countWords(summaryText) > plan.targetWords && plan.targetWords >= 20) {
             completion = await requestCompletion([
