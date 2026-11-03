@@ -374,7 +374,9 @@ export async function summarizeWithOpenAI(content) {
             ]);
             addUsage(completion);
             const compressed = coerceBullets(readResponseText(completion));
-            if (compressed.length) {
+            // Il modello a volte accorcia troppo (860 chieste, 93 ottenute): meglio un
+            // riassunto un po' lungo che uno che tradisce la lunghezza scelta.
+            if (compressed.length && countWords(compressed.join(' ')) >= plan.targetWords * 0.6) {
                 bullets = compressed;
                 summaryText = bullets.map((bullet) => `• ${bullet}`).join('\n');
             }
