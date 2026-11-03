@@ -182,6 +182,11 @@ async function handlePdfSummarize(request, sendResponse) {
 
 // Event listener per i messaggi dal popup o content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === 'siteAuth') {
+        handleSiteAuth(request, sender, sendResponse);
+        return true;
+    }
+
     if (request.action === 'getPageContent') {
         // Gestisce la richiesta di contenuto della pagina
         handleGetPageContent(request, sender, sendResponse);
@@ -1360,5 +1365,29 @@ async function handleGoogleLogin(request, sender, sendResponse) {
         await chrome.storage.local.remove('loginInProgress');
         
         sendResponse({ success: false, error: error.message });
+    }
+}
+
+// Accesso con email dal sito del brand (vedi content.js): accetta solo richieste del
+// content script in esecuzione sull'origine del sito.
+async function handleSiteAuth(request, sender, sendResponse) {
+    try {
+        const site = (self.__BRAND__ && self.__BRAND__.urls && self.__BRAND__.urls.site) || '';
+        const origin = sender && (sender.origin || (sender.url && new URL(sender.url).origin));
+        if (!site || origin !== new URL(site).origin) return sendResponse({ ok: false, error: 'forbidden' });
+        const email = String(request.email || '').trim();
+        const password = String(request.password || '');
+        const endpoint = request.mode === 'register' ? '/auth/register' : '/auth/login';
+        const res = await fetch(`${API_BASE}${endpoint}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.authToken) return sendResponse({ ok: false, error: data.error || `HTTP ${res.status}` });
+        await chrome.storage.local.set({ authToken: data.authToken, user: data.user });
+        sendResponse({ ok: true });
+    } catch (e) {
+        sendResponse({ ok: false, error: e.message || 'error' });
     }
 }

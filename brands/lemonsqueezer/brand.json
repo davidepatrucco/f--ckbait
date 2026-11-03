@@ -60,6 +60,7 @@
     "chromeStore": ""
   },
   "site": {
-    "url": "https://lemonsqueezer.app"
+    "url": "https://lemonsqueezer.app",
+    "login": true
   }
 }

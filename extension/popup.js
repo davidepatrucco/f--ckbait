@@ -43,6 +43,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         const url = window.__BRAND__ && window.__BRAND__.urls && window.__BRAND__.urls[key];
         if (el) { if (/^https:\/\//.test(url || '')) el.href = url; else el.hidden = true; }
     }
+    // Accesso con email sul sito del brand: li' il browser propone la password salvata
+    // e incollare funziona (il popup si chiude appena si cambia finestra). Il modulo nel
+    // popup resta solo per i brand senza sito.
+    {
+        const login = window.__BRAND__ && window.__BRAND__.urls && window.__BRAND__.urls.login;
+        const link = document.getElementById('emailSiteLogin');
+        const form = document.getElementById('emailLoginForm');
+        if (link && /^https:\/\//.test(login || '')) {
+            const lang = (chrome.i18n?.getUILanguage?.() || 'en').toLowerCase().split('-')[0];
+            const siteLang = ['it', 'en', 'es', 'fr', 'de'].includes(lang) ? lang : 'en';
+            link.href = login.replace('{lang}', siteLang);
+            link.hidden = false;
+            if (form) form.hidden = true;
+        }
+    }
+    // Accesso completato in un'altra scheda (sito): aggiorna il popup se e' ancora aperto.
+    chrome.storage.onChanged.addListener((changes, area) => {
+        if (area === 'local' && changes.authToken && changes.authToken.newValue) location.reload();
+    });
     console.log('[POPUP] ===== POPUP OPENED =====');
 
     // Funnel: apertura popup (best-effort; il SW inoltra l'evento al backend).

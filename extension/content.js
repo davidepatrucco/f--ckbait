@@ -11,6 +11,24 @@
     const BRAND_INK = (BRAND && BRAND.tokens && BRAND.tokens.colors && BRAND.tokens.colors.black) || '#0D1117';
     let activeSummaryRequestId = null;
 
+    // Accesso dal sito del brand: la pagina /<lang>/login.html manda email e password
+    // con postMessage e il service worker fa la chiamata all'API (il sito non ha CORS
+    // sull'API). Solo sull'origine del sito, solo messaggi della pagina stessa.
+    // Sul sito il gestore password del browser propone la password salvata e incollare
+    // funziona, cosa che nel popup non succede (si chiude quando si cambia finestra).
+    const SITE_ORIGIN = (() => { try { return new URL(BRAND.urls.site).origin; } catch (e) { return ''; } })();
+    if (SITE_ORIGIN && location.origin === SITE_ORIGIN) {
+        window.addEventListener('message', (event) => {
+            const msg = event.data;
+            if (event.source !== window || !msg || msg.type !== 'LS_AUTH') return;
+            chrome.runtime.sendMessage({ action: 'siteAuth', mode: msg.mode, email: msg.email, password: msg.password }, (res) => {
+                const reply = res || { ok: false, error: (chrome.runtime.lastError && chrome.runtime.lastError.message) || 'error' };
+                window.postMessage({ type: 'LS_AUTH_RESULT', ok: !!reply.ok, error: reply.error || '' }, SITE_ORIGIN);
+            });
+        });
+        document.documentElement.dataset.lsExtension = '1';
+    }
+
     // i18n: le stringhe UI vivono in _locales/<lang>/messages.json e seguono la lingua
     // del browser (chrome.i18n). Il fallback restituisce la chiave, così una stringa
     // mancante è visibile invece di produrre testo vuoto.

@@ -62,6 +62,8 @@
         .google-icon { width: 18px; height: 18px; }
         .login-divider { margin: 14px 0; font-size: var(--text-sm); color: var(--ls-muted); text-align: center; }
         .login-form { display: grid; gap: 8px; }
+        .email-site-login { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; text-decoration: none; }
+        .email-site-login[hidden], .login-form[hidden] { display: none; }
         .text-input { width: 100%; min-height: 46px; padding: 0 16px; border: 2px solid transparent; border-radius: 14px; background: var(--ls-tone); font-size: 16px; }
         .text-input:focus { outline: none; border-color: var(--ls-ink); background: #fff; }
         .login-error { display: none; padding: 10px 12px; border-radius: 12px; background: #fde7e5; color: var(--ls-red); font-size: var(--text-sm); }
@@ -171,7 +173,8 @@
 
                 <div class="login-divider" data-i18n="popup_or">oppure</div>
 
-                <div class="login-form">
+                <a id="emailSiteLogin" class="button-secondary email-site-login" hidden target="_blank" rel="noopener" data-i18n="popup_email_site">Accedi o crea un account con email</a>
+                <div class="login-form" id="emailLoginForm">
                     <input id="emailInput" class="text-input" type="email" placeholder="Email" data-i18n-placeholder="popup_email" autocomplete="email">
                     <input id="passwordInput" class="text-input" type="password" placeholder="Password" data-i18n-placeholder="popup_password" autocomplete="current-password">
                     <div id="emailLoginError" class="login-error"></div>

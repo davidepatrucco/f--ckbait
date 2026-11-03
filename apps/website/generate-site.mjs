@@ -12,6 +12,7 @@
 //   <lang>/faq.html
 //   <lang>/thank-you.html    checkout return pages (noindex)
 //   <lang>/canceled.html
+//   <lang>/login.html        email sign-in for the extension (noindex)
 //
 // Templates use three placeholder kinds:
 //   {{key}}      brand/page value, HTML-escaped
@@ -39,8 +40,9 @@ const LEGAL_DIR = join(REPO_ROOT, 'legal');
 const STORE_DIR = join(REPO_ROOT, 'store');
 
 export const LANGS = ['en', 'it', 'es', 'fr', 'de'];
-const LANG_PAGES = ['index', 'faq', 'thank-you', 'canceled'];
-const NOINDEX = new Set(['thank-you', 'canceled', '404']);
+const LANG_PAGES = ['index', 'faq', 'thank-you', 'canceled', 'login'];
+const NOINDEX = new Set(['thank-you', 'canceled', 'login', '404']);
+const PAGE_TITLE_KEY = { faq: 'faq_title', 'thank-you': 'ty_title', canceled: 'cx_title', login: 'login_title' };
 
 class GenerateError extends Error {}
 
@@ -292,7 +294,7 @@ export function generateBrand(brandId, year, dicts) {
       const canonical = `${vars.siteUrl}/${lang}/${file}`;
       const title = page === 'index'
         ? `${vars.displayName} — ${interpolate(t.meta_title, vars)}`
-        : `${interpolate(t[page === 'faq' ? 'faq_title' : page === 'thank-you' ? 'ty_title' : 'cx_title'], vars)} — ${vars.displayName}`;
+        : `${interpolate(t[PAGE_TITLE_KEY[page]], vars)} — ${vars.displayName}`;
       const ctx = {
         vars: {
           ...vars, lang, canonical,
@@ -313,7 +315,9 @@ export function generateBrand(brandId, year, dicts) {
           heroAb: heroAbScript(t, vars),
           credits: creditsHtml(site.credits),
           // "<" escaped so no summary text can close the <script> element.
-          squeezeData: JSON.stringify(site.squeeze[lang] || {}).replace(/</g, '\\u003c')
+          squeezeData: JSON.stringify(site.squeeze[lang] || {}).replace(/</g, '\\u003c'),
+          loginShort: JSON.stringify(t.login_err_short || '').replace(/</g, '\\u003c'),
+          loginOk: JSON.stringify(t.login_ok || '').replace(/</g, '\\u003c')
         }
       };
       const { out, missing } = render(readFileSync(join(TEMPLATE_DIR, `${page}.html`), 'utf8'), ctx);

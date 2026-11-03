@@ -1,0 +1,47 @@
+{{@_head}}
+{{@_header}}
+<main class="wrap status page">
+  <div class="page-disc" aria-hidden="true"><svg class="lemon"><use href="#lemon"/></svg></div>
+  <h1>{{t.login_title}}</h1>
+  <p id="login-lead">{{t.login_text}}</p>
+  <form id="login-form" class="login-form" method="post" action="#" novalidate>
+    <label for="login-email">{{t.login_email}}</label>
+    <input id="login-email" name="email" type="email" autocomplete="username" required>
+    <label for="login-password">{{t.login_password}}</label>
+    <input id="login-password" name="password" type="password" autocomplete="current-password" minlength="8" required>
+    <p id="login-error" class="login-error" role="alert" hidden></p>
+    <div class="login-actions">
+      <button class="cta" type="submit" value="login">{{t.login_signin}}</button>
+      <button class="cta cta-alt" type="submit" value="register">{{t.login_register}}</button>
+    </div>
+  </form>
+  <p id="login-noext" hidden>{{t.login_noext}}</p>
+</main>
+<script>
+(function () {
+  var form = document.getElementById('login-form'), err = document.getElementById('login-error');
+  var msgs = { short: {{!loginShort}}, ok: {{!loginOk}} };
+  function fail(text) { err.textContent = text; err.hidden = false; setBusy(false); }
+  function setBusy(b) { Array.prototype.forEach.call(form.querySelectorAll('button,input'), function (el) { el.disabled = b; }); }
+  // L'estensione segna la pagina (data-ls-extension) dal suo content script.
+  setTimeout(function () {
+    if (!document.documentElement.dataset.lsExtension) { form.hidden = true; document.getElementById('login-noext').hidden = false; }
+  }, 1500);
+  window.addEventListener('message', function (e) {
+    if (e.source !== window || !e.data || e.data.type !== 'LS_AUTH_RESULT') return;
+    if (!e.data.ok) return fail(e.data.error || 'Error');
+    form.hidden = true;
+    document.getElementById('login-lead').textContent = msgs.ok;
+  });
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    err.hidden = true;
+    var mode = (e.submitter && e.submitter.value) || 'login';
+    var email = form.email.value.trim(), password = form.password.value;
+    if (!email || password.length < 8) return fail(msgs.short);
+    setBusy(true);
+    window.postMessage({ type: 'LS_AUTH', mode: mode, email: email, password: password }, location.origin);
+  });
+})();
+</script>
+{{@_footer}}

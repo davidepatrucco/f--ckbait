@@ -43,7 +43,7 @@ const SUMMARY_PROFILES = {
     detailed: { savingsPercent: 80 }
 };
 const WORDS_PER_MINUTE = 220;
-const MAX_SUMMARY_WORDS = Number.parseInt(process.env.SUMMARY_MAX_WORDS || '800', 10);
+const MAX_SUMMARY_WORDS = Number.parseInt(process.env.SUMMARY_MAX_WORDS || '1500', 10);
 const countWords = (text) => String(text || '').trim().split(/\s+/).filter(Boolean).length;
 
 // Model routing (cost-aware) in model-router.mjs: sceglie economy/premium per ruolo.
@@ -96,7 +96,7 @@ export function buildSummaryPlan(content) {
     const savingsPercent = squeeze !== null
         ? (100 - squeeze)
         : (isVideo ? Math.min(profile.savingsPercent, 75) : profile.savingsPercent);
-    const bulletCap = isVideo ? 12 : 8;
+    const bulletCap = isVideo ? 15 : 12;
     const targetWords = Math.max(1, Math.min(
         MAX_SUMMARY_WORDS,
         Math.floor(sourceEquivalentWords * ((100 - savingsPercent) / 100))

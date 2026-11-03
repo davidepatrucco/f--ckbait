@@ -71,6 +71,7 @@ runs:
         "Environment=${{ inputs.environment }}"
         "AllowedOrigins=${{ inputs.allowed-origins }}"
         "FfmpegLayerArn=${{ steps.ffmpeg.outputs.arn }}"
+        "SummaryMaxWords=1500"
     - name: Resolve API URL
       id: url
       shell: bash

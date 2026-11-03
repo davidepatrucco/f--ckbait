@@ -22,7 +22,7 @@ describe('OpenAI Module Tests', () => {
             summaryProfile: 'ultra'
         });
         assert.equal(videoPlan.sourceEquivalentWords, 4400);
-        assert.equal(videoPlan.targetWords, 800); // 4400 * 0.25 = 1100, limitato a MAX_SUMMARY_WORDS
+        assert.equal(videoPlan.targetWords, 1100); // 4400 * 0.25 = 1100, sotto MAX_SUMMARY_WORDS (1500)
         assert.equal(videoPlan.savingsPercent, 75);
         assert.equal(buildSummaryPlan({ text: 'one two three' }).profile, 'standard');
         assert.equal(typeof getSummaryModel(), 'string');

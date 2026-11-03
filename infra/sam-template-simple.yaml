@@ -18,7 +18,7 @@ Parameters:
     Description: OpenAI model used for summaries. Changing it creates a separate cache namespace.
   SummaryMaxWords:
     Type: Number
-    Default: 800
+    Default: 1500
     MinValue: 100
     MaxValue: 4000
     Description: Hard upper bound for a generated summary, regardless of source length.

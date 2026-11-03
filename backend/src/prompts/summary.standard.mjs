@@ -21,7 +21,7 @@ export function buildPrompt(content, language = 'it', plan) {
     let userPrompt = `Titolo: ${content.title}
 URL: ${content.url}
 
-Obiettivo: profilo ${plan.profile}; massimo ${plan.targetWords} parole totali nei bullet, per un risparmio di tempo di almeno ${plan.savingsPercent}%. Genera fino a ${plan.bulletCount} bullet, meno solo se la fonte è troppo breve.
+Obiettivo: profilo ${plan.profile}; lunghezza totale dei bullet circa ${plan.targetWords} parole (non meno di ${Math.round(plan.targetWords * 0.8)}, non più di ${plan.targetWords}): l'utente ha scelto questa lunghezza, rispettala anche se la fonte si potrebbe riassumere in meno. Genera ${plan.bulletCount} bullet di circa ${Math.round(plan.targetWords / plan.bulletCount)} parole ciascuno, meno bullet solo se la fonte è troppo breve.
 
 ${sourceLabel}:
 ${fenceUntrusted(content.text)}`;
