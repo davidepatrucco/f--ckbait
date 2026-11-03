@@ -362,12 +362,14 @@ export async function summarizeWithOpenAI(content) {
             }
         }
         // Un solo tentativo di compressione se il modello supera il budget.
-        if (countWords(summaryText) > plan.targetWords && plan.targetWords >= 20) {
+        // Solo se sfora di oltre il 25%: chiedendo "massimo N" il modello economico
+        // taglia ben sotto N (344 parole chieste, 84 ottenute), peggio dello sforamento.
+        if (countWords(summaryText) > plan.targetWords * 1.25 && plan.targetWords >= 20) {
             completion = await requestCompletion([
                 { role: 'system', content: systemPrompt },
                 {
                     role: 'user',
-                    content: `Riduci il seguente riassunto a massimo ${plan.targetWords} parole totali, mantenendo solo i fatti essenziali.\n\n${summaryText}`
+                    content: `Accorcia il seguente riassunto a circa ${plan.targetWords} parole totali (non meno di ${Math.round(plan.targetWords * 0.85)}), togliendo i dettagli meno importanti ma tenendo tutti i bullet.\n\n${summaryText}`
                 }
             ]);
             addUsage(completion);
@@ -397,7 +399,7 @@ export async function summarizeWithOpenAI(content) {
                 compressionRatio: stats.compressionRatio,
                 targetWords: plan.targetWords,
                 targetSavingsPercent: plan.savingsPercent,
-                targetMet: stats.summaryWords <= plan.targetWords,
+                targetMet: stats.summaryWords <= plan.targetWords * 1.25,
                 originalReadingTime: formatTime(stats.originalReadingTime),
                 summaryReadingTime: formatTime(stats.summaryReadingTime)
             }
