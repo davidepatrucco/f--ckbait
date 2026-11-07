@@ -1750,12 +1750,17 @@
                 summary: data.summary || data.text || '',
                 output: data.output && typeof data.output === 'object' ? data.output : null,
                 truncated: Boolean(data.truncated),
-                stats: data.stats ? { originalWords: data.stats.originalWords || 0, summaryWords: data.stats.summaryWords || 0 } : null
+                stats: data.stats ? { originalWords: data.stats.originalWords || 0, summaryWords: data.stats.summaryWords || 0 } : null,
+                squeeze: Number(lastSummaryRequest.squeeze) || null
             };
             const { summaryHistory = [] } = await chrome.storage.local.get(['summaryHistory']);
             const withoutDuplicate = summaryHistory.filter((existing) => existing.url !== entry.url);
             withoutDuplicate.unshift(entry);
-            await chrome.storage.local.set({ summaryHistory: withoutDuplicate.slice(0, 50) });
+            // Si tengono i riassunti degli ultimi 30 giorni. Il tetto di 500 voci protegge
+            // solo la quota di chrome.storage.local (10 MB) in caso di uso estremo.
+            const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+            const kept = withoutDuplicate.filter((e) => (e.timestamp || 0) >= cutoff).slice(0, 500);
+            await chrome.storage.local.set({ summaryHistory: kept });
         } catch (error) {
             console.error('[CONTENT] Errore salvataggio cronologia:', error);
         }

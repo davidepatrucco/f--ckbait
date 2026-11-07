@@ -11,15 +11,6 @@
   "popup_summarize": {
     "message": "Diese Seite zusammenfassen"
   },
-  "popup_options": {
-    "message": "Optionen"
-  },
-  "popup_history": {
-    "message": "Verlauf"
-  },
-  "popup_user": {
-    "message": "Benutzer"
-  },
   "popup_plan_premium": {
     "message": "Premium-Tarif"
   },
@@ -40,9 +31,6 @@
   },
   "popup_saved": {
     "message": "gespart"
-  },
-  "popup_output": {
-    "message": "Ausgabe"
   },
   "popup_language": {
     "message": "Sprache der Zusammenfassung"
@@ -97,27 +85,6 @@
   },
   "popup_summarize_failed": {
     "message": "Zusammenfassung konnte nicht gestartet werden"
-  },
-  "popup_analyzing": {
-    "message": "Wird analysiert..."
-  },
-  "popup_analyzing_page": {
-    "message": "Seite wird analysiert"
-  },
-  "popup_summary_title": {
-    "message": "Zusammenfassung"
-  },
-  "popup_squeeze_label": {
-    "message": "Länge der Zusammenfassung (% des Textes)"
-  },
-  "popup_squeeze_10": {
-    "message": "10 % — sehr kurz"
-  },
-  "popup_squeeze_20": {
-    "message": "20 % — empfohlen"
-  },
-  "popup_squeeze_50": {
-    "message": "50 % — ausführlich"
   },
   "modal_loading": {
     "message": "Wird analysiert..."
@@ -413,12 +380,6 @@
   "popup_login_subtitle": {
     "message": "Melden Sie sich mit Google an, um $1 zu nutzen und intelligente Zusammenfassungen zu erhalten."
   },
-  "popup_compression": {
-    "message": "Komprimierung"
-  },
-  "popup_copy_clipboard": {
-    "message": "In die Zwischenablage kopieren"
-  },
   "popup_email": {
     "message": "E-Mail"
   },
@@ -497,9 +458,6 @@
   "popup_delete_account_done": {
     "message": "Ihr Konto wurde gelöscht."
   },
-  "popup_marketing_optin": {
-    "message": "Senden Sie mir Neuigkeiten und Angebote per E-Mail. Sie können dies jederzeit deaktivieren."
-  },
   "popup_marketing_optin_error": {
     "message": "Ihre Einstellung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut."
   },
@@ -508,5 +466,86 @@
   },
   "popup_email_site": {
     "message": "Mit E-Mail anmelden oder Konto erstellen"
+  },
+  "popup_action_squeeze": {
+    "message": "Diese Seite auspressen"
+  },
+  "popup_len_short": {
+    "message": "Kurz"
+  },
+  "popup_len_medium": {
+    "message": "Mittel"
+  },
+  "popup_len_long": {
+    "message": "Ausführlich"
+  },
+  "popup_len_sub": {
+    "message": "etwa $1 % des Textes"
+  },
+  "popup_len_aria": {
+    "message": "Länge der Zusammenfassung"
+  },
+  "popup_recent": {
+    "message": "Letzte Zusammenfassungen"
+  },
+  "popup_see_all": {
+    "message": "Alle anzeigen"
+  },
+  "popup_settings": {
+    "message": "Einstellungen"
+  },
+  "popup_newsletter": {
+    "message": "Neuigkeiten und Angebote per E-Mail"
+  },
+  "popup_upgrade_price": {
+    "message": "Premium $1/Monat"
+  },
+  "history_title": {
+    "message": "Deine Zusammenfassungen"
+  },
+  "history_count": {
+    "message": "$1 Zusammenfassungen der letzten 30 Tage, nur auf diesem Computer gespeichert"
+  },
+  "history_search": {
+    "message": "Nach Titel oder Website suchen"
+  },
+  "history_none": {
+    "message": "Keine Zusammenfassungen gefunden."
+  },
+  "history_empty": {
+    "message": "Hier erscheinen die Zusammenfassungen der letzten 30 Tage."
+  },
+  "history_today": {
+    "message": "Heute"
+  },
+  "history_yesterday": {
+    "message": "Gestern"
+  },
+  "history_this_week": {
+    "message": "Diese Woche"
+  },
+  "history_earlier": {
+    "message": "Früher"
+  },
+  "history_open": {
+    "message": "Originalseite öffnen"
+  },
+  "history_copy": {
+    "message": "Kopieren"
+  },
+  "history_copied": {
+    "message": "Kopiert"
+  },
+  "history_delete": {
+    "message": "Löschen"
+  },
+  "history_words": {
+    "message": "$1 Wörter auf $2 gekürzt"
+  },
+  "history_saved_min": {
+    "message": "etwa $1 Min. gespart"
+  },
+  "history_local_file": {
+    "message": "lokale Datei"
   }
 }

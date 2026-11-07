@@ -11,7 +11,7 @@ import { dirname, join } from 'node:path';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const LOCALES_DIR = join(ROOT, 'extension', '_locales');
 const DEFAULT_LOCALE = 'en';
-const CODE_FILES = ['content.js', 'popup.js', 'summary.js', 'service_worker.js'];
+const CODE_FILES = ['content.js', 'popup.js', 'summary.js', 'service_worker.js', 'history.js'];
 
 const locales = readdirSync(LOCALES_DIR).filter((d) => existsSync(join(LOCALES_DIR, d, 'messages.json')));
 const catalog = Object.fromEntries(
@@ -21,7 +21,7 @@ const code = Object.fromEntries(
     CODE_FILES.map((f) => [f, readFileSync(join(ROOT, 'extension', f), 'utf8')])
 );
 const allCode = Object.values(code).join('\n');
-const HTML_FILES = ['popup.html', 'summary.html'];
+const HTML_FILES = ['popup.html', 'summary.html', 'history.html'];
 const html = Object.fromEntries(HTML_FILES.map((f) => [f, readFileSync(join(ROOT, 'extension', f), 'utf8')]));
 const popupHtml = html['popup.html'];
 const allHtml = Object.values(html).join('\n');

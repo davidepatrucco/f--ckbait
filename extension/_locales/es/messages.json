@@ -11,15 +11,6 @@
   "popup_summarize": {
     "message": "Resumir esta página"
   },
-  "popup_options": {
-    "message": "Opciones"
-  },
-  "popup_history": {
-    "message": "Historial"
-  },
-  "popup_user": {
-    "message": "Usuario"
-  },
   "popup_plan_premium": {
     "message": "Plan Premium"
   },
@@ -40,9 +31,6 @@
   },
   "popup_saved": {
     "message": "ahorrados"
-  },
-  "popup_output": {
-    "message": "Salida"
   },
   "popup_language": {
     "message": "Idioma del resumen"
@@ -97,27 +85,6 @@
   },
   "popup_summarize_failed": {
     "message": "No se pudo iniciar el resumen"
-  },
-  "popup_analyzing": {
-    "message": "Analizando..."
-  },
-  "popup_analyzing_page": {
-    "message": "Analizando la página"
-  },
-  "popup_summary_title": {
-    "message": "Resumen"
-  },
-  "popup_squeeze_label": {
-    "message": "Longitud del resumen (% del texto)"
-  },
-  "popup_squeeze_10": {
-    "message": "10% — muy breve"
-  },
-  "popup_squeeze_20": {
-    "message": "20% — recomendado"
-  },
-  "popup_squeeze_50": {
-    "message": "50% — ampliado"
   },
   "modal_loading": {
     "message": "Analizando..."
@@ -413,12 +380,6 @@
   "popup_login_subtitle": {
     "message": "Inicia sesión con Google para usar $1 y obtener resúmenes inteligentes."
   },
-  "popup_compression": {
-    "message": "Compresión"
-  },
-  "popup_copy_clipboard": {
-    "message": "Copiar al portapapeles"
-  },
   "popup_email": {
     "message": "Correo electrónico"
   },
@@ -497,9 +458,6 @@
   "popup_delete_account_done": {
     "message": "Tu cuenta ha sido eliminada."
   },
-  "popup_marketing_optin": {
-    "message": "Envíame noticias y ofertas por correo electrónico. Puedes desactivarlo en cualquier momento."
-  },
   "popup_marketing_optin_error": {
     "message": "No se pudo guardar tu preferencia. Por favor, inténtalo de nuevo."
   },
@@ -508,5 +466,86 @@
   },
   "popup_email_site": {
     "message": "Inicia sesión o crea una cuenta con email"
+  },
+  "popup_action_squeeze": {
+    "message": "Exprime esta página"
+  },
+  "popup_len_short": {
+    "message": "Breve"
+  },
+  "popup_len_medium": {
+    "message": "Medio"
+  },
+  "popup_len_long": {
+    "message": "Extenso"
+  },
+  "popup_len_sub": {
+    "message": "aproximadamente el $1% del texto"
+  },
+  "popup_len_aria": {
+    "message": "Longitud del resumen"
+  },
+  "popup_recent": {
+    "message": "Resúmenes recientes"
+  },
+  "popup_see_all": {
+    "message": "Ver todos"
+  },
+  "popup_settings": {
+    "message": "Ajustes"
+  },
+  "popup_newsletter": {
+    "message": "Novedades y ofertas por email"
+  },
+  "popup_upgrade_price": {
+    "message": "Premium $1/mes"
+  },
+  "history_title": {
+    "message": "Tus resúmenes"
+  },
+  "history_count": {
+    "message": "$1 resúmenes de los últimos 30 días, guardados solo en este ordenador"
+  },
+  "history_search": {
+    "message": "Buscar por título o sitio"
+  },
+  "history_none": {
+    "message": "No se encontraron resúmenes."
+  },
+  "history_empty": {
+    "message": "Aquí verás los resúmenes de los últimos 30 días."
+  },
+  "history_today": {
+    "message": "Hoy"
+  },
+  "history_yesterday": {
+    "message": "Ayer"
+  },
+  "history_this_week": {
+    "message": "Esta semana"
+  },
+  "history_earlier": {
+    "message": "Anteriores"
+  },
+  "history_open": {
+    "message": "Abrir la página original"
+  },
+  "history_copy": {
+    "message": "Copiar"
+  },
+  "history_copied": {
+    "message": "Copiado"
+  },
+  "history_delete": {
+    "message": "Eliminar"
+  },
+  "history_words": {
+    "message": "$1 palabras reducidas a $2"
+  },
+  "history_saved_min": {
+    "message": "unos $1 min ahorrados"
+  },
+  "history_local_file": {
+    "message": "archivo local"
   }
 }

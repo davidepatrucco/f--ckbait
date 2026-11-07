@@ -38,7 +38,7 @@ async function generateCodeChallenge(verifier) {
 
 document.addEventListener('DOMContentLoaded', async () => {
     // Link legali: URL dal brand config; se assente o non http(s) il link resta nascosto.
-    for (const [id, key] of [['legalTerms', 'terms'], ['legalPrivacy', 'privacy']]) {
+    for (const [id, key] of [['legalTerms', 'terms'], ['legalPrivacy', 'privacy'], ['acctTerms', 'terms'], ['acctPrivacy', 'privacy']]) {
         const el = document.getElementById(id);
         const url = window.__BRAND__ && window.__BRAND__.urls && window.__BRAND__.urls[key];
         if (el) { if (/^https:\/\//.test(url || '')) el.href = url; else el.hidden = true; }
@@ -73,6 +73,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Stato disponibilità pagamenti: deve essere dichiarato prima dell'inizializzazione
     // della UI, perché loadPaymentsAvailability() viene chiamata subito sotto.
     let paymentsEnabled = null; // null = non ancora noto
+    let monthlyPrice = null; // { amount (centesimi), currency } da /pricing
     if (BRAND) {
         const rootStyle = document.documentElement.style;
         const colors = (BRAND.tokens && BRAND.tokens.colors) || {};
@@ -298,7 +299,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // risolto (non navigator.language, che puo' divergere): la chiave locale_code
     // vive nel catalogo stesso, quindi le due cose non possono disallinearsi.
     document.documentElement.lang = t('locale_code', undefined, 'en');
-    document.querySelector('.header p').textContent = (BRAND && BRAND.tagline) ? BRAND.tagline : text.tagline;
     // Questi nodi sono gia' risolti dal ciclo data-i18n sopra (.login-title,
     // .login-divider, #emailRegisterBtn, #logoutBtn, #clearHistoryBtn, la summary
     // delle opzioni, il titolo della cronologia, .user-label, le label di lingua e
@@ -311,6 +311,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     // meccanismo a due lingue con ternari su supportedLanguage).
     // #summarizeBtn: il testo e' in uno <span data-i18n="popup_summarize"> risolto sopra.
 
+
+    // Azione principale: LemonSqueezer "spreme" la pagina; gli altri brand riassumono.
+    {
+        const actionLabel = BRAND && BRAND.primaryAction === 'squeeze' ? t('popup_action_squeeze') : '';
+        if (actionLabel) {
+            text.summary = actionLabel;
+            const lbl = document.getElementById('summarizeLabel');
+            if (lbl) lbl.textContent = actionLabel;
+        }
+    }
 
     if (languageSelect) {
         // La lingua di output è scelta dall'utente e persistita. Default: preferenza
@@ -335,22 +345,118 @@ document.addEventListener('DOMContentLoaded', async () => {
         squeezeSelect.addEventListener('change', () => {
             chrome.storage.local.set({ squeezePercent: squeezeSelect.value });
         });
+        setupSqueezeDial(squeezeSelect);
     }
 
+    // Manopola del succo: tre posizioni (10/20/50% del testo) che pilotano il select
+    // nascosto #squeeze. Si usa con clic, trascinamento o frecce della tastiera.
+    function setupSqueezeDial(select) {
+        const svg = document.getElementById('squeezeDial');
+        if (!svg) return;
+        const NS = 'http://www.w3.org/2000/svg';
+        const CX = 150, CY = 128, R = 96, A0 = -110, A1 = 110;
+        const STOPS = [
+            { a: -64, value: '10', name: t('popup_len_short', undefined, 'Short') },
+            { a: 0, value: '20', name: t('popup_len_medium', undefined, 'Medium') },
+            { a: 64, value: '50', name: t('popup_len_long', undefined, 'Long') }
+        ];
+        const pt = (a, r) => [CX + r * Math.sin(a * Math.PI / 180), CY - r * Math.cos(a * Math.PI / 180)];
+        const make = (tag, attrs) => {
+            const n = document.createElementNS(NS, tag);
+            for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+            return n;
+        };
+        // Creste lungo il bordo: si riempiono di succo fino alla lancetta.
+        const ridges = [];
+        const ridgeGroup = svg.querySelector('.ridges');
+        for (let a = A0; a <= A1 + 0.01; a += 7.333) {
+            const [x0, y0] = pt(a, R - 7), [x1, y1] = pt(a, R + 7);
+            const l = make('line', { x1: x0, y1: y0, x2: x1, y2: y1, 'stroke-width': 6.5, 'stroke-linecap': 'round', class: 'ridge' });
+            l.dataset.a = String(a);
+            ridgeGroup.appendChild(l);
+            ridges.push(l);
+        }
+        const stopGroup = svg.querySelector('.stops');
+        const labels = STOPS.map((s) => {
+            const [x0, y0] = pt(s.a, R - 15), [x1, y1] = pt(s.a, R - 24);
+            stopGroup.appendChild(make('line', { x1: x0, y1: y0, x2: x1, y2: y1, stroke: 'var(--ink)', 'stroke-width': 2.2, 'stroke-linecap': 'round' }));
+            const [tx, ty] = pt(s.a, R + 22);
+            const label = make('text', { x: tx, y: ty + 4, 'text-anchor': 'middle', class: 'stop' });
+            label.textContent = s.name;
+            stopGroup.appendChild(label);
+            return label;
+        });
+        const needle = svg.querySelector('.needle');
+        const readout = svg.querySelector('.readout');
+        const sub = document.getElementById('squeezeSub');
+        let current = Math.max(0, STOPS.findIndex((s) => s.value === select.value));
+
+        function paint(i) {
+            const s = STOPS[i];
+            needle.style.transform = `rotate(${s.a}deg)`;
+            ridges.forEach((l, k) => {
+                l.style.transitionDelay = `${k * 14}ms`;
+                l.style.stroke = Number(l.dataset.a) <= s.a + 0.5 ? 'var(--juice)' : 'var(--butter-2)';
+            });
+            labels.forEach((l, k) => l.classList.toggle('on', k === i));
+            readout.textContent = s.name;
+            const subText = t('popup_len_sub', [s.value], `about ${s.value}% of the text`);
+            if (sub) sub.textContent = subText;
+            svg.setAttribute('aria-valuenow', String(i));
+            svg.setAttribute('aria-valuetext', `${s.name}, ${subText}`);
+        }
+        function choose(i) {
+            i = Math.max(0, Math.min(STOPS.length - 1, i));
+            if (i === current) return;
+            current = i;
+            paint(i);
+            select.value = STOPS[i].value;
+            select.dispatchEvent(new Event('change'));
+        }
+        function pick(e) {
+            const box = svg.getBoundingClientRect();
+            const x = (e.clientX - box.left) * 300 / box.width - CX;
+            const y = (e.clientY - box.top) * 186 / box.height - CY;
+            const angle = Math.atan2(x, -y) * 180 / Math.PI;
+            let best = 0;
+            STOPS.forEach((s, k) => { if (Math.abs(s.a - angle) < Math.abs(STOPS[best].a - angle)) best = k; });
+            choose(best);
+        }
+        let dragging = false;
+        svg.addEventListener('pointerdown', (e) => { dragging = true; svg.setPointerCapture(e.pointerId); pick(e); });
+        svg.addEventListener('pointermove', (e) => { if (dragging) pick(e); });
+        svg.addEventListener('pointerup', () => { dragging = false; });
+        svg.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { choose(current - 1); e.preventDefault(); }
+            if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { choose(current + 1); e.preventDefault(); }
+        });
+        paint(current);
+    }
+
+    // Ultimi 5 riassunti dei 30 giorni conservati; "Vedi tutti" apre history.html.
+    const seeAllHistory = document.getElementById('seeAllHistory');
+    const HISTORY_DAYS = 30;
     async function renderHistory() {
         if (!historyList) return;
         const { summaryHistory = [] } = await chrome.storage.local.get(['summaryHistory']);
-        const entries = summaryHistory.slice(0, 5);
+        const cutoff = Date.now() - HISTORY_DAYS * 24 * 60 * 60 * 1000;
+        const recent = summaryHistory.filter((e) => (e.timestamp || 0) >= cutoff);
+        const entries = recent.slice(0, 5);
         clearHistoryBtn.hidden = entries.length === 0;
+        if (seeAllHistory) {
+            seeAllHistory.hidden = recent.length === 0;
+            seeAllHistory.textContent = `${t('popup_see_all', undefined, 'See all')} (${recent.length})`;
+        }
         if (!entries.length) {
-            historyList.innerHTML = `<p class="history-empty">${text.emptyHistory}</p>`;
+            historyList.innerHTML = `<p class="history-empty">${escapeHtml(text.emptyHistory)}</p>`;
             return;
         }
-        historyList.innerHTML = `<div class="history-list">${entries.map((entry, index) => {
-            const timestamp = new Date(entry.timestamp).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
-            const cacheStatus = entry.cached ? ' · <span class="cache-badge">cache</span>' : '';
-            return `<button class="history-item" type="button" data-history-index="${index}"><span class="history-item-title">${escapeHtml(entry.title || entry.url)}</span><span class="history-item-meta">${timestamp}${cacheStatus}</span></button>`;
-        }).join('')}</div>`;
+        const locale = t('locale_code', undefined, 'en');
+        historyList.innerHTML = entries.map((entry, index) => {
+            const { host, badge } = describeSource(entry);
+            const when = new Date(entry.timestamp).toLocaleDateString(locale, { day: 'numeric', month: 'short' });
+            return `<button class="history-item" type="button" data-history-index="${index}"><span class="fav">${escapeHtml(badge)}</span><span><b>${escapeHtml(entry.title || entry.url)}</b><small>${escapeHtml(host)} · ${escapeHtml(when)}</small></span></button>`;
+        }).join('');
         historyList.querySelectorAll('[data-history-index]').forEach((item) => {
             item.addEventListener('click', () => {
                 const entry = entries[Number(item.dataset.historyIndex)];
@@ -362,11 +468,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // Sito e sigla di una voce: "ilpost.it" -> "IL"; i PDF hanno la sigla PDF.
+    function describeSource(entry) {
+        let host = '';
+        try { host = new URL(entry.url).hostname.replace(/^www\./, ''); } catch (e) { /* URL non valido */ }
+        const isPdf = entry.sourceType === 'pdf' || /\.pdf($|\?|#)/i.test(entry.url || '');
+        if (!host) host = t('history_local_file', undefined, 'local file');
+        return { host, badge: isPdf ? 'PDF' : host.replace(/[^a-z0-9]/gi, '').slice(0, 2) || '·' };
+    }
+
     function escapeHtml(value) {
         const element = document.createElement('span');
         element.textContent = String(value || '');
         return element.innerHTML;
     }
+
+    seeAllHistory?.addEventListener('click', (e) => {
+        e.preventDefault();
+        chrome.tabs.create({ url: chrome.runtime.getURL('history.html') });
+        window.close();
+    });
 
     clearHistoryBtn?.addEventListener('click', async () => {
         await chrome.storage.local.remove(['summaryHistory']);
@@ -540,14 +661,34 @@ document.addEventListener('DOMContentLoaded', async () => {
             loginCard.style.display = 'none';
             userInfo.style.display = 'flex';
             summarizeBtn.disabled = false;
+            setDialVisible(true);
             
-            // Aggiorna info utente
+            // Aggiorna info utente (fascia account in fondo alle impostazioni e tondo in alto)
             userName.textContent = currentUser.name || currentUser.email;
+            const userEmail = document.getElementById('userEmail');
+            if (userEmail) userEmail.textContent = currentUser.name ? currentUser.email : '';
+            const initial = (currentUser.name || currentUser.email || '?').trim().charAt(0).toUpperCase();
+            const userInitial = document.getElementById('userInitial');
+            if (userInitial) userInitial.textContent = initial;
+            const topAvatar = document.getElementById('topAvatar');
+            if (topAvatar) {
+                topAvatar.hidden = false;
+                topAvatar.textContent = '';
+                if (currentUser.picture) {
+                    const img = document.createElement('img');
+                    img.src = currentUser.picture; img.alt = '';
+                    img.addEventListener('error', () => { topAvatar.textContent = initial; });
+                    topAvatar.appendChild(img);
+                } else topAvatar.textContent = initial;
+            }
             if (currentUser.picture) {
                 userAvatar.src = currentUser.picture;
-                userAvatar.style.display = 'block';
+                userAvatar.hidden = false;
+                if (userInitial) userInitial.hidden = true;
+                userAvatar.onerror = () => { userAvatar.hidden = true; if (userInitial) userInitial.hidden = false; };
             } else {
-                userAvatar.style.display = 'none';
+                userAvatar.hidden = true;
+                if (userInitial) userInitial.hidden = false;
             }
             
             // Aggiorna piano e limiti con statistiche
@@ -571,7 +712,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Disabilita bottone se limiti superati
             if (usage.used >= usage.limit && plan === 'free') {
                 summarizeBtn.disabled = true;
-                summarizeBtn.textContent = t('popup_limit_reached', undefined, 'Limit reached — upgrade to Premium');
+                const lbl = document.getElementById('summarizeLabel');
+                if (lbl) lbl.textContent = t('popup_limit_reached', undefined, 'Limit reached — upgrade to Premium');
             }
             
             // Aggiunge bottone Premium per utenti free
@@ -583,6 +725,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             loginCard.style.display = 'block';
             userInfo.style.display = 'none';
             summarizeBtn.disabled = true;
+            setDialVisible(false);
+            const topAvatar = document.getElementById('topAvatar');
+            if (topAvatar) topAvatar.hidden = true;
         }
         if (deleteAccountSection) deleteAccountSection.hidden = !(currentUser && currentUser.email);
         if (marketingConsentSection) marketingConsentSection.hidden = !(currentUser && currentUser.email);
@@ -591,6 +736,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         resetDeleteAccountUI();
     }
+
+    // Da disconnessi la testata mostra solo il marchio: manopola e pulsante tornano dopo l'accesso.
+    function setDialVisible(visible) {
+        for (const id of ['squeezeDial', 'squeezeSub']) {
+            const el = document.getElementById(id);
+            if (el) el.toggleAttribute('hidden', !visible); // l'SVG non ha la proprieta' hidden
+        }
+        summarizeBtn.hidden = !visible || (localPdfCard && !localPdfCard.hidden);
+    }
+
+    // Il tondo con l'iniziale in alto apre le impostazioni, dove sta l'account.
+    document.getElementById('topAvatar')?.addEventListener('click', () => {
+        const panel = document.getElementById('settingsPanel');
+        if (!panel) return;
+        panel.open = true;
+        panel.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    });
 
     // Riporta il pannello "elimina account" allo stato iniziale (bottone visibile,
     // conferma chiusa, nessun messaggio di stato). Richiamata ad ogni cambio di stato
@@ -681,23 +843,17 @@ if (!email || !password) {
                 if (stats.thisMonth.timeSaved > 0) {
                     statsText += `${text.month}: ${formatTime(stats.thisMonth.timeSaved)} ${text.saved}`;
                 }
-                if (stats.lifetime.timeSaved > 0) {
-                    if (statsText) statsText += ' • ';
-                    statsText += `${text.total}: ${formatTime(stats.lifetime.timeSaved)} ${text.saved}`;
-                }
             }
             
-            if (statsText) {
-                userPlan.innerHTML = `
-                    <div>${planText} • ${usageText}</div>
-                    <div style="font-size: 11px; color: #666; margin-top: 2px;">${statsText}</div>
-                `;
-            } else {
-                userPlan.textContent = `${planText} • ${usageText}`;
-            }
+            userPlan.textContent = '';
+            const strong = document.createElement('strong');
+            strong.textContent = planText;
+            const line = document.createElement('span');
+            line.textContent = statsText ? `${usageText} · ${statsText}` : usageText;
+            userPlan.append(strong, line);
         } catch (error) {
             console.error('[POPUP] Errore aggiornamento statistiche:', error);
-            userPlan.textContent = `${planText} • ${usageText}`;
+            userPlan.textContent = `${planText} · ${usageText}`;
         }
     }
     
@@ -710,6 +866,7 @@ if (!email || !password) {
             const res = await fetch(`${CONFIG.API_URL}/pricing?brand=${encodeURIComponent((BRAND && BRAND.apiBrand) || 'lemonsqueezer')}`);
             if (!res.ok) return false;
             const data = await res.json();
+            monthlyPrice = data && data.monthly;
             return Boolean(data && data.configured);
         } catch (e) {
             return false; // in dubbio non si mostra: meglio nascondere che rompere
@@ -730,6 +887,13 @@ if (!email || !password) {
             premiumBtn.id = 'premiumBtn';
             premiumBtn.className = 'premium-btn';
             premiumBtn.textContent = t('popup_upgrade', undefined, 'Upgrade to Premium');
+            if (monthlyPrice && Number.isFinite(monthlyPrice.amount) && monthlyPrice.currency) {
+                try {
+                    const price = new Intl.NumberFormat(t('locale_code', undefined, 'en'), { style: 'currency', currency: monthlyPrice.currency.toUpperCase() })
+                        .format(monthlyPrice.amount / 100);
+                    premiumBtn.textContent = t('popup_upgrade_price', [price], `Premium ${price}/month`);
+                } catch (e) { /* valuta sconosciuta: resta il testo generico */ }
+            }
             
             premiumBtn.addEventListener('click', handlePremiumUpgrade);
             
@@ -1086,10 +1250,11 @@ if (!email || !password) {
             
         } catch (error) {
             console.error('[POPUP] Errore apertura modale:', error);
-                summarizeBtn.textContent = t('popup_summarize_failed', undefined, "Couldn't start the summary");
-                setTimeout(() => {
-                summarizeBtn.textContent = text.summary;
-            }, 3000);
+            const lbl = document.getElementById('summarizeLabel');
+            if (lbl) {
+                lbl.textContent = t('popup_summarize_failed', undefined, "Couldn't start the summary");
+                setTimeout(() => { lbl.textContent = text.summary; }, 3000);
+            }
         }
     });
     

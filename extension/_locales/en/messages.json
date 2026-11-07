@@ -11,15 +11,6 @@
   "popup_summarize": {
     "message": "Summarize this page"
   },
-  "popup_options": {
-    "message": "Options"
-  },
-  "popup_history": {
-    "message": "History"
-  },
-  "popup_user": {
-    "message": "User"
-  },
   "popup_plan_premium": {
     "message": "Premium plan"
   },
@@ -40,9 +31,6 @@
   },
   "popup_saved": {
     "message": "saved"
-  },
-  "popup_output": {
-    "message": "Output"
   },
   "popup_language": {
     "message": "Summary language"
@@ -97,27 +85,6 @@
   },
   "popup_summarize_failed": {
     "message": "Couldn't start the summary"
-  },
-  "popup_analyzing": {
-    "message": "Analyzing..."
-  },
-  "popup_analyzing_page": {
-    "message": "Analyzing the page"
-  },
-  "popup_summary_title": {
-    "message": "Summary"
-  },
-  "popup_squeeze_label": {
-    "message": "Summary length (% of the text)"
-  },
-  "popup_squeeze_10": {
-    "message": "10% — very short"
-  },
-  "popup_squeeze_20": {
-    "message": "20% — recommended"
-  },
-  "popup_squeeze_50": {
-    "message": "50% — extended"
   },
   "modal_loading": {
     "message": "Analyzing..."
@@ -413,12 +380,6 @@
   "popup_login_subtitle": {
     "message": "Sign in with Google to use $1 and get smart summaries."
   },
-  "popup_compression": {
-    "message": "Compression"
-  },
-  "popup_copy_clipboard": {
-    "message": "Copy to clipboard"
-  },
   "popup_email": {
     "message": "Email"
   },
@@ -497,9 +458,6 @@
   "popup_delete_account_done": {
     "message": "Your account has been deleted."
   },
-  "popup_marketing_optin": {
-    "message": "Send me news and offers by email. You can turn this off at any time."
-  },
   "popup_marketing_optin_error": {
     "message": "Could not save your preference. Please try again."
   },
@@ -508,5 +466,86 @@
   },
   "popup_email_site": {
     "message": "Sign in or create an account with email"
+  },
+  "popup_action_squeeze": {
+    "message": "Squeeze this page"
+  },
+  "popup_len_short": {
+    "message": "Short"
+  },
+  "popup_len_medium": {
+    "message": "Medium"
+  },
+  "popup_len_long": {
+    "message": "Long"
+  },
+  "popup_len_sub": {
+    "message": "about $1% of the text"
+  },
+  "popup_len_aria": {
+    "message": "Summary length"
+  },
+  "popup_recent": {
+    "message": "Recent summaries"
+  },
+  "popup_see_all": {
+    "message": "See all"
+  },
+  "popup_settings": {
+    "message": "Settings"
+  },
+  "popup_newsletter": {
+    "message": "News and offers by email"
+  },
+  "popup_upgrade_price": {
+    "message": "Premium $1/month"
+  },
+  "history_title": {
+    "message": "Your summaries"
+  },
+  "history_count": {
+    "message": "$1 summaries from the last 30 days, saved only on this computer"
+  },
+  "history_search": {
+    "message": "Search by title or site"
+  },
+  "history_none": {
+    "message": "No summaries found."
+  },
+  "history_empty": {
+    "message": "Summaries from the last 30 days will appear here."
+  },
+  "history_today": {
+    "message": "Today"
+  },
+  "history_yesterday": {
+    "message": "Yesterday"
+  },
+  "history_this_week": {
+    "message": "This week"
+  },
+  "history_earlier": {
+    "message": "Earlier"
+  },
+  "history_open": {
+    "message": "Open the original page"
+  },
+  "history_copy": {
+    "message": "Copy"
+  },
+  "history_copied": {
+    "message": "Copied"
+  },
+  "history_delete": {
+    "message": "Delete"
+  },
+  "history_words": {
+    "message": "$1 words cut to $2"
+  },
+  "history_saved_min": {
+    "message": "about $1 min saved"
+  },
+  "history_local_file": {
+    "message": "local file"
   }
 }

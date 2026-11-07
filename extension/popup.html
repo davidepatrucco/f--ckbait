@@ -5,339 +5,267 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LemonSqueezer - TL;DR</title>
     <style>
-        /* Stesso linguaggio del sito (lemonsqueezer.app): Switzer, il giallo del brand,
-           la fetta di limone, superfici separate da un gradino di tono e non da righe,
-           niente ombre, niente etichette in maiuscoletto. Un solo tipo di pulsante: la pillola. */
+        /* Pannello 1.3.6: testata crema con il pulsante principale e la manopola del succo,
+           poi piano, ultimi riassunti, impostazioni chiuse in fondo con l'account staccato.
+           Giallo pieno solo sul succo; inchiostro marrone scuro al posto del nero. */
         @font-face { font-family: Switzer; src: url(fonts/switzer-400.woff2) format("woff2"); font-weight: 400; font-display: swap; }
         @font-face { font-family: Switzer; src: url(fonts/switzer-600.woff2) format("woff2"); font-weight: 600; font-display: swap; }
         @font-face { font-family: Switzer; src: url(fonts/switzer-800.woff2) format("woff2"); font-weight: 800; font-display: swap; }
         :root {
-            --ls-yellow: #FFD400; --ls-yellow-700: #FFB800; --ls-black: #16181c; --ls-ink: #16181c;
-            --ls-muted: #555b64; --ls-tone: #f2f2ee; --ls-tone-2: #e7e7e1; --ls-pale: #fff4b8;
-            --ls-red: #b42318; --ls-mint: #15803d;
-            --text-sm: 14px; --text-md: 15px; --text-lg: 18px;
+            --butter: #FCEDB8; --butter-2: #F6E1A0; --juice: #EDBE3A; --juice-hover: #E4B22C;
+            --ink: #2A2621; --ink-2: #5E574D; --muted: #8A8275;
+            --line: #EEE8DA; --paper: #FFFDF8; --hover: #F7F2E6;
+            --red: #A93226; --red-pale: #FBE9E6; --mint: #2F7D4A;
             --font-sans: Switzer, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
         * { box-sizing: border-box; }
-        body { width: 380px; max-width: 380px; min-height: 480px; margin: 0; padding: 0; font-family: var(--font-sans); font-size: var(--text-md); line-height: 1.5; letter-spacing: -0.005em; background: #fff; color: var(--ls-ink); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+        body { width: 380px; max-width: 380px; margin: 0; font-family: var(--font-sans); font-size: 15px; line-height: 1.45; letter-spacing: -0.005em; background: var(--paper); color: var(--ink); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
         button, input, select { font: inherit; color: inherit; }
-        :focus-visible { outline: 3px solid var(--ls-ink); outline-offset: 2px; }
+        :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
         [hidden] { display: none !important; }
-        .popup-container { display: flex; flex-direction: column; }
+        a { color: inherit; }
 
-        .header { display: flex; align-items: center; gap: 12px; padding: 16px 18px; background: var(--ls-yellow); color: #16181c; }
-        .brand-icon img { width: 40px; height: 40px; display: block; }
-        .header h1 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; }
-        .header .brand-accent { color: inherit; }
-        .header p { margin: 2px 0 0; font-size: var(--text-sm); }
+        /* Testata */
+        .hero { background: var(--butter); padding: 14px 20px 18px; }
+        .bar { display: flex; align-items: center; gap: 10px; }
+        .bar img { width: 26px; height: 26px; display: block; }
+        .bar h1 { margin: 0; font-size: 16px; font-weight: 800; letter-spacing: -0.03em; }
+        .bar .brand-accent { color: inherit; }
+        .me { margin-left: auto; width: 30px; height: 30px; border: 0; padding: 0; border-radius: 50%; display: grid; place-items: center; overflow: hidden; background: var(--paper); font-size: 13px; font-weight: 600; cursor: pointer; }
+        .me img { width: 100%; height: 100%; object-fit: cover; }
 
-        .content-area { display: flex; flex-direction: column; gap: 10px; padding: 16px 18px 20px; }
+        .go { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 52px; margin-top: 14px; padding: 0 16px; border: 0; border-radius: 14px; background: var(--ink); color: var(--paper); font-size: 16px; font-weight: 600; cursor: pointer; transition: transform .12s, background .12s; }
+        .go:hover:not(:disabled) { background: #1E1B17; }
+        .go:active:not(:disabled) { transform: scale(.985); }
+        .go:disabled { background: var(--butter-2); color: var(--ink-2); cursor: not-allowed; }
+        .go svg { width: 18px; height: 18px; flex: none; }
+        .pdf-hint { margin: 12px 0 0; font-size: 13.5px; color: var(--ink-2); }
 
-        /* Pulsanti: pillola piena, un colore */
-        .button-primary, .button-secondary, .button-danger, .google-login-btn, .premium-btn, .logout-btn, .history-clear-btn {
-            display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 999px; cursor: pointer; font-weight: 600; transition: transform .15s, background .15s;
-        }
-        .button-primary { min-height: 48px; padding: 0 20px; background: var(--ls-ink); color: #fff; font-size: 16px; }
-        .button-primary:hover:not(:disabled) { background: #000; transform: translateY(-1px); }
-        .button-primary:active:not(:disabled), .button-secondary:active:not(:disabled), .google-login-btn:active:not(:disabled) { transform: scale(.98); }
-        .button-primary:disabled { background: var(--ls-tone-2); color: var(--ls-muted); cursor: not-allowed; }
-        .button-secondary { min-height: 44px; padding: 0 18px; background: var(--ls-tone); color: var(--ls-ink); }
-        .button-secondary:hover:not(:disabled) { background: var(--ls-tone-2); }
-        .button-danger { min-height: 44px; padding: 0 18px; background: var(--ls-red); color: #fff; }
-        .button-danger:disabled { opacity: .6; cursor: not-allowed; }
-        #summarizeBtn { width: 100%; min-height: 56px; font-size: 17px; }
-        #summarizeBtn svg { width: 18px; height: 18px; }
-        .premium-btn { width: 100%; min-height: 44px; margin-top: 10px; padding: 0 16px; background: var(--ls-yellow); color: #16181c; }
-        #manageSubscriptionBtn.premium-btn { background: var(--ls-tone); }
-        .premium-btn:hover { transform: translateY(-1px); }
+        /* Manopola del succo: creste lungo il bordo, lancetta, tre posizioni */
+        .dial { display: block; width: 240px; height: 149px; margin: 16px auto 0; touch-action: none; cursor: pointer; user-select: none; -webkit-user-select: none; }
+        .dial:focus:not(:focus-visible) { outline: none; }
+        .dial:focus-visible { border-radius: 12px; }
+        .dial .stop { font-size: 14.5px; fill: var(--ink-2); }
+        .dial .stop.on { fill: var(--ink); font-weight: 600; }
+        .dial .readout { font-size: 32px; font-weight: 800; letter-spacing: -0.04em; fill: var(--ink); }
+        .needle { transition: transform .55s cubic-bezier(.34,1.45,.55,1); transform-origin: 150px 128px; }
+        .ridge { transition: stroke .25s; }
+        .dial-sub { margin-top: -2px; text-align: center; font-size: 13px; color: var(--ink-2); }
 
         /* Accesso */
-        .login-card { display: none; padding: 8px 0 4px; }
-        .login-icon { display: none; }
-        .login-title { font-size: 26px; font-weight: 600; letter-spacing: -0.04em; line-height: 1.05; }
-        .login-subtitle { margin: 8px 0 18px; font-size: var(--text-md); color: var(--ls-muted); }
-        .google-login-btn { width: 100%; min-height: 48px; padding: 0 18px; background: var(--ls-tone); color: var(--ls-ink); }
-        .google-login-btn:hover:not(:disabled) { background: var(--ls-tone-2); }
-        .google-login-btn:disabled { opacity: .5; cursor: not-allowed; }
+        .login-card { padding: 20px; }
+        .login-title { font-size: 24px; font-weight: 800; letter-spacing: -0.04em; line-height: 1.1; }
+        .login-subtitle { margin: 8px 0 18px; color: var(--ink-2); }
+        .google-login-btn, .button-secondary, .button-primary, .button-danger { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; padding: 0 18px; border: 0; border-radius: 14px; font-weight: 600; cursor: pointer; }
+        .google-login-btn { width: 100%; background: var(--hover); }
+        .google-login-btn:hover:not(:disabled), .button-secondary:hover:not(:disabled) { background: #EFE8D8; }
+        .google-login-btn:disabled { opacity: .55; cursor: not-allowed; }
         .google-icon { width: 18px; height: 18px; }
-        .login-divider { margin: 14px 0; font-size: var(--text-sm); color: var(--ls-muted); text-align: center; }
+        .button-secondary { background: var(--hover); color: var(--ink); text-decoration: none; }
+        .button-primary { background: var(--ink); color: var(--paper); }
+        .button-danger { background: var(--red); color: #fff; }
+        .button-danger:disabled, .button-secondary:disabled { opacity: .6; cursor: not-allowed; }
+        .login-divider { margin: 14px 0; font-size: 13.5px; color: var(--muted); text-align: center; }
         .login-form { display: grid; gap: 8px; }
-        .email-site-login { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; text-decoration: none; }
-        .email-site-login[hidden], .login-form[hidden] { display: none; }
-        .text-input { width: 100%; min-height: 46px; padding: 0 16px; border: 2px solid transparent; border-radius: 14px; background: var(--ls-tone); font-size: 16px; }
-        .text-input:focus { outline: none; border-color: var(--ls-ink); background: #fff; }
-        .login-error { display: none; padding: 10px 12px; border-radius: 12px; background: #fde7e5; color: var(--ls-red); font-size: var(--text-sm); }
+        .email-site-login { width: 100%; }
+        .text-input { width: 100%; min-height: 46px; padding: 0 16px; border: 2px solid transparent; border-radius: 14px; background: var(--hover); font-size: 16px; }
+        .text-input:focus { outline: none; border-color: var(--ink); background: #fff; }
+        .login-error { display: none; padding: 10px 12px; border-radius: 12px; background: var(--red-pale); color: var(--red); font-size: 13.5px; }
         .login-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
-        .legal-links { display: flex; justify-content: center; gap: 8px; margin-top: 14px; font-size: var(--text-sm); color: var(--ls-muted); }
-        .legal-links a { color: var(--ls-muted); }
+        .legal-links { display: flex; justify-content: center; gap: 8px; margin-top: 14px; font-size: 13px; color: var(--muted); }
+        .legal-links a, .foot a { color: var(--muted); }
 
-        /* Utente e piano */
-        .user-info { display: none; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px; background: var(--ls-tone); }
-        .user-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex: none; }
-        .user-details { flex: 1; min-width: 0; }
-        .user-label { display: none; }
-        .user-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .user-plan { font-size: var(--text-sm); color: var(--ls-ink); }
-        .user-plan div + div { color: var(--ls-muted) !important; font-size: var(--text-sm) !important; }
-        .logout-btn { min-height: 36px; padding: 0 14px; background: #fff; font-size: var(--text-sm); }
-        .logout-btn:hover { background: var(--ls-tone-2); }
+        /* Piano: una riga */
+        .plan { display: none; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--line); }
+        .plan-text { flex: 1; min-width: 0; }
+        .plan-text strong { display: block; font-size: 14.5px; font-weight: 600; }
+        .plan-text span { display: block; font-size: 13px; color: var(--ink-2); }
+        .premium-btn { flex: none; min-height: 36px; padding: 0 16px; border: 0; border-radius: 999px; background: var(--juice); font-size: 13.5px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+        .premium-btn:hover { background: var(--juice-hover); }
+        #manageSubscriptionBtn.premium-btn { background: var(--hover); }
 
-        /* Opzioni */
-        .options-panel { border-radius: 16px; background: var(--ls-tone); }
-        .options-panel > summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; min-height: 48px; padding: 0 16px; font-weight: 600; }
-        .options-panel > summary::-webkit-details-marker { display: none; }
-        .options-panel > summary::after { content: "+"; font-size: 20px; font-weight: 400; }
-        .options-panel[open] > summary::after { content: "\2013"; }
-        .config-card { padding: 4px 16px 14px; }
-        .config-card h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; font-size: var(--text-md); font-weight: 600; }
-        .section-icon { width: 16px; height: 16px; }
-        .input-group label { display: block; margin-bottom: 6px; font-size: var(--text-sm); color: var(--ls-muted); }
-        .input-group select { width: 100%; min-height: 44px; padding: 0 12px; border: 0; border-radius: 12px; background: #fff; font-size: var(--text-md); cursor: pointer; }
-        .setting-hint { font-size: var(--text-sm); }
-        .delete-confirm-card { margin-top: 10px; padding: 12px; border-radius: 12px; background: #fde7e5; }
-        .delete-confirm-text { margin: 0 0 10px; font-size: var(--text-sm); }
-        .delete-confirm-status { margin: 0 0 10px; font-size: var(--text-sm); }
-        .delete-confirm-status.is-error { color: var(--ls-red); }
-        .delete-confirm-status.is-success { color: var(--ls-mint); }
+        /* Ultimi riassunti */
+        .history { padding: 14px 8px 8px; }
+        .history-head { display: flex; justify-content: space-between; align-items: baseline; margin: 0 12px 4px; }
+        .history-head h2 { margin: 0; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+        .text-btn { border: 0; background: none; padding: 0; font-size: 13px; color: var(--muted); cursor: pointer; }
+        .text-btn:hover { color: var(--ink); }
+        .history-item { display: grid; grid-template-columns: 28px 1fr; gap: 12px; align-items: center; width: 100%; padding: 9px 12px; border: 0; border-radius: 10px; background: none; text-align: left; cursor: pointer; }
+        .history-item:hover { background: var(--hover); }
+        .fav { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; background: var(--butter); font-size: 11.5px; font-weight: 800; text-transform: uppercase; }
+        .history-item > span:last-child { min-width: 0; }
+        .history-item b { display: block; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .history-item small { display: block; font-size: 12.5px; color: var(--muted); }
+        .history-empty { margin: 4px 12px 8px; font-size: 13.5px; color: var(--ink-2); }
+        .see-all { display: block; margin: 2px 12px 4px; font-size: 13.5px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: #CFC6B4; }
+
+        /* Impostazioni in fondo */
+        .settings { border-top: 1px solid var(--line); }
+        .settings > summary { list-style: none; display: flex; align-items: center; gap: 8px; padding: 13px 20px; font-size: 14px; font-weight: 600; cursor: pointer; }
+        .settings > summary::-webkit-details-marker { display: none; }
+        .settings > summary svg { width: 16px; height: 16px; color: var(--ink-2); }
+        .settings > summary .chev { margin-left: auto; transition: transform .2s; }
+        .settings[open] > summary .chev { transform: rotate(180deg); }
+        .rows { padding: 0 20px 6px; }
+        .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; border-top: 1px solid var(--line); font-size: 14px; cursor: pointer; }
+        .rows > .row:first-child { border-top: 0; }
+        .row select { min-height: 32px; padding: 0 28px 0 10px; border: 0; border-radius: 8px; background: var(--hover) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%232A2621' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 10px center; appearance: none; font-size: 14px; cursor: pointer; }
+        .switch { position: relative; width: 38px; height: 22px; flex: none; }
+        .switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+        .switch i { position: absolute; inset: 0; border-radius: 999px; background: #DDD5C4; transition: background .15s; pointer-events: none; }
+        .switch i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .15s; }
+        .switch input:checked + i { background: var(--ink); }
+        .switch input:checked + i::after { transform: translateX(16px); }
+        .switch input:focus-visible + i { outline: 2px solid var(--ink); outline-offset: 2px; }
+        .setting-error { margin: 0 0 10px; font-size: 13px; color: var(--red); }
+
+        /* Account: fascia staccata in fondo */
+        .account { background: var(--hover); border-top: 1px solid var(--line); padding: 14px 20px; }
+        .acc-row { display: flex; align-items: center; gap: 12px; }
+        .acc-row .me { margin-left: 0; width: 34px; height: 34px; background: var(--butter); cursor: default; }
+        .acc-id { flex: 1; min-width: 0; }
+        .acc-id b { display: block; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .acc-id span { display: block; font-size: 13px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .logout-btn { min-height: 32px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--paper); font-size: 13.5px; font-weight: 600; cursor: pointer; }
+        .logout-btn:hover { background: #fff; }
+        .foot { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+        .danger-link { border: 0; background: none; padding: 0; font-size: 13px; color: var(--red); cursor: pointer; }
+        .delete-confirm-card { margin-top: 12px; padding: 12px; border-radius: 12px; background: var(--red-pale); }
+        .delete-confirm-text, .delete-confirm-status { margin: 0 0 10px; font-size: 13.5px; }
+        .delete-confirm-status.is-error { color: var(--red); }
+        .delete-confirm-status.is-success { color: var(--mint); }
         .delete-confirm-actions { display: flex; gap: 8px; }
+        .delete-confirm-actions button { min-height: 40px; font-size: 14px; }
 
-        /* Cronologia: ogni voce riapre il riassunto */
-        .history-card { margin-top: 6px; }
-        .history-card-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
-        .history-card-header h3 { margin: 0; font-size: var(--text-lg); font-weight: 600; letter-spacing: -0.02em; }
-        .history-clear-btn { min-height: 32px; padding: 0 12px; background: transparent; color: var(--ls-muted); font-size: var(--text-sm); }
-        .history-clear-btn:hover { background: var(--ls-tone); color: var(--ls-ink); }
-        .history-list { display: grid; gap: 6px; }
-        .history-item { display: grid; grid-template-columns: 14px 1fr; column-gap: 12px; width: 100%; padding: 12px 14px; border: 0; border-radius: 14px; background: var(--ls-tone); text-align: left; cursor: pointer; transition: background .15s; }
-        .history-item::before { content: ""; grid-row: 1 / 3; width: 12px; height: 12px; margin-top: 5px; border-radius: 50%; background: var(--ls-yellow); }
-        .history-item:hover { background: var(--ls-pale); }
-        .history-item-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .history-item-meta { font-size: var(--text-sm); color: var(--ls-muted); }
-        .history-empty { margin: 0; padding: 14px; border-radius: 14px; background: var(--ls-tone); color: var(--ls-muted); font-size: var(--text-sm); }
-        .cache-badge { color: var(--ls-ink); font-weight: 600; }
-
-        /* Stati di attesa, risultato, errore (usati dai flussi interni) */
-        .loading-card { display: none; padding: 28px 0; text-align: center; }
-        .loading-spinner { width: 40px; height: 40px; margin: 0 auto 12px; border-radius: 50%; border: 4px solid var(--ls-tone); border-top-color: var(--ls-yellow); animation: spin 1s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .loading-text { font-weight: 600; font-size: var(--text-lg); }
-        .loading-subtext { font-size: var(--text-sm); color: var(--ls-muted); }
-        .result-card { display: none; padding: 16px; border-radius: 16px; background: var(--ls-tone); max-height: 320px; overflow-y: auto; }
-        .result-title { display: flex; align-items: center; gap: 8px; }
-        .result-title h3 { margin: 0; font-size: var(--text-lg); }
-        .result-stats { font-size: var(--text-sm); color: var(--ls-muted); margin: 6px 0 10px; }
-        .result-content { white-space: pre-line; }
-        #copyBtn { width: 100%; }
-        .error-card { display: none; padding: 16px; border-radius: 16px; background: #fde7e5; color: var(--ls-red); }
-        .error-icon { width: 28px; height: 28px; margin-bottom: 6px; }
-        .error-icon svg { width: 100%; height: 100%; }
-        .error-title { font-weight: 600; }
-        .error-message { font-size: var(--text-sm); }
-        @media (prefers-reduced-motion: reduce) { * { transition: none !important; } .loading-spinner { animation-duration: 4s; } }
+        @media (prefers-reduced-motion: reduce) { *, .needle, .ridge { transition: none !important; } }
     </style>
 </head>
 <body>
-    <div class="popup-container">
-        <div class="header">
-            <div class="brand-icon" aria-hidden="true">
-                <img id="brandLogo" src="assets/icon-48.png" alt="" width="40" height="40">
-            </div>
-            <div>
-                <h1 id="brandWordmark">Lemon<span class="brand-accent">Squeezer</span></h1>
-                <p>Skip the noise. Get the point.</p>
+    <header class="hero">
+        <div class="bar">
+            <img id="brandLogo" src="assets/icon-48.png" alt="" width="26" height="26">
+            <h1 id="brandWordmark">Lemon<span class="brand-accent">Squeezer</span></h1>
+            <button id="topAvatar" class="me" type="button" hidden data-i18n-aria="popup_settings" aria-label="Settings"></button>
+        </div>
+
+        <button id="summarizeBtn" class="go" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 11h12M4 16h8"/></svg>
+            <span id="summarizeLabel" data-i18n="popup_summarize">Summarize this page</span>
+        </button>
+        <div id="localPdfCard" hidden>
+            <button id="pickPdfBtn" class="go" type="button">
+                <span id="pickPdfLabel" data-i18n="popup_pick_this_pdf">Choose this PDF from disk</span>
+            </button>
+            <p id="localPdfHint" class="pdf-hint" data-i18n="popup_local_pdf_hint">This PDF is opened from a local file: select it to summarize it.</p>
+        </div>
+        <input id="pdfFileInput" type="file" accept="application/pdf,.pdf" hidden>
+
+        <svg id="squeezeDial" class="dial" viewBox="0 0 300 186" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="2" data-i18n-aria="popup_len_aria" aria-label="Summary length">
+            <g class="ridges"></g>
+            <g class="stops"></g>
+            <circle cx="150" cy="128" r="10" fill="var(--ink)"/>
+            <g class="needle"><path d="M150 52 L153 128 L150 144 L147 128 Z" fill="var(--ink)"/></g>
+            <circle cx="150" cy="128" r="3.5" fill="var(--juice)"/>
+            <text class="readout" x="150" y="174" text-anchor="middle"></text>
+        </svg>
+        <div id="squeezeSub" class="dial-sub"></div>
+        <!-- Il valore vero resta in questo select (10/20/50): la manopola lo pilota. -->
+        <select id="squeeze" hidden>
+            <option value="10">10</option>
+            <option value="20" selected>20</option>
+            <option value="50">50</option>
+        </select>
+    </header>
+
+    <!-- Accesso -->
+    <div id="loginCard" class="login-card" style="display:none">
+        <div class="login-title" data-i18n="popup_login">Sign in to continue</div>
+        <div class="login-subtitle" data-i18n-brand="popup_login_subtitle">Sign in with Google to get smart summaries.</div>
+        <button id="googleLoginBtn" class="google-login-btn" data-i18n-node="popup_login_google">
+            <svg class="google-icon" viewBox="0 0 24 24">
+                <path fill="#4285f4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34a853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#fbbc05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                <path fill="#ea4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
+            Sign in with Google
+        </button>
+        <div class="login-divider" data-i18n="popup_or">or</div>
+        <a id="emailSiteLogin" class="button-secondary email-site-login" hidden target="_blank" rel="noopener" data-i18n="popup_email_site">Sign in or create an account with email</a>
+        <div class="login-form" id="emailLoginForm">
+            <input id="emailInput" class="text-input" type="email" placeholder="Email" data-i18n-placeholder="popup_email" autocomplete="email">
+            <input id="passwordInput" class="text-input" type="password" placeholder="Password" data-i18n-placeholder="popup_password" autocomplete="current-password">
+            <div id="emailLoginError" class="login-error"></div>
+            <div class="login-actions">
+                <button id="emailLoginBtn" class="button-secondary" data-i18n="popup_signin">Sign in</button>
+                <button id="emailRegisterBtn" class="button-primary" data-i18n="popup_create_account">Create account</button>
             </div>
         </div>
-        
-        <div class="content-area">
-            <!-- Login Card -->
-            <div id="loginCard" class="login-card">
-                <div class="login-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="4" y="10" width="16" height="10" rx="2"></rect>
-                        <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
-                    </svg>
-                </div>
-                <div class="login-title" data-i18n="popup_login">Accedi per continuare</div>
-                <div class="login-subtitle" data-i18n-brand="popup_login_subtitle">
-                    Effettua l'accesso con Google per utilizzare LemonSqueezer e ottenere riassunti intelligenti.
-                </div>
-                <button id="googleLoginBtn" class="google-login-btn" data-i18n-node="popup_login_google">
-                    <svg class="google-icon" viewBox="0 0 24 24">
-                        <path fill="#4285f4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                        <path fill="#34a853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                        <path fill="#fbbc05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                        <path fill="#ea4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                    </svg>
-                    Accedi con Google
-                </button>
-
-                <div class="login-divider" data-i18n="popup_or">oppure</div>
-
-                <a id="emailSiteLogin" class="button-secondary email-site-login" hidden target="_blank" rel="noopener" data-i18n="popup_email_site">Accedi o crea un account con email</a>
-                <div class="login-form" id="emailLoginForm">
-                    <input id="emailInput" class="text-input" type="email" placeholder="Email" data-i18n-placeholder="popup_email" autocomplete="email">
-                    <input id="passwordInput" class="text-input" type="password" placeholder="Password" data-i18n-placeholder="popup_password" autocomplete="current-password">
-                    <div id="emailLoginError" class="login-error"></div>
-                    <div class="login-actions">
-                        <button id="emailLoginBtn" class="button-secondary" data-i18n="popup_signin">Accedi</button>
-                        <button id="emailRegisterBtn" class="button-primary" data-i18n="popup_create_account">Crea account</button>
-                    </div>
-                </div>
-                <div class="legal-links">
-                    <a id="legalTerms" href="#" target="_blank" rel="noopener noreferrer" data-i18n="popup_terms">Termini</a>
-                    <span aria-hidden="true">·</span>
-                    <a id="legalPrivacy" href="#" target="_blank" rel="noopener noreferrer" data-i18n="popup_privacy">Privacy</a>
-                </div>
-            </div>
-            
-            <button id="summarizeBtn" class="button-primary" disabled>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M4 5h10"></path><path d="M4 10h16"></path><path d="M4 15h12"></path><path d="M4 20h8"></path>
-                </svg>
-                <span data-i18n="popup_summarize">Riassumi questa pagina</span>
-            </button>
-            <div id="localPdfCard" hidden style="margin-top:8px">
-                <div id="localPdfHint" data-i18n="popup_local_pdf_hint" style="font-size:14px;color:#555b64;margin-bottom:8px">Questo PDF è aperto da un file locale: selezionalo per riassumerlo.</div>
-                <button id="pickPdfBtn" class="button-primary" type="button" style="width:100%">
-                    <span id="pickPdfLabel" data-i18n="popup_pick_this_pdf">Scegli questo PDF dal disco</span>
-                </button>
-            </div>
-            <input id="pdfFileInput" type="file" accept="application/pdf,.pdf" hidden>
-
-            <!-- User plan -->
-            <div id="userInfo" class="user-info">
-                <img id="userAvatar" class="user-avatar" data-i18n-alt="popup_avatar_alt" alt="User">
-                <div class="user-details">
-                    <div class="user-label" data-i18n="popup_user">User</div>
-                    <div id="userName" class="user-name"></div>
-                    <div id="userPlan" class="user-plan"></div>
-                </div>
-                <button id="logoutBtn" class="logout-btn" data-i18n="popup_logout">Esci</button>
-            </div>
-
-            <details class="options-panel">
-                <summary data-i18n="popup_options">Opzioni</summary>
-
-            <div class="config-card">
-                <h3>
-                    <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <circle cx="12" cy="12" r="9"></circle>
-                        <path d="M3 12h18"></path>
-                        <path d="M12 3a14 14 0 0 1 0 18"></path>
-                        <path d="M12 3a14 14 0 0 0 0 18"></path>
-                    </svg>
-                    <span data-i18n="popup_language">Lingua riassunto</span>
-                </h3>
-                <div class="input-group">
-                    <label for="language" data-i18n="popup_output">Output</label>
-                    <select id="language">
-                        <option value="it">Italiano</option>
-                        <option value="en">English</option>
-                        <option value="es">Español</option>
-                        <option value="fr">Français</option>
-                        <option value="de">Deutsch</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="config-card">
-                <h3>
-                    <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M4 7h16"></path>
-                        <path d="M7 12h10"></path>
-                        <path d="M10 17h4"></path>
-                    </svg>
-                    <span data-i18n="popup_compression">Compressione</span>
-                </h3>
-                <div class="input-group">
-                    <label for="squeeze" data-i18n="popup_squeeze_label">Lunghezza sintesi (% del testo)</label>
-                    <select id="squeeze">
-                        <option value="10" data-i18n="popup_squeeze_10">10% — molto sintetico</option>
-                        <option value="20" selected data-i18n="popup_squeeze_20">20% — consigliato</option>
-                        <option value="50" data-i18n="popup_squeeze_50">50% — esteso</option>
-                    </select>
-                </div>
-            </div>
-
-            <div id="marketingConsentSection" class="config-card" hidden>
-                <div class="input-group" style="margin-bottom:0">
-                    <label style="display:flex;align-items:flex-start;gap:8px;font-size:var(--text-sm);color:var(--ls-ink);cursor:pointer">
-                        <input type="checkbox" id="marketingConsentCheckbox" style="margin-top:2px;flex-shrink:0">
-                        <span id="marketingConsentLabel" data-i18n="popup_marketing_optin">Send me news and offers by email. You can turn this off at any time.</span>
-                    </label>
-                    <p id="marketingConsentError" class="setting-hint" style="color:var(--ls-red);display:none"></p>
-                </div>
-            </div>
-
-            <div id="deleteAccountSection" class="config-card" hidden>
-                <button id="deleteAccountBtn" class="history-clear-btn" type="button" data-i18n="popup_delete_account">Elimina account</button>
-                <div id="deleteAccountConfirm" class="delete-confirm-card" hidden>
-                    <p class="delete-confirm-text" data-i18n="popup_delete_account_warning">Il tuo account, i dati di utilizzo ed eventuali abbonamenti attivi verranno cancellati. L'operazione non può essere annullata.</p>
-                    <p id="deleteAccountStatus" class="delete-confirm-status" hidden></p>
-                    <div id="deleteAccountActions" class="delete-confirm-actions">
-                        <button id="deleteAccountCancelBtn" class="button-secondary" type="button" data-i18n="popup_delete_account_cancel">Annulla</button>
-                        <button id="deleteAccountConfirmBtn" class="button-danger" type="button" data-i18n="popup_delete_account_confirm">Elimina definitivamente</button>
-                    </div>
-                </div>
-            </div>
-            </details>
-
-            <section class="history-card" data-i18n-aria="popup_history_aria" aria-label="Cronologia riassunti">
-                <div class="history-card-header">
-                    <h3 data-i18n="popup_history">Cronologia</h3>
-                    <button id="clearHistoryBtn" class="history-clear-btn" type="button" hidden data-i18n="popup_clear">Svuota</button>
-                </div>
-                <div id="historyList"></div>
-            </section>
-            
-            <div id="loading" class="loading-card">
-                <div class="loading-spinner"></div>
-                <div class="loading-text" data-i18n="popup_analyzing">Sto analizzando...</div>
-                <div class="loading-subtext" data-i18n="popup_analyzing_page">Sto analizzando la pagina</div>
-            </div>
-            
-            <div id="result" class="result-card">
-                <div class="result-header">
-                    <div class="result-title">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M4 4h12l4 4v12H4z"></path>
-                            <path d="M16 4v4h4"></path>
-                            <path d="M8 12h8"></path>
-                            <path d="M8 16h6"></path>
-                        </svg>
-                        <h3 id="resultTitle" data-i18n="popup_summary_title">Riassunto</h3>
-                    </div>
-                    <div class="result-stats" id="resultStats">
-                        <!-- Stats will be populated here -->
-                    </div>
-                </div>
-                <div class="result-content" id="resultContent">
-                    <!-- Summary content will be populated here -->
-                </div>
-            </div>
-            
-            <button id="copyBtn" class="button-secondary" style="display: none;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <rect x="9" y="9" width="10" height="10" rx="2"></rect>
-                    <rect x="5" y="5" width="10" height="10" rx="2"></rect>
-                </svg>
-                <span data-i18n="popup_copy_clipboard">Copia negli appunti</span>
-            </button>
-            
-            <div id="error" class="error-card">
-                <div class="error-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="9"></circle>
-                        <path d="M15 9l-6 6"></path>
-                        <path d="M9 9l6 6"></path>
-                    </svg>
-                </div>
-                <div class="error-title" data-i18n="app_error">Errore</div>
-                <div class="error-message" id="errorMessage"></div>
-            </div>
+        <div class="legal-links">
+            <a id="legalTerms" href="#" target="_blank" rel="noopener noreferrer" data-i18n="popup_terms">Terms</a>
+            <span aria-hidden="true">·</span>
+            <a id="legalPrivacy" href="#" target="_blank" rel="noopener noreferrer" data-i18n="popup_privacy">Privacy</a>
         </div>
     </div>
-    
+
+    <!-- Piano: il pulsante Premium o Gestisci abbonamento viene aggiunto da popup.js dopo #userPlan -->
+    <div id="userInfo" class="plan">
+        <div id="userPlan" class="plan-text"></div>
+    </div>
+
+    <section class="history" data-i18n-aria="popup_history_aria" aria-label="Summary history">
+        <div class="history-head">
+            <h2 data-i18n="popup_recent">Recent summaries</h2>
+            <button id="clearHistoryBtn" class="text-btn" type="button" hidden data-i18n="popup_clear">Clear</button>
+        </div>
+        <div id="historyList"></div>
+        <a id="seeAllHistory" class="see-all" href="history.html" target="_blank" hidden data-i18n="popup_see_all">See all</a>
+    </section>
+
+    <details id="settingsPanel" class="settings">
+        <summary>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
+            <span data-i18n="popup_settings">Settings</span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+        </summary>
+        <div class="rows">
+            <label class="row"><span data-i18n="popup_language">Summary language</span>
+                <select id="language">
+                    <option value="it">Italiano</option>
+                    <option value="en">English</option>
+                    <option value="es">Español</option>
+                    <option value="fr">Français</option>
+                    <option value="de">Deutsch</option>
+                </select>
+            </label>
+            <div id="marketingConsentSection" hidden>
+                <label class="row"><span id="marketingConsentLabel" data-i18n="popup_newsletter">News and offers by email</span>
+                    <span class="switch"><input type="checkbox" id="marketingConsentCheckbox"><i></i></span>
+                </label>
+                <p id="marketingConsentError" class="setting-error" style="display:none"></p>
+            </div>
+        </div>
+        <div id="deleteAccountSection" class="account" hidden>
+            <div class="acc-row">
+                <span class="me"><img id="userAvatar" data-i18n-alt="popup_avatar_alt" alt="" hidden><span id="userInitial"></span></span>
+                <span class="acc-id"><b id="userName"></b><span id="userEmail"></span></span>
+                <button id="logoutBtn" class="logout-btn" type="button" data-i18n="popup_logout">Sign out</button>
+            </div>
+            <div class="foot">
+                <span><a id="acctTerms" href="#" target="_blank" rel="noopener noreferrer" data-i18n="popup_terms">Terms</a> · <a id="acctPrivacy" href="#" target="_blank" rel="noopener noreferrer" data-i18n="popup_privacy">Privacy</a></span>
+                <button id="deleteAccountBtn" class="danger-link" type="button" data-i18n="popup_delete_account">Delete account</button>
+            </div>
+            <div id="deleteAccountConfirm" class="delete-confirm-card" hidden>
+                <p class="delete-confirm-text" data-i18n="popup_delete_account_warning">Your account, usage data and any active subscription will be deleted. This cannot be undone.</p>
+                <p id="deleteAccountStatus" class="delete-confirm-status" hidden></p>
+                <div id="deleteAccountActions" class="delete-confirm-actions">
+                    <button id="deleteAccountCancelBtn" class="button-secondary" type="button" data-i18n="popup_delete_account_cancel">Cancel</button>
+                    <button id="deleteAccountConfirmBtn" class="button-danger" type="button" data-i18n="popup_delete_account_confirm">Delete permanently</button>
+                </div>
+            </div>
+        </div>
+    </details>
+
     <script src="browser-polyfill.js"></script>
     <script src="brand-config.js"></script>
     <script type="module" src="popup.js"></script>

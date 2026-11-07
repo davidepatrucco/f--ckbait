@@ -11,15 +11,6 @@
   "popup_summarize": {
     "message": "Riassumi questa pagina"
   },
-  "popup_options": {
-    "message": "Opzioni"
-  },
-  "popup_history": {
-    "message": "Cronologia"
-  },
-  "popup_user": {
-    "message": "Utente"
-  },
   "popup_plan_premium": {
     "message": "Piano Premium"
   },
@@ -40,9 +31,6 @@
   },
   "popup_saved": {
     "message": "risparmiati"
-  },
-  "popup_output": {
-    "message": "Output"
   },
   "popup_language": {
     "message": "Lingua riassunto"
@@ -97,27 +85,6 @@
   },
   "popup_summarize_failed": {
     "message": "Impossibile avviare il riassunto"
-  },
-  "popup_analyzing": {
-    "message": "Sto analizzando..."
-  },
-  "popup_analyzing_page": {
-    "message": "Sto analizzando la pagina"
-  },
-  "popup_summary_title": {
-    "message": "Riassunto"
-  },
-  "popup_squeeze_label": {
-    "message": "Lunghezza sintesi (% del testo)"
-  },
-  "popup_squeeze_10": {
-    "message": "10% — molto sintetico"
-  },
-  "popup_squeeze_20": {
-    "message": "20% — consigliato"
-  },
-  "popup_squeeze_50": {
-    "message": "50% — esteso"
   },
   "modal_loading": {
     "message": "Analisi in corso..."
@@ -413,12 +380,6 @@
   "popup_login_subtitle": {
     "message": "Effettua l'accesso con Google per utilizzare $1 e ottenere riassunti intelligenti."
   },
-  "popup_compression": {
-    "message": "Compressione"
-  },
-  "popup_copy_clipboard": {
-    "message": "Copia negli appunti"
-  },
   "popup_email": {
     "message": "Email"
   },
@@ -497,9 +458,6 @@
   "popup_delete_account_done": {
     "message": "Il tuo account è stato eliminato."
   },
-  "popup_marketing_optin": {
-    "message": "Inviami notizie e offerte via email. Puoi disattivarlo in qualsiasi momento."
-  },
   "popup_marketing_optin_error": {
     "message": "Impossibile salvare la preferenza. Riprova."
   },
@@ -508,5 +466,86 @@
   },
   "popup_email_site": {
     "message": "Accedi o crea un account con email"
+  },
+  "popup_action_squeeze": {
+    "message": "Spremi questa pagina"
+  },
+  "popup_len_short": {
+    "message": "Breve"
+  },
+  "popup_len_medium": {
+    "message": "Medio"
+  },
+  "popup_len_long": {
+    "message": "Esteso"
+  },
+  "popup_len_sub": {
+    "message": "circa il $1% del testo"
+  },
+  "popup_len_aria": {
+    "message": "Lunghezza del riassunto"
+  },
+  "popup_recent": {
+    "message": "Ultimi riassunti"
+  },
+  "popup_see_all": {
+    "message": "Vedi tutti"
+  },
+  "popup_settings": {
+    "message": "Impostazioni"
+  },
+  "popup_newsletter": {
+    "message": "Novità e offerte via email"
+  },
+  "popup_upgrade_price": {
+    "message": "Premium $1/mese"
+  },
+  "history_title": {
+    "message": "I tuoi riassunti"
+  },
+  "history_count": {
+    "message": "$1 riassunti degli ultimi 30 giorni, salvati solo su questo computer"
+  },
+  "history_search": {
+    "message": "Cerca per titolo o sito"
+  },
+  "history_none": {
+    "message": "Nessun riassunto trovato."
+  },
+  "history_empty": {
+    "message": "Qui troverai i riassunti degli ultimi 30 giorni."
+  },
+  "history_today": {
+    "message": "Oggi"
+  },
+  "history_yesterday": {
+    "message": "Ieri"
+  },
+  "history_this_week": {
+    "message": "Questa settimana"
+  },
+  "history_earlier": {
+    "message": "Più vecchi"
+  },
+  "history_open": {
+    "message": "Apri la pagina originale"
+  },
+  "history_copy": {
+    "message": "Copia"
+  },
+  "history_copied": {
+    "message": "Copiato"
+  },
+  "history_delete": {
+    "message": "Elimina"
+  },
+  "history_words": {
+    "message": "$1 parole ridotte a $2"
+  },
+  "history_saved_min": {
+    "message": "circa $1 min risparmiati"
+  },
+  "history_local_file": {
+    "message": "file locale"
   }
 }

@@ -9,7 +9,7 @@
     "pre": "Lemon",
     "accent": "Squeezer"
   },
-  "primaryAction": "summarize",
+  "primaryAction": "squeeze",
   "heroMetric": "time_saved",
   "tokens": {
     "colors": {

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-i18n="history_title">Your summaries</title>
+<style>
+  @font-face { font-family: Switzer; src: url(fonts/switzer-400.woff2) format("woff2"); font-weight: 400; font-display: swap; }
+  @font-face { font-family: Switzer; src: url(fonts/switzer-600.woff2) format("woff2"); font-weight: 600; font-display: swap; }
+  @font-face { font-family: Switzer; src: url(fonts/switzer-800.woff2) format("woff2"); font-weight: 800; font-display: swap; }
+  :root {
+    --butter: #FCEDB8; --juice: #EDBE3A;
+    --ink: #2A2621; --ink-2: #5E574D; --muted: #8A8275;
+    --line: #EEE8DA; --paper: #FFFDF8; --hover: #F7F2E6; --red: #A93226;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { font: 15px/1.5 Switzer, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; letter-spacing: -0.005em; color: var(--ink); background: var(--paper); -webkit-font-smoothing: antialiased; }
+  button, input { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  [hidden] { display: none !important; }
+
+  .top { display: flex; align-items: center; gap: 12px; height: 60px; padding: 0 28px; background: var(--butter); }
+  .top img { width: 28px; height: 28px; }
+  .top b { font-weight: 800; font-size: 17px; letter-spacing: -0.03em; }
+
+  .app { display: grid; grid-template-columns: minmax(320px, 420px) 1fr; height: calc(100% - 60px); }
+  .side { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); }
+  .side-head { padding: 24px 24px 12px; }
+  .side-head h1 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.04em; }
+  .side-head p { margin: 2px 0 14px; font-size: 14px; color: var(--ink-2); }
+  .search { position: relative; display: block; }
+  .search svg { position: absolute; left: 14px; top: 50%; width: 16px; height: 16px; transform: translateY(-50%); color: var(--muted); }
+  .search input { width: 100%; min-height: 42px; padding: 0 14px 0 40px; border: 0; border-radius: 12px; background: var(--hover); font-size: 15px; }
+  .search input:focus { outline: 2px solid var(--ink); background: #fff; }
+  .list { flex: 1; overflow-y: auto; padding: 4px 12px 24px; }
+  .day { margin: 16px 12px 4px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+  .item { display: grid; grid-template-columns: 32px 1fr auto; gap: 12px; align-items: center; width: 100%; padding: 10px 12px; border: 0; border-radius: 12px; background: none; text-align: left; cursor: pointer; }
+  .item:hover { background: var(--hover); }
+  .item[aria-current="true"] { background: var(--butter); }
+  .fav { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; background: var(--butter); font-size: 12px; font-weight: 800; text-transform: uppercase; }
+  .item[aria-current="true"] .fav { background: var(--paper); }
+  .item > span:nth-child(2) { min-width: 0; }
+  .item b { display: block; font-size: 14.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item small { display: block; font-size: 13px; color: var(--muted); }
+  .item time { align-self: start; padding-top: 2px; font-size: 12.5px; color: var(--muted); }
+  .none { padding: 24px 12px; font-size: 14px; color: var(--ink-2); }
+
+  .read { overflow-y: auto; min-height: 0; }
+  .sheet { max-width: 680px; margin: 0 auto; padding: 40px 40px 64px; }
+  .src { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--ink-2); }
+  .src .fav { width: 26px; height: 26px; border-radius: 7px; font-size: 11px; }
+  .sheet h2 { margin: 14px 0 10px; font-size: 32px; line-height: 1.12; font-weight: 800; letter-spacing: -0.04em; text-wrap: balance; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+  .chip { display: inline-flex; align-items: center; min-height: 28px; padding: 0 12px; border-radius: 999px; background: var(--hover); font-size: 13px; color: var(--ink-2); }
+  .chip.juice { background: var(--butter); color: var(--ink); font-weight: 600; }
+  .body { font-size: 16.5px; line-height: 1.65; }
+  .body p { margin: 0 0 14px; white-space: pre-line; }
+  .body h4 { margin: 22px 0 8px; font-size: 17px; font-weight: 600; }
+  .body ul { margin: 0 0 14px; padding-left: 20px; }
+  .body li { margin-bottom: 8px; }
+  .body li::marker { color: var(--juice); }
+  .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line); }
+  .btn { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 16px; border: 0; border-radius: 999px; background: var(--hover); font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; color: var(--ink); }
+  .btn.dark { background: var(--ink); color: var(--paper); }
+  .btn svg { width: 16px; height: 16px; }
+  .btn.del { margin-left: auto; background: none; color: var(--red); font-weight: 400; }
+  .empty { padding: 64px 40px; font-size: 16px; color: var(--ink-2); }
+
+  @media (max-width: 760px) {
+    .app { grid-template-columns: 1fr; height: auto; }
+    .side { border-right: 0; border-bottom: 1px solid var(--line); }
+    .list { max-height: 50vh; }
+    .sheet { padding: 28px 20px 48px; }
+  }
+</style>
+</head>
+<body>
+  <header class="top"><img id="brandLogo" src="assets/icon-48.png" alt=""><b id="brandName">LemonSqueezer</b></header>
+  <div class="app">
+    <aside class="side">
+      <div class="side-head">
+        <h1 data-i18n="history_title">Your summaries</h1>
+        <p id="count"></p>
+        <label class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+          <input id="q" type="search" data-i18n-placeholder="history_search" placeholder="Search by title or site" data-i18n-aria="history_search" aria-label="Search by title or site">
+        </label>
+      </div>
+      <div class="list" id="list"></div>
+    </aside>
+    <main class="read" id="read"></main>
+  </div>
+  <script src="brand-config.js"></script>
+  <script src="history.js"></script>
+</body>
+</html>

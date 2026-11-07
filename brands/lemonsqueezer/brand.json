@@ -12,7 +12,7 @@
   "defaultMode": "standard",
   "promptProfile": "summary.standard",
   "outputSchema": "summary",
-  "primaryAction": "summarize",
+  "primaryAction": "squeeze",
   "heroMetric": "time_saved",
   "tokens": {
     "colors": {
