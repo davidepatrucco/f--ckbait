@@ -334,6 +334,15 @@ export async function handleStripeWebhook(body, signature) {
 async function handleStripeEvent(event) {
     console.log('Stripe webhook event:', event.type);
 
+    // L'account Stripe e' condiviso con altri prodotti: gli eventi di checkout e
+    // abbonamento senza un nostro brand nei metadata non sono nostri e vanno ignorati,
+    // altrimenti resolveStripeBrand li attribuirebbe al brand di default.
+    if (/^(checkout\.session|customer\.subscription)\./.test(event.type)
+        && !isValidBrand(event.data?.object?.metadata?.brand)) {
+        console.log(`Ignored foreign Stripe event ${event.type} (${event.data?.object?.id})`);
+        return { received: true, eventType: event.type, ignored: true };
+    }
+
     switch (event.type) {
         case 'checkout.session.completed':
         // Metodi di pagamento asincroni: il completamento arriva con payment_status
