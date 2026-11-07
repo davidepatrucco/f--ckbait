@@ -53,6 +53,32 @@ chrome.runtime.onStartup.addListener(() => {
     console.log('LemonSqueezer avviato');
 });
 
+// Cronologia dei PDF: stessa forma e stessa regola (30 giorni, tetto 500) di
+// saveSummaryHistory in content.js, che copre le pagine web. I PDF passano solo da qui.
+async function savePdfHistory(data, url, title, squeeze) {
+    try {
+        const entry = {
+            timestamp: Date.now(),
+            title: data.title || title || 'PDF',
+            url,
+            cached: Boolean(data.cached),
+            sourceType: 'pdf',
+            summary: data.summary || data.text || '',
+            output: data.output && typeof data.output === 'object' ? data.output : null,
+            truncated: Boolean(data.truncated),
+            stats: data.stats ? { originalWords: data.stats.originalWords || 0, summaryWords: data.stats.summaryWords || 0 } : null,
+            squeeze: [10, 20, 50].includes(Number(squeeze)) ? Number(squeeze) : null
+        };
+        const { summaryHistory = [] } = await chrome.storage.local.get(['summaryHistory']);
+        const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+        const kept = [entry, ...summaryHistory.filter((e) => e.url !== url)]
+            .filter((e) => (e.timestamp || 0) >= cutoff).slice(0, 500);
+        await chrome.storage.local.set({ summaryHistory: kept });
+    } catch (e) {
+        console.error('[PDF] salvataggio cronologia fallito:', e?.message);
+    }
+}
+
 // PDF scelto dall'utente: due passi. 1) /extract-pdf riceve i byte e restituisce il
 // testo (operazione a costo trascurabile). 2) il testo va a /summarize-url, dove
 // vivono quota, cache e routing dei modelli: nessuna duplicazione di quella logica.
@@ -119,7 +145,9 @@ async function handlePdfFileSummarize(request, sendResponse) {
             sendResponse({ success: false, status: sumRes.status });
             return;
         }
-        await show({ data: { ...sumData, truncated: sumData.truncated || Boolean(exData.truncated) }, url: body.url });
+        const pdfData = { ...sumData, truncated: sumData.truncated || Boolean(exData.truncated) };
+        await savePdfHistory(pdfData, body.url, exData.title || request.filename, request.squeeze);
+        await show({ data: pdfData, url: body.url });
         sendResponse({ success: true });
     } catch (error) {
         console.error('[PDF FILE] errore:', error?.message);
@@ -169,6 +197,9 @@ async function handlePdfSummarize(request, sendResponse) {
         if (!res.ok) {
             await chrome.storage.local.set({ pendingSummary: { error: friendly(data?.error || '', res.status, data?.code) } });
         } else {
+            let fileName = '';
+            try { fileName = decodeURIComponent(new URL(request.url).pathname.split('/').pop() || ''); } catch (e) { /* resta vuoto */ }
+            await savePdfHistory(data || {}, request.url, fileName, request.squeeze);
             await chrome.storage.local.set({ pendingSummary: { data, url: request.url } });
         }
         await chrome.tabs.create({ url: chrome.runtime.getURL('summary.html') });

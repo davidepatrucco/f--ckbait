@@ -40,7 +40,7 @@
 
   function source(entry) {
     let host = '';
-    try { host = new URL(entry.url).hostname.replace(/^www\./, ''); } catch (e) { /* URL non valido */ }
+    if (!/^pdf:/i.test(entry.url || '')) try { host = new URL(entry.url).hostname.replace(/^www\./, ''); } catch (e) { /* URL non valido */ }
     const isPdf = entry.sourceType === 'pdf' || /\.pdf($|\?|#)/i.test(entry.url || '');
     if (!host) host = t('history_local_file', undefined, 'local file');
     return { host, badge: isPdf ? 'PDF' : host.replace(/[^a-z0-9]/gi, '').slice(0, 2) || '·', isWeb: /^https?:/i.test(entry.url || '') };
